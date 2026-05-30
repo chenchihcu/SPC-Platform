@@ -5,18 +5,21 @@ SPI 製程統計分析桌面平台（PySide6）。
 ## 主要功能 (Key Features)
 
 - **① 準備 (Preparation)**：
-    - **整合資料設定 (Data Setup)**：一頁式垂直佈局，整合座標、鋼板規格、多工單 (`supplier_work_order_no` / `outsource_work_order_no`) 與量測 CSV 匯入。
-    - **歷史量測庫 (Measurement Library)**：基於 SQLite (`data/spcspi_master.db`) 的量測數據存儲與快速檢索分析。
+    - **整合資料設定 (Data Setup)**：一頁式量化表格布局，整合座標、產品規格、多工單 (`supplier_work_order_no` / `outsource_work_order_no`) 與量測 CSV 匯入；legacy `work_order_no` 僅保留相容鍵且寫入固定空字串。
+    - **歷史量測庫 (Measurement Library)**：基於 SQLite (`data/spcspi_master.db`) 的量測數據存儲與快速檢索分析；規格管理拆分為「錫膏印刷規格管理」與「鋼板厚度規格管理」雙分頁，兩庫各自維護 active 版本；供應商管理分頁之 `supplier_code` 由系統自動產生（`SUP-0001` 流水格式）且 UI 唯讀不可手改。
 - **② 分析 (Analysis)**：
-    - **管制圖表 (Chart Analysis)**：支援 1F/2F/3F 多特徵同步分析（Volume/Area/Height），自動相容性切換，圖卡具備 `Ready/Incompatible/NoData/Error` 狀態標籤。
-    - **診斷儀表板 (Diagnostic Dashboard)**：整合 `DiagnosticPage` 視野，採 `dashboard_layers` 契約提供 Alarm/KPI/規格偏移偵測與第 8 卡根因建議。
+    - **統計圖表 (Chart Analysis)**：支援 1F/2F/3F 多特徵同步分析（Volume/Area/Height），自動相容性切換；所有 Matplotlib 圖表共用 `BaseChart` 視覺語意（量測線、中心線、管制限、規格限、OOC/OOS 標記、樣本揭露），圖卡具備 `Ready/Incompatible/NoData/Error` 狀態標籤。
+    - **製程統計分析 (Process Statistics Analysis)**：整合 `DiagnosticPage` 視野，採少容器報告式輸出呈現 `dashboard_layers` 的 Alarm/KPI/規格能力/穩定性/第 8 層根因建議；另以 `diagnostic_evidence_matrix` 展開 `特徵 × 圖表 × 篩選 × 顯示` 候選組合，輸出 7 個固定子分頁的白話判讀列、組合矩陣、證據矩陣與多圖表關聯判讀。
 - **③ 輸出 (Output)**：
-    - **專業報告匯出 (Report Export)**：一鍵產生 `engineering` 模板 PPTX 工程報告，支援圖表預覽、匯出範圍摘要與自動生成證據頁 (2x2 Chart Gallery)。
+    - **專業報告匯出 (Report Export)**：一鍵產生 `engineering` 模板 PPTX 工程報告，支援圖表預覽、匯出範圍摘要、自動生成證據頁 (2x2 Chart Gallery) 與圖表證據覆蓋表；報告會揭露資料來源、未納入證據與診斷證據類型，無有效 X/Y 座標時空間分析不作為有效判讀證據。
 
 ## 視覺與標準 (Standards)
 
 - **字型標準**：全系統統一採用 **Noto Sans TC (思源黑體)**，確保 CJK 渲染與專業報表一致性。
-- **設計風格**：深色模式工業美學，支援 100% / 125% / 150% DPI 自適應縮放。
+- **字型供應**：repo 內建 `app/assets/fonts/NotoSansTC-VF.ttf`（`OFL-1.1`），由 `app/bootstrap/font_runtime.py` 於 Qt/Matplotlib 啟動時註冊；系統字型僅作 fallback。
+- **設計風格**：淺色 Slate + Electric Blue 工程分析介面，保留高密度表單/表格與 100% / 125% / 150% DPI 自適應縮放。
+- **視窗適配**：主視窗初次開啟依目前螢幕可用工作區 `0.93` 比例置中；共用 fitting helper 同步套用於主要解讀、匯出確認與資料庫編輯對話框；已儲存幾何只在目前螢幕可見且未超出工作區時保留，否則自動重設為安全尺寸。
+- **QSS 相容性**：`scripts/qt_audit.py app/` 會阻擋 Qt QSS 不支援的 CSS 屬性，避免樣式看似存在但在 PySide 實際被忽略。
 - **架構核心**：以 `AnalysisOrchestrator` 統一處理規格解析、過濾與快取；報告邏輯模組化（`report_*`）。
 
 ---
@@ -25,7 +28,7 @@ SPI 製程統計分析桌面平台（PySide6）。
 - **SPI 製程對應知識庫**：人維護權威稿為 **`SPI_製程對應知識庫_v1.0.xlsx`**（見 `app/services/spi_process_kb_loader.py` 常數 `CANONICAL_SPI_KB_WORKBOOK_BASENAME`）；版本化 JSON 置於 `data/spi_process_kb/v1/`（四區塊：多訊號規則 R001–R030、三維對應、檢查門檻、圖表速查）；`multi_signal_diagnosis` 執行期載入並併入診斷 payload；以 `scripts/import_spi_process_kb_xlsx.py` 自該 xlsx 匯入更新。
 - CI baseline 為 `lint -> type check -> tests -> qt_audit -> check_launch`。
 
-## Current Architecture (2026-04-20)
+## Current Architecture (2026-05-26)
 
 ### Runtime Flow
 
@@ -35,16 +38,17 @@ main.py
   -> MainWindow
       -> AnalysisOrchestrator (prepare/cache/context)
       -> ChartAnalysisViewModel (engine payload assembly)
+      -> analysis_payload_finalize (statistical signals + diagnostic_evidence_matrix)
       -> chart_registry (chart contract + compatibility + payload routing)
-      -> ChartAnalysisPage UI state model (`active_features`, `selected_chart_ids`, `autoswitch_reason`, `render_status`)
-      -> DiagnosticPage（製程診斷儀表板：`summary.process.dashboard_layers`）
-      -> ReportService (PPTX-only engineering report orchestration, `template_type=engineering`)
+      -> ChartAnalysisPage UI state model (`active_features`, `selected_chart_ids`, `autoswitch_reason`, `render_status`; chart cards lazy-create on first visible use)
+      -> DiagnosticPage（製程統計分析報告輸出：`summary.process.dashboard_layers` + `diagnostic_evidence_matrix`）
+      -> ReportService (PPTX-only engineering report orchestration, `template_type=engineering`; reuses matching analysis cache and per-export chart image cache)
 ```
 
 ### Service Split (Report Domain)
 
 `app/services/report_service.py` 目前作為協調層，核心子領域已拆分：
-- `report_context.py`
+- `report_context.py`（含資料範圍、未納入證據、圖表覆蓋與指標口徑）
 - `report_risk.py`
 - `report_diagnostics.py`
 - `report_chart_lookup.py`
@@ -52,6 +56,10 @@ main.py
 - `report_actions.py`
 - `report_formatters.py`
 - `report_exec_summary.py`
+- `report_intent_presets.py`
+- `report_process_narrative.py`
+- `diagnostic_evidence_matrix.py`（含組合候選、證據矩陣、多圖表關聯與 UI/Excel/PPTX readable presenter）
+- `pptx_report_builder.py`
 
 ### Directory Snapshot
 
@@ -70,9 +78,9 @@ docs/
   plans/         # planning artifacts
 ```
 
-### Main window stack（與左側導覽）
+### Main window stack（與左側流程導覽）
 
-堆疊順序見 `app/ui/main_window.py` 之 `STACK_ORDER`：**資料**、**量測**（元件／特徵選定；**不顯示於左側導覽**）、**圖表**、**報告**、**參考**、**診斷**、**量測庫**。左側導覽為 6 項（`資料匯入`、`資料庫`、`統計圖表`、`診斷`、`報告匯出`、`說明`），透過 `NAV_TO_STACK = [0, 6, 2, 5, 3, 4]` 對應到堆疊索引。
+堆疊順序見 `app/ui/main_window.py` 之 `STACK_ORDER`：**資料**、**量測**（元件／特徵選定；**不顯示於流程導覽**）、**圖表**、**報告**、**參考**、**診斷**、**量測庫**。左側 `CollapsibleSidebar` 顯示 6 個流程按鈕（`資料設定`、`資料庫`、`統計圖表`、`診斷`、`報告匯出`、`說明`），透過 `NAV_TO_STACK = [0, 6, 2, 5, 3, 4]` 與 `TAB_TO_STACK = [0, 6, 2, 5, 3, 4]` 對應到內部堆疊；右側 `QTabWidget#workflowTabs` 保留為頁面容器但隱藏 tab bar。左側欄只承載流程切換、全域篩選、特徵快捷與 `下一步` / `重新分析`，表單與資料表列操作保留在內容區；當視窗高度不足時，側欄會先收合 `分析條件` 並顯示已收合提示，保留目前篩選值、流程導覽與底部主動作可辨識。Data Setup 主區採量化表格布局與 `DataSetupLayoutBudget` 診斷輸出，避免回到整頁垂直 scroll 作為主要布局。
 
 ## Quick Start
 
@@ -109,11 +117,12 @@ python -m mypy app
 python -m pytest -q
 python scripts/qt_audit.py app/
 python scripts/check_launch.py
+scripts/harness_check.ps1
 ```
 
 圖表 PNG baseline 回歸（`matplotlib.testing.compare`）：`tests/test_chart_baseline_png.py`；更新方式見 **`tests/baseline_images/README.md`**（建議與 CI 相同 **Python 3.12** 環境產生 baseline）。
 
-發行前精簡檢查（同上 ruff／mypy，外加 `tests/release_validation`，含效能回歸 P gate），並寫入 **`Outputs/release/release_report.json`**（schema v3：含 `release_ext_enabled`／`release_ext_paths`、v2 之 `performance_*` 與可選 `final_audit_summary_path`，以及 `git_commit`、`dataset_version`、`golden_scenarios`、`release_validation_plan_modules` 等）。效能 baseline 更新：`python scripts/record_performance_baseline.py`。可選 **`--with-release-ext`** 再跑三個全庫 traceability 測試；其餘可選後續見 **`docs/open-questions.md` Watchlist #7**。**GitHub Actions** 目前 gate 順序為 `ruff -> mypy app -> pytest -q -> scripts/qt_audit.py app/ -> scripts/check_launch.py -> release_check --with-release-ext`，以強制 UI token/QSS 稽核與啟動可用性檢查。
+發行前精簡檢查（同上 ruff／mypy，外加 `tests/release_validation`，含效能回歸 P gate），並寫入 **`Outputs/release/release_report.json`**（schema v3：含 `release_ext_enabled`／`release_ext_paths`、v2 之 `performance_*` 與可選 `final_audit_summary_path`，以及 `git_commit`、`dataset_version`、`golden_scenarios`、`release_validation_plan_modules` 等）。P gate 目前採「**首次 fail 才補 2 次**」策略：若僅 time metrics 在 near-boundary（ratio `(1.2, 1.3]`）超限，會以 3 次量測中位數作最終判定；`analysis_total_sec`／`chart_payload_sec`／`report_export_sec` 為阻擋指標，`spc_sec` 與 `nelson_sec` 只作觀測；`ratio > 1.3`、memory fail 或 scenario mismatch 仍直接 fail。效能 baseline 更新：`python scripts/record_performance_baseline.py`。可選 **`--with-release-ext`** 再跑三個全庫 traceability 測試；其餘可選後續見 **`docs/open-questions.md` Watchlist #7**。**GitHub Actions** 目前 gate 順序為 `ruff -> mypy app -> pytest -q -> scripts/qt_audit.py app/ -> scripts/check_launch.py -> release_check --with-release-ext`，以強制 UI token/QSS 稽核與啟動可用性檢查。
 
 ```bash
 python scripts/release_check.py
@@ -162,6 +171,8 @@ python scripts/run_final_audit_suite.py --repo-root . --profile full
 - 發行驗證覆蓋矩陣（golden／測試／閘門）：`docs/specs/release_validation_coverage.md`
 - UI 規格：`docs/specs/ui_design_spec.md`
 - 問題解決流程：`docs/specs/issue_resolution_workflow.md`
+- 全域計畫框架（永久單人版）：`docs/governance/GLOBAL_PLAN_FRAMEWORK_V2_2.md`
+- 計畫可複製模板：`docs/templates/PLAN.md`
 - 最終稽核計劃：`docs/plans/final_audit_execution_plan.md`
 - 統計規則：`docs/governance/SPC_RULES.md`
 - AI 幻覺重工預防矩陣（rules/skills 優化權威入口）：`docs/governance/ai_hallucination_rework_prevention_matrix.md`
