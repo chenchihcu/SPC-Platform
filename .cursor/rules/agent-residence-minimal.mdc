@@ -1,0 +1,25 @@
+---
+description: "SMT SPI / SPC desktop QA app — load for non-trivial work: 除錯 bugfix regression hotfix; refactor 重構; multi-file 多檔跨模組; pytest ruff mypy CI PR; user-visible UI; API DTO payload schema; viewmodels services analytics import report; charts Matplotlib control chart; chart_registry single-source; global QSS stylesheet dark_stylesheet fonts 字型. L1 vs L2: L2 outputs Scope, Evidence, RCA, Blast, Verify then code. Unsure → L2. Authority AGENTS.md; docs/specs/issue_resolution_workflow.md; docs/specs/ai_agent_response_template.md."
+alwaysApply: false
+---
+
+# Agent residence (minimal)
+
+**Do not** paste long policy into replies. **Do** follow this order for **L2** (anything beyond a one-file typo / no-behavior change). If **L1**, say `L1` in one line and proceed.
+
+| Tier | Trigger |
+|------|---------|
+| **L1** | Single-file typo, comment-only, obvious rename with zero behavior change |
+| **L2** | Bugfix, multi-file, user-visible behavior, data/API/chart/global QSS — or **unsure** → treat as L2 |
+
+## Before code (structured output first)
+
+Output these **headings** (short bullets under each), **then** patches:
+
+1. **Scope** — in-scope / non-goals (one line each)
+2. **Evidence** — failing file path + symbol or log line (no guess-only RCA)
+3. **RCA** — observation → root cause → fix must map to root cause
+4. **Blast** — callers / `grep` same pattern / chart single-source if touched
+5. **Verify** — `python -m pytest -q` (or stated subset); if `dark_stylesheet` / fonts → note `docs/specs/spec_maintenance_and_alignment.md` §4.1
+
+**Full step list:** `docs/specs/issue_resolution_workflow.md` · **Copy-paste skeleton:** `docs/specs/ai_agent_response_template.md` · **Authority:** `AGENTS.md` §11–§13

@@ -1,0 +1,20 @@
+{
+  "name": "smt-spi-platform-overview",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "node build_deck.js",
+    "build:thumbs": "python gen_chart_thumbnails.py",
+    "build:all": "python gen_chart_thumbnails.py && node build_deck.js",
+    "build:full": "python gen_chart_thumbnails.py && python capture_ui_screenshots.py && node build_deck.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "pptxgenjs": "^3.12.0"
+  }
+}

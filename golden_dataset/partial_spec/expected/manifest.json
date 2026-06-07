@@ -1,0 +1,19 @@
+{
+  "scenario_id": "partial_spec",
+  "schema_version": "1",
+  "dataset_version": "1.0.0-phase3",
+  "measurement_row_count": 10,
+  "workorder_spec_file": "workorder_spec.json",
+  "tolerance_overrides": {},
+  "determinism": {
+    "required_seed": 42,
+    "engine_seed_params": {},
+    "notes": "Volume-only spec; Area/Height parameters degrade per design."
+  },
+  "expected": {
+    "area_without_spec": {
+      "dpmo_feature_null": true,
+      "cap_parameters_invalid": true
+    }
+  }
+}

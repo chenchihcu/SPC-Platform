@@ -1,0 +1,15 @@
+---
+description: "Chart visuals: Matplotlib 控制圖 SPC heatmap hexbin density colorbar; layered figure vs axes background; semantic tokens from tokens.py; base_chart.py shared style; chart tabs/pages readability; no hard-coded colors; visual-only must not change formulas thresholds metadata meaning; add/update tests for style regressions."
+globs: ["app/charts/**", "app/ui/tabs/**", "app/ui/pages/**", "app/ui/theme/tokens.py"]
+---
+
+# Chart visual readability rules
+
+Apply when editing chart renderers, chart theme tokens, or chart tab wrappers.
+
+1. **Layered backgrounds are mandatory**: define and use separate semantic tokens for chart figure/page background and plot-area background.
+2. **Centralized base style**: baseline Matplotlib styling (facecolor, grid, spine, ticks, axis-label color) must be applied by shared entrypoint (`app/charts/base_chart.py`), not duplicated per chart.
+3. **Token-first colors**: use semantic chart tokens for lines, bars, limits, anomalies, and annotations; avoid one-off hard-coded colors except documented per-feature palette constants.
+4. **Density readability**: density-like charts (hexbin/heatmap) must preserve visibility in sparse regions and keep colorbar text readable.
+5. **Meaning-safe visual edits**: visual-only refactors must not alter statistical formulas, thresholds, metadata semantics, or interpretation text.
+6. **Regression coverage required**: chart visual behavior changes should include or update tests for style application and chart readability signals (for example colorbar/annotations).

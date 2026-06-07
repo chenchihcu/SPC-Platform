@@ -1,0 +1,30 @@
+{
+  "scenario_id": "timestamp_lowercase_measurements",
+  "schema_version": "1",
+  "dataset_version": "1.0.0-ts-lower",
+  "measurement_row_count": 10,
+  "workorder_spec_file": "workorder_spec.json",
+  "features_under_test": ["Volume", "Area", "Height", "XOffset", "YOffset"],
+  "tolerance_overrides": {},
+  "determinism": {
+    "required_seed": 42,
+    "engine_seed_params": {},
+    "notes": "Lowercase `timestamp` column per ORDER_COL_PRIORITY / session_store time filters."
+  },
+  "expected": {
+    "volume": { "n": 10, "mean": 100.1, "std": 1.1005049346146119 },
+    "join": {
+      "coords_file": "coords.csv",
+      "total_measurements": 10,
+      "match_count": 10,
+      "unmatch_count": 0,
+      "after_join_rows": 10
+    },
+    "order_col_expected": "timestamp",
+    "time_filter_probe": {
+      "time_start": "2026-01-01T08:00:04",
+      "time_end": "2026-01-01T08:00:07",
+      "expected_row_count": 4
+    }
+  }
+}

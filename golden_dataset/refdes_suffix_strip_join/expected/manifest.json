@@ -1,0 +1,25 @@
+{
+  "scenario_id": "refdes_suffix_strip_join",
+  "schema_version": "1",
+  "dataset_version": "1.0.0-refdes-fallback",
+  "measurement_row_count": 10,
+  "workorder_spec_file": "workorder_spec.json",
+  "features_under_test": ["Volume", "Area", "Height", "XOffset", "YOffset"],
+  "tolerance_overrides": {},
+  "determinism": {
+    "required_seed": 42,
+    "engine_seed_params": {},
+    "notes": "Strict RefDes (R1_1) does not match CAD R1; JoinEngine fallback strips [-_][0-9]+$ then re-merge."
+  },
+  "expected": {
+    "volume": { "n": 10, "mean": 100.1, "std": 1.1005049346146119 },
+    "join": {
+      "coords_file": "coords.csv",
+      "total_measurements": 10,
+      "match_count": 10,
+      "unmatch_count": 0,
+      "after_join_rows": 10,
+      "uses_refdes_suffix_fallback": true
+    }
+  }
+}

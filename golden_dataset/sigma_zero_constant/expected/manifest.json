@@ -1,0 +1,17 @@
+{
+  "scenario_id": "sigma_zero_constant",
+  "schema_version": "1",
+  "dataset_version": "1.0.0-phase2",
+  "measurement_row_count": 12,
+  "workorder_spec_file": "workorder_spec.json",
+  "tolerance_overrides": {},
+  "determinism": {
+    "required_seed": 42,
+    "engine_seed_params": {},
+    "notes": "Constant Volume column; deterministic sigma=0 path."
+  },
+  "non_computable": {
+    "spc_expected_valid": false,
+    "spc_error_substring": "Standard deviation is 0"
+  }
+}

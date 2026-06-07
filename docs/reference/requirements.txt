@@ -1,0 +1,15 @@
+pyside6
+pandas
+pandas-stubs
+numpy
+scipy
+matplotlib
+pyqtgraph
+pytest
+playwright
+ruff
+mypy
+python-pptx
+openpyxl
+openai
+python-dotenv

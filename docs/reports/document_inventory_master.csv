@@ -1,0 +1,26 @@
+status,path,current_reference_count,reason
+sync,README.md,,current architecture heading aligned to 2026-05-24 source snapshot
+sync,docs/README.md,,snapshot date latest sync audit entry and process-statistics wording refreshed
+sync,docs/reference/platform_overview.md,,UI shell wording aligned to left-sidebar workflow and hidden QTabWidget tab bar
+sync,docs/specs/data_contract.md,,DiagnosticPage wording aligned to process statistics output
+sync,docs/specs/project_architecture.md,,ComponentSelectPage visibility wording aligned to visible workflow navigation
+sync,docs/specs/ui_design_spec.md,,ComponentSelectPage visibility wording aligned to visible workflow navigation
+sync,docs/specs/ui_target_layout.md,,layout target updated from right-side tabs to left-sidebar workflow navigation
+sync,docs/specs/ui_state_semantics.md,,DiagnosticPage state wording aligned to process statistics output
+sync,docs/governance/AGENTS.md,,bundled font guidance aligned to app/assets/fonts and font_runtime
+sync,docs/reports/README.md,,latest active-docs sync pointer refreshed
+sync,docs/reports/document_inventory_master.md,,inventory refreshed for 2026-05-25
+sync,docs/reports/document_inventory_master.csv,,inventory refreshed for 2026-05-25
+sync,docs/reports/document_sync_full_audit_2026-05-25.md,,new full sync evidence record
+sync,docs/decision-log.md,,full sync decision recorded
+keep,docs/governance/GLOBAL_PLAN_FRAMEWORK_V2_1.md,1,superseded but required by scripts/check_governance_alignment.py
+keep,docs/governance/SPC_RULES.md,,formula and threshold authority unchanged
+keep,docs/open-questions.md,,Watchlist #7 status remains monitoring; no new active risk found
+keep,tests/fixtures/golden/README.md,,previous broken-link fix remains valid; no current drift found
+keep,docs/specs/release_validation_coverage.md,,release command map still matches scripts
+keep,docs/specs/release_validation_data_flow_and_tolerance.md,,release-validation tolerance flow still matches scripts
+keep,docs/specs/release_validation_gap_matrix.md,,gap matrix references Watchlist #7 as central status source
+keep,docs/reports/*.md,,historical snapshots retained with reports README caveat
+exclude,archive/**,,historical archive not freshened during active-doc sync
+exclude,Outputs/**,,generated validation/release/audit artifacts used as evidence only
+exclude,.venv/ .pytest_cache/ .mypy_cache/ .ruff_cache/ node_modules/,,dependency and cache output

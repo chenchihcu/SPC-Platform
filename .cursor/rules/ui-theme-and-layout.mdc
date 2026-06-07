@@ -1,0 +1,19 @@
+---
+description: "Qt PySide UI layout 版面: tokens.py only no magic hex px; page_templates two_column centered; global QSS dark_stylesheet no setFont; status-pending ok warning error; scroll regions stretch; Matplotlib charts use tokens base_chart.py; CJK font-weight 400 700; tests test_ui_font_caps spec_maintenance 4.1 when stylesheet changes."
+globs: ["app/ui/**", "app/charts/**"]
+---
+
+# UI / Theme / Layout rules (app/ui and app/ui/theme)
+
+Apply when editing files under `app/ui/` or `app/ui/theme/`.
+
+1. **Colors, font sizes, spacing**: Use constants from `app/ui/theme/tokens.py` only. Do not hard-code hex colors or px/pt magic numbers in UI code.
+2. **Page structure**: For new or revised pages, use `app/ui/widgets/page_templates.py`: `page_margins_and_spacing`, `add_form_page_centered_content`, `empty_state_label`, or `setup_two_column_form_page` as appropriate. **Form layout choice (全域適用)**: 滿版利用主內容區 → `setup_two_column_form_page`（滿版模式）；限寬可讀 → `add_form_page_centered_content`。依頁型選擇，勿自訂滿版 layout 繞過 page_templates.
+3. **Typography**: Fonts are controlled by the global QSS. Do not call `setFont()` in widgets.
+4. **No logic/signal changes**: Do not alter business logic or signal/slot wiring when changing UI. Do not change `objectName` without a documented mapping.
+5. **Data status**: Use semantic classes `status-pending`, `status-ok`, `status-warning`, `status-error`; do not use red for every state.
+6. **Scrolling**: Prefer scrolling only **long or unbounded regions** (lists, RefDes, tall stacks), not the entire page, when the goal is to give previews/tables **remaining height** via stretch. Whole-page scroll is allowed but complicates vertical stretch for nested previews. Details: `.cursor/skills/smt-spi-ui-conventions/SKILL.md` § Scrolling and full-height preview.
+7. **Chart background layering**: For Matplotlib charts, keep figure/page background and plotting-area background as separate semantic layers via tokens; do not hard-code white backgrounds in chart implementations.
+8. **Chart style entrypoint**: Shared chart background/grid/tick style must be centralized in `app/charts/base_chart.py`; avoid re-defining baseline style in each chart file.
+9. **Low-density readability**: Density/hexbin/heatmap chart changes must keep low-density regions distinguishable and keep colorbar labels/ticks readable.
+10. **CJK font-weight & validation**: Prefer `font-weight: 400` and `700`/`bold` in global QSS for on-screen Chinese; do not add new `500`/`600` (see `AGENTS.md` §4). Any change to `font-weight`/`FONT_FAMILY` in `dark_stylesheet.py` must follow **effectiveness validation** in `docs/specs/spec_maintenance_and_alignment.md` §4.1 (CI freeze in `tests/test_ui_font_caps.py` + Windows visual check at two scaling factors).

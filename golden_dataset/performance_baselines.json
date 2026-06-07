@@ -1,0 +1,22 @@
+{
+  "schema_version": "1",
+  "description": "Reference timings for performance regression gate (P). Update via: python scripts/record_performance_baseline.py",
+  "baseline_toolchain": {
+    "python": "3.14.3",
+    "os": "win32",
+    "recorded_note": "Recorded by scripts/record_performance_baseline.py (median of 5 samples)"
+  },
+  "performance_gate": {
+    "skip": false
+  },
+  "scenarios": {
+    "synthetic_large_100k": {
+      "scenario_id": "synthetic_large_100k",
+      "target_rows": 100000,
+      "analysis_total_sec": 4.3771,
+      "spc_sec": 0.0099,
+      "chart_payload_sec": 29.1429,
+      "report_export_sec": 34.0108
+    }
+  }
+}

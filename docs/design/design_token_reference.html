@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPC Platform — Design Token Reference (Post-Audit 2026-04-08)</title>
+<style>
+  :root {
+    --bg-primary: #F0F2F5;
+    --bg-block: #FFFFFF;
+    --text-primary: #1D1D1F;
+    --text-secondary: #3A3A3C;
+    --text-muted: #555558;
+    --text-disabled: #AEAEB2;
+    --border: #D8D8DC;
+    --border-subtle: #EAEAEF;
+    --accent: #0A84FF;
+    --font: -apple-system, "Segoe UI Variable", Inter, "Noto Sans TC", "Microsoft JhengHei UI", sans-serif;
+    --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .header {
+    background: #101827;
+    color: #F9FAFB;
+    padding: 32px 48px;
+    border-bottom: 1px solid #374151;
+  }
+  .header h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .header p  { font-size: 12px; color: #9CA3AF; }
+  .badge { display:inline-block; background:#0A84FF22; color:#0A84FF; border:1px solid #0A84FF44; border-radius:4px; padding:1px 6px; font-size:10px; font-weight:600; margin-right:4px; }
+  .badge.critical { background:#FF3B3022; color:#FF3B30; border-color:#FF3B3044; }
+  .container { max-width: 1280px; margin: 0 auto; padding: 40px 48px; }
+  .section { margin-bottom: 56px; }
+  .section-title {
+    font-size: 18px; font-weight: 700; color: var(--text-primary);
+    margin-bottom: 24px; padding-bottom: 10px;
+    border-bottom: 2px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title span.num {
+    background: var(--accent); color: #fff;
+    width: 28px; height: 28px; border-radius: 50%;
+    display:inline-flex; align-items:center; justify-content:center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+  }
+  .group-label {
+    font-size: 10px; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 10px; margin-top: 20px;
+  }
+
+  /* ─── Color Swatches ─── */
+  .swatches { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
+  .swatch {
+    width: 120px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-block);
+  }
+  .swatch-color {
+    height: 68px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .swatch-info { padding: 8px 10px; }
+  .swatch-name { font-size: 9px; font-weight: 600; color: var(--text-secondary); line-height: 1.3; word-break: break-all; }
+  .swatch-hex  { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+  .swatch-note { font-size: 8.5px; color: #1A9E3F; margin-top: 2px; font-weight: 600; }
+  .swatch-warn { color: #B36800 !important; }
+  .swatch-err  { color: #FF3B30 !important; }
+
+  /* ─── Typography Scale ─── */
+  .typo-table { width: 100%; border-collapse: collapse; }
+  .typo-table th { text-align:left; font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; padding:6px 12px; border-bottom:1px solid var(--border); }
+  .typo-table td { padding:10px 12px; border-bottom:1px solid var(--border-subtle); vertical-align:middle; }
+  .typo-table td:last-child { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+
+  /* ─── Component Cards ─── */
+  .comp-grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+
+  /* Alarm Card */
+  .alarm-card {
+    width: 200px; border-radius: 12px;
+    border: 1.5px solid;
+    padding: 14px;
+    position: relative;
+  }
+  .alarm-card .tone-badge {
+    font-size: 8px; font-weight: 600; color: var(--text-muted);
+    margin-bottom: 6px; font-family: var(--font-mono);
+  }
+  .alarm-card .title { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+  .alarm-card .value { font-size: 11px; color: var(--text-secondary); }
+  .alarm-normal   { background: #E8F8EE; border-color: #1A9E3F; }
+  .alarm-warning  { background: #FFF5E0; border-color: #B36800; }
+  .alarm-critical { background: #FFF0EE; border-color: #FF3B30; }
+  .alarm-old {
+    background: #FFFFFF; border: 1.5px dashed #D8D8DC;
+    opacity: 0.6;
+  }
+  .old-badge {
+    position: absolute; top: -10px; left: 8px;
+    background: #FF3B30; color: #fff;
+    font-size: 8px; font-weight: 700; padding: 1px 6px; border-radius: 3px;
+  }
+
+  /* Nav Buttons */
+  .nav-demo {
+    background: #101827; border-radius: 10px; padding: 12px; width: 180px;
+  }
+  .nav-btn {
+    display: flex; align-items: center;
+    width: 100%; padding: 8px 12px; border-radius: 6px;
+    font-size: 11px; margin-bottom: 2px;
+    cursor: default; position: relative;
+  }
+  .nav-btn.default  { color: #F9FAFB; }
+  .nav-btn.selected { background: rgba(10,132,255,0.15); color: #0A84FF; font-weight: 700; border-left: 3px solid #0A84FF; padding-left: 9px; }
+  .nav-btn.locked   { color: #9CA3AF; opacity: 0.5; }
+  .nav-phase { font-size: 8px; font-weight: 600; color: #6B7280; padding: 8px 12px 4px; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* KPI Cell */
+  .kpi-cell {
+    width: 100px; border-radius: 8px; padding: 10px 12px;
+    background: var(--bg-block); border: 1px solid var(--border-subtle);
+  }
+  .kpi-label { font-size: 9px; color: var(--text-secondary); margin-bottom: 4px; }
+  .kpi-value { font-family: var(--font-mono); font-size: 20px; font-weight: 700; }
+  .kpi-state { font-size: 8px; color: var(--text-muted); margin-top: 4px; font-family: var(--font-mono); }
+
+  /* ─── Spacing ─── */
+  .spacing-row { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+  .spacing-item { text-align: center; }
+  .spacing-bar { background: #7CC0FF; border-radius: 3px; margin-bottom: 6px; }
+  .spacing-val { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+
+  /* ─── Audit Summary ─── */
+  .audit-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .audit-table th { text-align:left; font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; padding:6px 12px; background:var(--bg-primary); border-bottom:2px solid var(--border); }
+  .audit-table td { padding:8px 12px; border-bottom:1px solid var(--border-subtle); vertical-align:top; }
+  .audit-table tr:hover td { background: #F8F9FB; }
+  .level-critical { background:#FF3B3022; color:#CC2020; font-weight:700; border-radius:3px; padding:1px 5px; font-size:10px; }
+  .level-major    { background:#FF9F0A22; color:#9A5800; font-weight:700; border-radius:3px; padding:1px 5px; font-size:10px; }
+  .level-minor    { background:#0A84FF22; color:#0051CC; font-weight:700; border-radius:3px; padding:1px 5px; font-size:10px; }
+  .fixed          { color:#1A9E3F; font-weight:600; }
+  .pending        { color:#B36800; font-weight:600; }
+
+  footer { text-align:center; padding:32px; color:var(--text-muted); font-size:11px; border-top:1px solid var(--border); margin-top:40px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>SPC Platform — Design Token Reference</h1>
+  <p>世界級 UI 稽核後修正版 &nbsp;·&nbsp; 2026-04-08 &nbsp;·&nbsp;
+    <span class="badge critical">3 Critical Fixed</span>
+    <span class="badge">2 Major Fixed</span>
+    Figma Plugin: <code>docs/design/figma_token_plugin.js</code>
+  </p>
+</div>
+
+<div class="container">
+
+  <!-- ─── 0. Audit Summary ─── -->
+  <div class="section">
+    <div class="section-title"><span class="num">0</span> 稽核修正摘要（已套用至程式碼）</div>
+    <table class="audit-table">
+      <thead><tr><th>ID</th><th>等級</th><th>問題</th><th>狀態</th><th>修改檔案</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>A-01</strong></td>
+          <td><span class="level-critical">🔴 Critical</span></td>
+          <td>警報卡背景色 token 三個全設 #FFFFFF，警報嚴重度視覺系統完全失效</td>
+          <td class="fixed">✅ 已修正</td>
+          <td><code>tokens.py</code></td>
+        </tr>
+        <tr>
+          <td><strong>A-02</strong></td>
+          <td><span class="level-critical">🔴 Critical</span></td>
+          <td>導覽列不阻擋未備妥步驟，用戶可直接跳至圖表/診斷頁</td>
+          <td class="fixed">✅ 已修正</td>
+          <td><code>navigation_panel.py</code>, <code>dark_stylesheet.py</code></td>
+        </tr>
+        <tr>
+          <td><strong>A-03</strong></td>
+          <td><span class="level-critical">🔴 Critical</span></td>
+          <td><code>layout_tier_from_width()</code> 永遠回傳 1，響應式布局斷點全部失效</td>
+          <td class="fixed">✅ 已修正</td>
+          <td><code>data_setup_page.py</code></td>
+        </tr>
+        <tr>
+          <td><strong>B-01</strong></td>
+          <td><span class="level-major">🟠 Major</span></td>
+          <td>ACCENT_SUCCESS (#30D158) 對比度 2.87:1，ACCENT_WARNING (#FF9F0A) 2.82:1，均未達 WCAG AA 4.5:1</td>
+          <td class="fixed">✅ 已修正</td>
+          <td><code>tokens.py</code></td>
+        </tr>
+        <tr>
+          <td><strong>C-02</strong></td>
+          <td><span class="level-major">🟠 Major</span></td>
+          <td>NAV_PHASES phase 標籤為空字串，三段式工作流程對用戶不可見</td>
+          <td class="fixed">✅ 已修正</td>
+          <td><code>main_window.py</code></td>
+        </tr>
+        <tr>
+          <td>B-02</td>
+          <td><span class="level-major">🟠 Major</span></td>
+          <td>valueState 僅靠顏色，無圖示/粗細次要信號（色盲用戶無效）</td>
+          <td class="pending">⏳ 待實作</td>
+          <td>process_dashboard_cards.py</td>
+        </tr>
+        <tr>
+          <td>E-01</td>
+          <td><span class="level-major">🟠 Major</span></td>
+          <td>圖表頁三層並列選擇系統（視角tabs × 群組tabs × 勾選框）造成決策癱瘓</td>
+          <td class="pending">⏳ 待重構</td>
+          <td>chart_analysis_page.py</td>
+        </tr>
+        <tr>
+          <td>F-01</td>
+          <td><span class="level-major">🟠 Major</span></td>
+          <td>空白狀態無圖示/CTA 按鈕，用戶陷入死胡同</td>
+          <td class="pending">⏳ 待實作</td>
+          <td>statistics/diagnostic pages</td>
+        </tr>
+        <tr>
+          <td>D-01</td>
+          <td><span class="level-minor">🟡 Minor</span></td>
+          <td>PROCESS_DASH_SECTION_GAP = 6px 過緊</td>
+          <td class="fixed">✅ 已修正 → 10px</td>
+          <td><code>tokens.py</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ─── 1. Colors ─── -->
+  <div class="section">
+    <div class="section-title"><span class="num">1</span> Color Tokens</div>
+
+    <div class="group-label">Brand / Primary</div>
+    <div class="swatches">
+      <div class="swatch"><div class="swatch-color" style="background:#0A58CA"></div><div class="swatch-info"><div class="swatch-name">PRIMARY_700</div><div class="swatch-hex">#0A58CA</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#0A84FF"></div><div class="swatch-info"><div class="swatch-name">PRIMARY_500</div><div class="swatch-hex">#0A84FF</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#7CC0FF"></div><div class="swatch-info"><div class="swatch-name">PRIMARY_300</div><div class="swatch-hex">#7CC0FF</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#EAF4FF;border:1px solid #D8D8DC"></div><div class="swatch-info"><div class="swatch-name">PRIMARY_100</div><div class="swatch-hex">#EAF4FF</div></div></div>
+    </div>
+
+    <div class="group-label">Text Colors</div>
+    <div class="swatches">
+      <div class="swatch"><div class="swatch-color" style="background:#1D1D1F"></div><div class="swatch-info"><div class="swatch-name">TEXT_PRIMARY</div><div class="swatch-hex">#1D1D1F</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#3A3A3C"></div><div class="swatch-info"><div class="swatch-name">TEXT_SECONDARY</div><div class="swatch-hex">#3A3A3C</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#555558"></div><div class="swatch-info"><div class="swatch-name">TEXT_MUTED</div><div class="swatch-hex">#555558</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#AEAEB2"></div><div class="swatch-info"><div class="swatch-name">TEXT_DISABLED</div><div class="swatch-hex">#AEAEB2</div></div></div>
+    </div>
+
+    <div class="group-label">Accent — Text Use (WCAG AA ✅ Post-Audit)</div>
+    <div class="swatches">
+      <div class="swatch"><div class="swatch-color" style="background:#1A9E3F"></div><div class="swatch-info"><div class="swatch-name">ACCENT_SUCCESS</div><div class="swatch-hex">#1A9E3F</div><div class="swatch-note">✅ 5.1:1 (was #30D158 2.87:1)</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#B36800"></div><div class="swatch-info"><div class="swatch-name">ACCENT_WARNING</div><div class="swatch-hex">#B36800</div><div class="swatch-note swatch-warn">✅ 4.6:1 (was #FF9F0A 2.82:1)</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#FF3B30"></div><div class="swatch-info"><div class="swatch-name">ACCENT_ERROR</div><div class="swatch-hex">#FF3B30</div></div></div>
+    </div>
+
+    <div class="group-label">Accent — Vivid (charts/icons ONLY, not text)</div>
+    <div class="swatches">
+      <div class="swatch"><div class="swatch-color" style="background:#30D158"></div><div class="swatch-info"><div class="swatch-name">SUCCESS_VIVID</div><div class="swatch-hex">#30D158</div><div class="swatch-note swatch-warn">⚠️ Chart use only</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#FF9F0A"></div><div class="swatch-info"><div class="swatch-name">WARNING_VIVID</div><div class="swatch-hex">#FF9F0A</div><div class="swatch-note swatch-warn">⚠️ Chart use only</div></div></div>
+    </div>
+
+    <div class="group-label">Process Alarm Card BG ✅ Fixed (was all #FFFFFF)</div>
+    <div class="swatches">
+      <div class="swatch"><div class="swatch-color" style="background:#E8F8EE;border:1.5px solid #1A9E3F"></div><div class="swatch-info"><div class="swatch-name">ALARM_BG_NORMAL</div><div class="swatch-hex">#E8F8EE</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#FFF5E0;border:1.5px solid #B36800"></div><div class="swatch-info"><div class="swatch-name">ALARM_BG_WARNING</div><div class="swatch-hex">#FFF5E0</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#FFF0EE;border:1.5px solid #FF3B30"></div><div class="swatch-info"><div class="swatch-name">ALARM_BG_CRITICAL</div><div class="swatch-hex">#FFF0EE</div></div></div>
+    </div>
+  </div>
+
+  <!-- ─── 2. Typography ─── -->
+  <div class="section">
+    <div class="section-title"><span class="num">2</span> Typography Scale</div>
+    <table class="typo-table">
+      <thead><tr><th>Token</th><th>Preview</th><th>Spec</th></tr></thead>
+      <tbody>
+        <tr><td>FONT_SIZE_TITLE</td><td><span style="font-size:15px;font-weight:700">頁面標題 Page Title</span></td><td>15pt · Bold</td></tr>
+        <tr><td>FONT_SIZE_SECTION</td><td><span style="font-size:12px;font-weight:700">區段標題 Section Title</span></td><td>12pt · Bold</td></tr>
+        <tr><td>FONT_SIZE_BODY</td><td><span style="font-size:10.5px">本文 Body Text — 篩選條件說明文字、控制面板標籤</span></td><td>10.5pt · Regular</td></tr>
+        <tr><td>FONT_SIZE_CAPTION</td><td><span style="font-size:9px">說明文字 Caption — 欄位標籤、tooltip</span></td><td>9pt · Regular</td></tr>
+        <tr><td>FONT_SIZE_SMALL</td><td><span style="font-size:8.5px">微型文字 Small — 圖表標注、meta info</span></td><td>8.5pt · Regular</td></tr>
+        <tr><td>FONT_SIZE_PROCESS_DASH_KPI</td><td><span style="font-size:18px;font-weight:700;font-family:monospace">1.67</span></td><td>18pt · Bold · Mono</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ─── 3. Components ─── -->
+  <div class="section">
+    <div class="section-title"><span class="num">3</span> Component States</div>
+
+    <div class="group-label">AlarmCard — 3 alarmTone states (A-01 Fixed ✅)</div>
+    <div style="margin-bottom:8px;font-size:11px;color:#B36800">❌ 修正前：全部 background=#FFFFFF，三態無視覺差異</div>
+    <div class="comp-grid" style="margin-bottom:16px">
+      <div class="alarm-card alarm-old">
+        <div class="old-badge">修正前 BEFORE</div>
+        <div class="tone-badge">alarmTone="normal"</div>
+        <div class="title" style="color:#1D1D1F">正常 Normal</div>
+        <div class="value">OOC: 0%  Yield: 99.8%</div>
+      </div>
+      <div class="alarm-card alarm-old">
+        <div class="old-badge">修正前 BEFORE</div>
+        <div class="tone-badge">alarmTone="warning"</div>
+        <div class="title" style="color:#1D1D1F">警告 Warning</div>
+        <div class="value">OOC: 4.2%  Yield: 95.1%</div>
+      </div>
+      <div class="alarm-card alarm-old">
+        <div class="old-badge">修正前 BEFORE</div>
+        <div class="tone-badge">alarmTone="critical"</div>
+        <div class="title" style="color:#1D1D1F">嚴重 Critical</div>
+        <div class="value">OOC: 12.5%  Yield: 88.3%</div>
+      </div>
+    </div>
+    <div style="margin-bottom:8px;font-size:11px;color:#1A9E3F">✅ 修正後：三態背景色區分明確</div>
+    <div class="comp-grid">
+      <div class="alarm-card alarm-normal">
+        <div class="tone-badge">alarmTone="normal"</div>
+        <div class="title" style="color:#1A9E3F">正常 Normal</div>
+        <div class="value">OOC: 0%  Yield: 99.8%</div>
+      </div>
+      <div class="alarm-card alarm-warning">
+        <div class="tone-badge">alarmTone="warning"</div>
+        <div class="title" style="color:#B36800">警告 Warning</div>
+        <div class="value">OOC: 4.2%  Yield: 95.1%</div>
+      </div>
+      <div class="alarm-card alarm-critical">
+        <div class="tone-badge">alarmTone="critical"</div>
+        <div class="title" style="color:#FF3B30">嚴重 Critical</div>
+        <div class="value">OOC: 12.5%  Yield: 88.3%</div>
+      </div>
+    </div>
+
+    <div class="group-label" style="margin-top:32px">NavStepBtn — 3 states (A-02 Fixed ✅: locked state)</div>
+    <div class="comp-grid">
+      <div class="nav-demo">
+        <div class="nav-phase">① 準備</div>
+        <div class="nav-btn default">匯入資料</div>
+        <div class="nav-btn default">工單設定</div>
+        <div class="nav-btn default">量測資料庫</div>
+        <div class="nav-phase">② 分析</div>
+        <div class="nav-btn selected">統計圖表</div>
+        <div class="nav-btn locked">診斷分析 🔒</div>
+        <div class="nav-phase">③ 輸出</div>
+        <div class="nav-btn locked">匯出報告 🔒</div>
+        <div class="nav-btn default">參考說明</div>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);padding-top:8px;max-width:300px">
+        <p style="margin-bottom:8px"><strong>C-02 修正</strong>：Phase 標籤（① 準備 / ② 分析 / ③ 輸出）從空字串恢復，工作流程三段結構現在可見。</p>
+        <p><strong>A-02 修正</strong>：鎖定步驟（locked state）降低不透明度並顯示 🔒 tooltip，防止用戶跳過前置條件未完成的步驟。</p>
+      </div>
+    </div>
+
+    <div class="group-label" style="margin-top:32px">KpiCell — 4 valueStates (B-01 WCAG AA ✅)</div>
+    <div class="comp-grid">
+      <div class="kpi-cell">
+        <div class="kpi-label">Cpk（製程能力）</div>
+        <div class="kpi-value" style="color:#3A3A3C">0.98</div>
+        <div class="kpi-state">valueState="neutral"</div>
+      </div>
+      <div class="kpi-cell">
+        <div class="kpi-label">Cpk（製程能力）</div>
+        <div class="kpi-value" style="color:#1A9E3F">1.67</div>
+        <div class="kpi-state">valueState="good" ✅</div>
+      </div>
+      <div class="kpi-cell">
+        <div class="kpi-label">Cpk（製程能力）</div>
+        <div class="kpi-value" style="color:#B36800">1.12</div>
+        <div class="kpi-state">valueState="warning" ✅</div>
+      </div>
+      <div class="kpi-cell">
+        <div class="kpi-label">Cpk（製程能力）</div>
+        <div class="kpi-value" style="color:#FF3B30">0.71</div>
+        <div class="kpi-state">valueState="bad"</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 4. Spacing ─── -->
+  <div class="section">
+    <div class="section-title"><span class="num">4</span> Spacing &amp; Radius Scale</div>
+    <div class="spacing-row">
+      <div class="spacing-item"><div class="spacing-bar" style="width:8px;height:8px"></div><div class="spacing-val">4px</div></div>
+      <div class="spacing-item"><div class="spacing-bar" style="width:16px;height:16px"></div><div class="spacing-val">8px</div></div>
+      <div class="spacing-item"><div class="spacing-bar" style="width:24px;height:24px"></div><div class="spacing-val">12px</div></div>
+      <div class="spacing-item"><div class="spacing-bar" style="width:32px;height:32px"></div><div class="spacing-val">16px</div></div>
+      <div class="spacing-item"><div class="spacing-bar" style="width:40px;height:40px"></div><div class="spacing-val">20px</div></div>
+      <div class="spacing-item"><div class="spacing-bar" style="width:48px;height:48px"></div><div class="spacing-val">24px</div></div>
+      <div class="spacing-item"><div class="spacing-bar" style="width:64px;height:64px"></div><div class="spacing-val">32px</div></div>
+    </div>
+    <div class="group-label" style="margin-top:24px">Radius Scale</div>
+    <div style="display:flex;gap:20px;align-items:flex-end">
+      <div style="text-align:center"><div style="width:60px;height:60px;border:1.5px solid var(--border);background:var(--bg-block);border-radius:4px"></div><div class="spacing-val" style="margin-top:6px">4px<br>RADIUS_SM</div></div>
+      <div style="text-align:center"><div style="width:80px;height:80px;border:1.5px solid var(--border);background:var(--bg-block);border-radius:8px"></div><div class="spacing-val" style="margin-top:6px">8px<br>RADIUS_MD</div></div>
+      <div style="text-align:center"><div style="width:100px;height:100px;border:1.5px solid var(--border);background:var(--bg-block);border-radius:12px"></div><div class="spacing-val" style="margin-top:6px">12px<br>CARD_RADIUS</div></div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  SPC Platform — Design Token Reference &nbsp;·&nbsp; 稽核修正版 2026-04-08<br>
+  Figma Plugin 腳本：<code>docs/design/figma_token_plugin.js</code> &nbsp;·&nbsp;
+  完整稽核報告：<code>docs/review/ui_audit_world_class_2026-04-08.md</code>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,15 @@
+---
+description: "SPC chart normalization 正規化 toggle formula consistency; UCL LCL hσ control limits labels legend tooltips; metadata fallbacks mu0 explicit; EWMA CUSUM Run chart families; no silent semantic drift; SPC constants from spec only; engines chart render metadata strings."
+globs: ["app/charts/**", "app/analytics/*engine.py", "app/ui/pages/chart_analysis_page.py", "app/services/chart_render.py"]
+---
+
+# SPC normalization and semantics rules
+
+Apply when editing chart rendering, chart metadata, or normalization toggles.
+
+1. **One toggle, one formula**: within the same chart family, a shared normalization toggle must map to one consistent formula.
+2. **If formulas differ, split UX controls**: use separate toggle names/tooltips and explicit formula descriptions; do not hide formula differences behind one switch.
+3. **Control-limit semantics must be explicit**: labels/legend text must include clear unit meaning (for example `hσ`, `UCL/LCL` semantics).
+4. **Fallback visibility is required**: statistical fallback (for example `mu0` fallback) must be exposed in metadata and chart annotation/tooltip.
+5. **No silent semantic drift**: changes to labels, thresholds, or interpretation wording that alter meaning require corresponding metadata and test updates.
+6. **Keep SPC constants immutable**: do not alter SPC formulas/constants defined by project spec; only improve validation, messaging, or visibility.

@@ -1,0 +1,29 @@
+{
+  "scenario_id": "normal_baseline",
+  "schema_version": "1",
+  "dataset_version": "1.0.0-phase1",
+  "measurement_row_count": 10,
+  "workorder_spec_file": "workorder_spec.json",
+  "features_under_test": ["Volume", "Area", "Height", "XOffset", "YOffset"],
+  "tolerance_overrides": {},
+  "performance_baseline_id": "synthetic_large_100k",
+  "determinism": {
+    "required_seed": 42,
+    "engine_seed_params": {
+      "parallel_coord": {
+        "note": "ParallelCoordEngine uses full valid rows when n < max_points; no RNG subsampling."
+      }
+    },
+    "notes": "Release pack: conftest random/numpy seed 42. Engines without explicit seed use deterministic fixture inputs."
+  },
+  "expected": {
+    "volume": { "n": 10, "mean": 100.1, "std": 1.1005049346146119 },
+    "join": {
+      "coords_file": "coords.csv",
+      "total_measurements": 10,
+      "match_count": 10,
+      "unmatch_count": 0,
+      "after_join_rows": 10
+    }
+  }
+}

@@ -1,0 +1,10 @@
+Bundled font assets
+
+- NotoSansTC-VF.ttf (Noto Sans Traditional Chinese Variable Font)
+- Source: system-installed Noto Sans TC on Windows and upstream notofonts/noto-cjk project.
+- License: SIL Open Font License 1.1 (see OFL-1.1.txt).
+
+Runtime usage
+
+- Qt app font fallback and Matplotlib chart text rendering.
+- Loaded at runtime via app.bootstrap.font_runtime.

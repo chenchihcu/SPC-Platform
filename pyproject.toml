@@ -1,0 +1,32 @@
+# Tool configuration (single source). Runtime deps remain in docs/reference/requirements.txt.
+# Aligns with PEP 621 tooling layout; CI: ruff -> mypy app -> pytest.
+
+[tool.ruff]
+# Respect large vendored/output trees; keep lint focused on first-party code.
+extend-exclude = [
+  ".venv",
+  "Outputs",
+  "presentations",
+  "node_modules",
+]
+
+[tool.ruff.lint]
+# E402: module level import not at top — allowed for app.charts (setup_mpl_cjk_font before matplotlib).
+ignore = ["E402"]
+
+[tool.mypy]
+python_version = "3.12"
+explicit_package_bases = true
+warn_unused_configs = true
+namespace_packages = true
+
+[[tool.mypy.overrides]]
+module = ["matplotlib.*", "PySide6.*", "pyqtgraph.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:debugging"
+filterwarnings = [
+  "ignore:Glyph .* missing from font\\(s\\) .*:UserWarning",
+]

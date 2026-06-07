@@ -1,0 +1,29 @@
+{
+  "scenario_id": "partial_coord_match",
+  "schema_version": "1",
+  "dataset_version": "1.0.0-partial-coord",
+  "measurement_row_count": 12,
+  "workorder_spec_file": "workorder_spec.json",
+  "features_under_test": ["Volume", "Area", "Height", "XOffset", "YOffset"],
+  "tolerance_overrides": {},
+  "determinism": {
+    "required_seed": 42,
+    "engine_seed_params": {},
+    "notes": "R99 has no coordinate row; join preserves all measurement rows (left join)."
+  },
+  "expected": {
+    "volume": {
+      "n": 12,
+      "mean": 100.08333333333333,
+      "std": 2.3532698077098573
+    },
+    "join": {
+      "coords_file": "coords.csv",
+      "total_measurements": 12,
+      "match_count": 10,
+      "unmatch_count": 2,
+      "after_join_rows": 12
+    },
+    "unmatched_refdes": ["R99"]
+  }
+}

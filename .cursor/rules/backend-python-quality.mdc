@@ -1,0 +1,12 @@
+---
+description: "Python backend app/: PySide6 pandas numpy scipy matplotlib; ruff mypy pytest; pyproject.toml tool config; requirements via docs/reference/requirements.txt; no silent failures in analytics import report; chart_registry single-source."
+globs: ["app/**/*.py", "tests/**/*.py", "main.py", "scripts/**/*.py", "pyproject.toml", "requirements.txt", "docs/reference/requirements.txt"]
+---
+
+# Backend (Python application)
+
+1. **Config**: Lint/type/test settings are centralized in **`pyproject.toml`**. Runtime packages remain in **`docs/reference/requirements.txt`** (included by root `requirements.txt`).
+2. **Commands**: `python -m ruff check .`, `python -m mypy app`, `python -m pytest -q` (see `AGENTS.md`).
+3. **Imports**: Ruff ignores **E402** where intentional (e.g. matplotlib after CJK font setup); do not broaden ignores without cause.
+4. **Mypy**: `explicit_package_bases` and `namespace_packages` are enabled; Qt/chart libs use targeted `ignore_missing_imports` overrides in `pyproject.toml` — do not disable checking for `app.*`.
+5. **Domain**: Statistical and chart contracts follow `docs/governance/SPC_RULES.md`; registry behavior stays in `app/analytics/chart_registry.py`.

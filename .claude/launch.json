@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "SPC/SPI Platform (Main App)",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["main.py"],
+      "port": 0
+    },
+    {
+      "name": "Test Runner (pytest)",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "pytest", "tests/", "-v"],
+      "port": 0
+    }
+  ]
+}

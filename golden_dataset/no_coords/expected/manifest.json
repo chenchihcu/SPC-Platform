@@ -1,0 +1,16 @@
+{
+  "scenario_id": "no_coords",
+  "schema_version": "1",
+  "dataset_version": "1.0.0-phase3",
+  "measurement_row_count": 10,
+  "workorder_spec_file": "workorder_spec.json",
+  "tolerance_overrides": {},
+  "determinism": {
+    "required_seed": 42,
+    "engine_seed_params": {},
+    "notes": "No X/Y; spatial invalid with explicit error messaging."
+  },
+  "non_computable": {
+    "spatial_error_substrings": ["座標", "Missing"]
+  }
+}

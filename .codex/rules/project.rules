@@ -1,0 +1,28 @@
+# Project-local rules for trusted SPC Platform work.
+# Keep broad Python execution, migrations, destructive changes, and release writes out of allow rules.
+
+prefix_rule(
+    pattern = [["pwsh", "powershell", "C:\\Program Files\\PowerShell\\7\\pwsh.exe", "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"], "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/harness_check.ps1"],
+    decision = "allow",
+    justification = "SPC Platform harness structure check is read-only and project-scoped.",
+    match = [
+        "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/harness_check.ps1",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/harness_check.ps1",
+    ],
+    not_match = [
+        "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify.ps1",
+    ],
+)
+
+prefix_rule(
+    pattern = [["pwsh", "powershell", "C:\\Program Files\\PowerShell\\7\\pwsh.exe", "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"], "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/verify.ps1"],
+    decision = "allow",
+    justification = "SPC Platform full verification is non-destructive and project-scoped.",
+    match = [
+        "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify.ps1",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify.ps1",
+    ],
+    not_match = [
+        "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/harness_check.ps1",
+    ],
+)

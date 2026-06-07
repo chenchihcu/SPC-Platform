@@ -1,0 +1,15 @@
+---
+description: "Chart dataflow: time-first ordering Run EWMA CUSUM; 首件 末件 board natural sort not raw lexicographic; chart_registry single-source merge slice histogram_spec; viewmodels utils data; UI vs report chart_render same payload; structured incompatible errors not silent substitution; tests ordering slice consistency."
+globs: ["app/viewmodels/**", "app/utils/**", "app/data/**", "app/analytics/chart_registry.py", "app/ui/pages/chart_analysis_page.py", "app/services/chart_render.py", "app/services/report_service.py"]
+---
+
+# SPC chart ordering and slicing rules
+
+Apply when editing chart dataflow, ordering, payload slicing, or report render paths.
+
+1. **Time-first ordering is mandatory** for trend statistics (`Run`, `EWMA`, `CUSUM`): use time-like columns first; `BoardNo`/`PanelId` only as fallback.
+2. **Board decision paths use natural sort**: `首件`/`末件` and board range selection must not use plain lexicographic string sort.
+3. **Single-source slicing/merge**: define chart payload slicing/merge logic in shared registry/helper APIs; UI and report paths must consume shared APIs.
+4. **No parallel merge implementations** for the same chart semantics (for example, `histogram_spec` dist+cap merge duplicated in multiple places).
+5. **Compatibility fallback must be explicit**: if feature-specific data is missing, return structured incompatible/error payload, not silent data substitution.
+6. **Behavioral changes require tests**: update/add tests for ordering, first/last board selection, and payload slicing consistency (UI vs report path).

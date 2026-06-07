@@ -1,0 +1,6 @@
+RefDes,X,Y,PartType
+C1,10,20,Capacitor
+C2,15,20,Capacitor
+R1,10,25,Resistor
+R2,15,25,Resistor
+U1,20,30,IC

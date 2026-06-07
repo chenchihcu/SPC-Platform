@@ -1,0 +1,18 @@
+---
+description: "實作計畫 planning .cursor/plans roadmap spec; docs alignment maintenance workflow discipline; multi-module bug 跨模組; no hypothetical stack without grep evidence; UI layout claims need file anchors; measurable acceptance DPI resolution; RCA before patch blast radius callers; SPC_RULES contract-first; template .cursor/plans/README.md."
+globs: [".cursor/plans/**/*.md", "docs/**/*alignment*.md", "docs/**/*workflow*.md", "docs/plans/ai_change_and_planning_discipline.md", "docs/specs/spec_maintenance_and_alignment.md", "docs/specs/issue_resolution_workflow.md", "docs/specs/ai_agent_response_template.md", "docs/governance/SPC_RULES.md"]
+---
+
+# AI planning, root cause, and coupling discipline
+
+When authoring or editing plans under `.cursor/plans/`, or when fixing bugs that touch multiple modules:
+
+0. **Integrated workflow**: For non-trivial (L2) work, follow the ordered gates in `docs/specs/issue_resolution_workflow.md` first; then align plan sections with Preflight/RCA/blast-radius below.
+1. **No hypothetical architecture**: Do not claim a technology is "already in use" (e.g. SQLite, removed widgets) without grep/read-file evidence from the repo. Follow `docs/plans/ai_change_and_planning_discipline.md` Preflight P2.
+2. **UI/layout claims require anchors**: Ordering of widgets (e.g. scroll regions) must reference actual layout code (file + structure), not assumed reading order.
+3. **Measurable acceptance**: Goals like "no full-page scroll at 2K" need resolution, DPI, and container definitions; otherwise phrase as phased goals with explicit verification.
+4. **Root cause before countermeasure**: For non-trivial bugs, identify failing line or bad data shape; trace upstream. Do not only add guards at the symptom layer (see `AGENTS.md` §11).
+5. **Blast radius**: After changing a function, payload key, or pattern, search the codebase for callers and parallel duplicates; align with single-source rules for chart merge/slice (`AGENTS.md` §7).
+6. **Spec first when thresholds/contracts change**: Update `SPC_RULES.md` or `docs/` contracts before code when required by `docs/specs/spec_maintenance_and_alignment.md`.
+
+Plans must include: current-state evidence, dependency/upstream-downstream scope, and observable acceptance criteria. Use `.cursor/plans/README.md` template.

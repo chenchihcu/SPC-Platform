@@ -1,0 +1,45 @@
+# Machine verification baseline: qt audit + lint + full app type check + tests + launch check
+name: ci-quality
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run lint
+        run: python -m ruff check .
+
+      - name: Run type check (full app)
+        run: python -m mypy app
+
+      - name: Run tests
+        run: python -m pytest -q
+
+      - name: Run Qt UI audit
+        run: python scripts/qt_audit.py app/
+
+      - name: Run launch check
+        run: python scripts/check_launch.py
+
+      # Release script + release_report.json schema (release_validation + ext traceability).
+      # Skip ruff/mypy here; prior steps already ran them.
+      - name: Release check (script + JSON, with release ext)
+        run: python scripts/release_check.py --skip-ruff --skip-mypy --with-release-ext

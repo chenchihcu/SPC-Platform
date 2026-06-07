@@ -6,7 +6,7 @@ SPI 製程統計分析桌面平台（PySide6）。
 
 - **① 準備 (Preparation)**：
     - **整合資料設定 (Data Setup)**：一頁式量化表格布局，整合座標、產品規格、多工單 (`supplier_work_order_no` / `outsource_work_order_no`) 與量測 CSV 匯入；legacy `work_order_no` 僅保留相容鍵且寫入固定空字串。
-    - **歷史量測庫 (Measurement Library)**：基於 SQLite (`data/spcspi_master.db`) 的量測數據存儲與快速檢索分析；規格管理拆分為「錫膏印刷規格管理」與「鋼板厚度規格管理」雙分頁，兩庫各自維護 active 版本；供應商管理分頁之 `supplier_code` 由系統自動產生（`SUP-0001` 流水格式）且 UI 唯讀不可手改。
+    - **歷史量測庫 (Measurement Library)**：基於 SQLite (`data/spc_master.db`) 的量測數據存儲與快速檢索分析；規格管理拆分為「錫膏印刷規格管理」與「鋼板厚度規格管理」雙分頁，兩庫各自維護 active 版本；供應商管理分頁之 `supplier_code` 由系統自動產生（`SUP-0001` 流水格式）且 UI 唯讀不可手改。
 - **② 分析 (Analysis)**：
     - **統計圖表 (Chart Analysis)**：支援 1F/2F/3F 多特徵同步分析（Volume/Area/Height），自動相容性切換；所有 Matplotlib 圖表共用 `BaseChart` 視覺語意（量測線、中心線、管制限、規格限、OOC/OOS 標記、樣本揭露），圖卡具備 `Ready/Incompatible/NoData/Error` 狀態標籤。
     - **製程統計分析 (Process Statistics Analysis)**：整合 `DiagnosticPage` 視野，採少容器報告式輸出呈現 `dashboard_layers` 的 Alarm/KPI/規格能力/穩定性/第 8 層根因建議；另以 `diagnostic_evidence_matrix` 展開 `特徵 × 圖表 × 篩選 × 顯示` 候選組合，輸出 7 個固定子分頁的白話判讀列、組合矩陣、證據矩陣與多圖表關聯判讀。
@@ -159,7 +159,7 @@ python scripts/run_final_audit_suite.py --repo-root . --profile full
 - 圖表/流程契約維護：`docs/specs/spec_maintenance_and_alignment.md`
 - 報告輸出：
   - 工程導向 PPTX（`engineering`）
-- 主資料庫：`data/spcspi_master.db`
+- 主資料庫：`data/spc_master.db`
 - 產出路徑：`Outputs/`
 
 ## Documentation Map

@@ -1,0 +1,5 @@
+{
+  "volume": { "usl": "120", "lsl": "80", "target": "100" },
+  "area": { "usl": "120", "lsl": "80", "target": "100" },
+  "height": { "usl": "120", "lsl": "80", "target": "100" }
+}

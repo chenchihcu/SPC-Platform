@@ -1,0 +1,17 @@
+{
+  "scenario_id": "sample_lt_10",
+  "schema_version": "1",
+  "dataset_version": "1.0.0-phase2",
+  "measurement_row_count": 7,
+  "workorder_spec_file": "workorder_spec.json",
+  "tolerance_overrides": {},
+  "determinism": {
+    "required_seed": 42,
+    "engine_seed_params": {},
+    "notes": "N<10 SPC invalid path; deterministic CSV rows."
+  },
+  "non_computable": {
+    "spc_expected_valid": false,
+    "spc_error_substring": "Minimum required for SPC is 10"
+  }
+}

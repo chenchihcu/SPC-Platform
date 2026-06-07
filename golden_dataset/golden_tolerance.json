@@ -1,0 +1,32 @@
+{
+  "schema_version": "1",
+  "description": "Default numeric tolerances for golden / release_validation comparisons. Override per scenario via manifest tolerance_overrides.",
+  "metrics": {
+    "mean": { "abs": 1e-6 },
+    "std": { "abs": 1e-6 },
+    "cp": { "abs": 0.001 },
+    "cpk": { "abs": 0.001 },
+    "pp": { "abs": 0.001 },
+    "ppk": { "abs": 0.001 },
+    "yield_pct": { "abs": 0.01 },
+    "dpmo": { "abs": 1.0 },
+    "sigma_level": { "abs": 0.01 },
+    "percentile": { "abs": 0.5 },
+    "normality_pvalue": { "abs": 0.01 },
+    "cpk_ci": { "abs": 0.01 },
+    "histogram_bin_count": { "abs": 1.0 },
+    "ooc_rate": { "abs": 1e-9 },
+    "default_float": { "abs": 1e-6 }
+  },
+  "exact_integer_metrics": [
+    "oos_count",
+    "matched_count",
+    "unmatched_count",
+    "measurement_row_count",
+    "after_join_rows",
+    "after_filter_rows",
+    "after_feature_filter_rows",
+    "n_valid",
+    "n"
+  ]
+}

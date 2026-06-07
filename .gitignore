@@ -1,0 +1,55 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.env
+.idea/
+.vscode/
+output/temp/
+output/charts/
+output/reports/
+
+# Batch D: artifact hygiene / quarantine
+debug-*.log
+app/debug-*.log
+test_results.txt
+
+# Quarantine root for temporary artifacts
+tmp/*
+!tmp/.gitkeep
+!tmp/README.md
+
+# Dependencies and local tool caches
+**/node_modules/
+.env.local
+*.log
+.matplotlib/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Runtime data and generated outputs
+Outputs/
+data/
+tmp/*
+!tmp/.gitkeep
+!tmp/README.md
+*.exe
+*.xlsx
+*.pptx
+
+# Claude local/generated state
+.claude/settings.local.json
+.claude/worktrees/
+.claude/**/exports/
+.claude/**/failures/
+.claude/**/matrix.csv
+
+# Cursor local state, but keep shared rules and plans versionable
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
+!.cursor/plans/
+!.cursor/plans/**

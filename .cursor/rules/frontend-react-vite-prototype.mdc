@@ -1,0 +1,13 @@
+---
+description: "React Vite TypeScript prototype industrial-data-setup-ui: ESLint flat config eslint.config.js; strict tsconfig; Tailwind; MSW tests; npm run lint typecheck test; match existing hooks and api types; no new deps without justification."
+globs: ["Outputs/industrial-data-setup-ui/**/*.ts", "Outputs/industrial-data-setup-ui/**/*.tsx", "Outputs/industrial-data-setup-ui/**/*.css", "Outputs/industrial-data-setup-ui/index.html", "Outputs/industrial-data-setup-ui/vite.config.*", "Outputs/industrial-data-setup-ui/tsconfig.json", "Outputs/industrial-data-setup-ui/eslint.config.js"]
+---
+
+# Frontend (React + Vite) — `Outputs/industrial-data-setup-ui`
+
+1. **TypeScript**: `tsconfig.json` uses **`strict`: true**; run `npm run typecheck` after edits.
+2. **Lint**: `npm run lint` (ESLint 9 flat config in `eslint.config.js`). Prefer fixing root cause over disabling rules.
+3. **Stack**: React 18, Vite, Tailwind, Vitest, MSW — follow existing patterns in `src/api.ts` and `src/types`.
+4. **Refs**: `useRef<HTMLInputElement>(null)` yields `RefObject<HTMLInputElement | null>` — prop types must allow `| null` on `.current`.
+5. **Tests**: Contract tests with MSW that exercise `fetch` + `FormData` should use **`@vitest-environment node`** (see `api.contract.test.ts`) so Node’s `fetch` matches MSW; keep component tests on `jsdom` (default in `vite.config.js`).
+6. **MSW + TypeScript**: When a `let` is assigned only inside async handlers, TS control flow may not narrow; use `as unknown as` after `expect(...).not.toBeNull()` and bracket keys on `Record<string, unknown>`.

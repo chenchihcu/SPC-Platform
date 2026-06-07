@@ -1,0 +1,22 @@
+---
+description: "Downsampling 降採樣 display sampling: n displayed_n downsample_step sampled_for_display metadata; user-visible 提示; UI vs 報表 report export consistency; run_chart run_chart_3f_chart run_chart_engine chart_render ReportService; large dataset edge cases; pytest regression; no silent interpretation drift."
+globs: ["app/analytics/run_chart_engine.py", "app/charts/run_chart.py", "app/charts/run_chart_3f_chart.py", "tests/**", "app/services/report_service.py", "app/services/chart_render.py"]
+---
+
+# SPC chart sampling and verification rules
+
+Apply when editing downsampling logic, run chart display, or chart verification workflows.
+
+1. **Downsampling metadata is mandatory** whenever point reduction is applied:
+   - `n`
+   - `displayed_n`
+   - `downsample_step`
+   - `sampled_for_display`
+2. **User-visible sampling cue is mandatory** in chart/report output when sampled display is active.
+3. **Do not hide sampling effects**: chart text/annotation must make it clear that displayed points are sampled from larger raw data.
+4. **Consistency across UI and report**: report-rendered chart output must preserve sampling semantics shown in UI.
+5. **Behavioral change requires regression tests**:
+   - normal path
+   - edge path (large dataset)
+   - error/incompatible path where applicable
+6. **No silent pass/fail drift**: if sampling changes can impact interpretation, update acceptance docs and add explicit risk note.

@@ -1,0 +1,28 @@
+{
+  "scenario_id": "panel_id_instead_of_board",
+  "schema_version": "1",
+  "dataset_version": "1.0.0-panelid",
+  "measurement_row_count": 10,
+  "workorder_spec_file": "workorder_spec.json",
+  "features_under_test": ["Volume", "Area", "Height", "XOffset", "YOffset"],
+  "tolerance_overrides": {},
+  "determinism": {
+    "required_seed": 42,
+    "engine_seed_params": {
+      "parallel_coord": {
+        "note": "ParallelCoordEngine uses full valid rows when n < max_points; no RNG subsampling."
+      }
+    },
+    "notes": "Same numeric grid as normal_baseline; BoardNo column replaced by PanelId per data_contract Panel alias."
+  },
+  "expected": {
+    "volume": { "n": 10, "mean": 100.1, "std": 1.1005049346146119 },
+    "join": {
+      "coords_file": "coords.csv",
+      "total_measurements": 10,
+      "match_count": 10,
+      "unmatch_count": 0,
+      "after_join_rows": 10
+    }
+  }
+}

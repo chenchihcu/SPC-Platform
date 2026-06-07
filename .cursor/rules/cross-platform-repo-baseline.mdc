@@ -1,0 +1,12 @@
+---
+description: "Cross-platform repo baseline: UTF-8 LF .editorconfig .gitattributes; no CRLF-only scripts except bat/cmd; Python 3.12 CI; validate ruff mypy pytest; AGENTS.md authority; small diff tests; paths work on Windows/macOS/Linux."
+alwaysApply: true
+---
+
+# Cross-platform & repository baseline
+
+1. **Encoding & newlines**: Default **UTF-8** and **LF** (see repo `.editorconfig`, `.gitattributes`). Do not assume POSIX-only paths; support **Windows** path separators where code touches filesystem strings.
+2. **Authority**: Domain and validation rules in **`AGENTS.md`** and `docs/governance/SPC_RULES.md` take precedence over ad-hoc suggestions.
+3. **Quality gate** (when changing code): `python -m ruff check .` → `python -m mypy app` → `python -m pytest -q`. Tool defaults live in **`pyproject.toml`** (`[tool.ruff]`, `[tool.mypy]`, `[tool.pytest.ini_options]`).
+4. **Scope discipline**: One logical change per task; add or adjust tests when behavior changes; avoid silent `except`/empty `pass` in analytics/import/report paths.
+5. **Subprojects**: React/Vite prototype under `Outputs/industrial-data-setup-ui/` — use `npm run lint` and `npm run typecheck` when editing that tree.
