@@ -478,15 +478,25 @@ class CoordinateManagerPage(QWidget):
                 self._validation_worker.terminate()
                 self._validation_worker.wait(1000)
 
-        self._validation_worker = CoordValidationWorker(file_path, self)
+        # No parent: prevents Qt from destroying a running QThread when the page
+        # (or main window) is torn down. Lifetime is managed by self._validation_worker
+        # + QThread.finished → cleanup lambda + deleteLater.
+        self._validation_worker = CoordValidationWorker(file_path)
 
         def _on_validation_complete(
             fp: str, iv: bool, mr: list, tr: int, *, _seq: int = seq
         ) -> None:
-            if _seq != self._coord_validation_seq:
+            try:
+                current_seq = self._coord_validation_seq
+            except RuntimeError:
+                return  # Page C++ object destroyed; nothing to update
+            if _seq != current_seq:
                 return
             QGuiApplication.restoreOverrideCursor()
-            self._on_validation_finished(fp, iv, mr, tr)
+            try:
+                self._on_validation_finished(fp, iv, mr, tr)
+            except RuntimeError:
+                pass  # Page destroyed between seq check and result processing
 
         self._validation_worker.validated.connect(_on_validation_complete)
         _vw = self._validation_worker
