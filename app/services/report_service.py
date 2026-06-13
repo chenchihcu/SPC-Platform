@@ -510,9 +510,12 @@ def _get_spec_for_feature(workorder_spec: dict, col: str) -> Tuple[float, float,
     key_map = {"Volume": "volume", "Area": "area", "Height": "height"}
     entry = workorder_spec.get(key_map.get(col, col.lower()), {}) or {}
     try:
-        usl = float(entry.get("usl", 120.0) or 120.0)
-        lsl = float(entry.get("lsl", 80.0) or 80.0)
-        target = float(entry.get("target", 100.0) or 100.0)
+        usl_raw = entry.get("usl")
+        lsl_raw = entry.get("lsl")
+        target_raw = entry.get("target")
+        usl = float(usl_raw) if usl_raw is not None else 120.0
+        lsl = float(lsl_raw) if lsl_raw is not None else 80.0
+        target = float(target_raw) if target_raw is not None else 100.0
     except (TypeError, ValueError):
         usl, lsl, target = 120.0, 80.0, 100.0
     return usl, lsl, target

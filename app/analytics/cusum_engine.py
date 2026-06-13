@@ -68,7 +68,7 @@ class CUSUMEngine:
                     "error": "USL 與 LSL 相同。",
                 },
             }
-        valid_data = data.dropna()
+        valid_data = data.replace([np.inf, -np.inf], np.nan).dropna()
         n = len(valid_data)
 
         # μ₀ priority: explicit target → spec midpoint → data mean

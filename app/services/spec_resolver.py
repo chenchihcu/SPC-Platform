@@ -66,7 +66,11 @@ def _height_limits_in_measurement_domain(
     """
     normalized_mode = str(unit_mode or UNIT_MODE_PERCENT).strip().lower()
     if normalized_mode == UNIT_MODE_ABSOLUTE:
-        d = float(denominator_mm) if denominator_mm > 0 else 0.12
+        if denominator_mm <= 0:
+            raise ValueError(
+                f"Height 絕對模式需要正值鋼板厚度（denominator_mm），收到 {denominator_mm!r}。"
+            )
+        d = float(denominator_mm)
         return {
             "target": d * DEFAULT_HEIGHT_TARGET / 100.0,
             "lsl": d * float(lsl_percent) / 100.0,

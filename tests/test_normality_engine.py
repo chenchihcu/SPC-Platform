@@ -73,6 +73,9 @@ def test_zero_variance_data_skips_shapiro():
     assert result["statistics"]["normality_test_skipped"] is True
     assert result["statistics"]["shapiro_skip_reason"] == "zero_variance"
     assert float(result["statistics"]["p_value"]) == 1.0
+    # SPC_RULES §2.1: a skipped test is "not informative" and is not statistical
+    # evidence of Gaussian shape, so is_normal must be False for a spike distribution.
+    assert result["statistics"]["is_normal"] is False
 
 
 def test_large_dataset_uses_full_data_without_sampling() -> None:

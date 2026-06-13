@@ -140,13 +140,23 @@ class XbarREngine:
 
         xbarbar = float(np.mean(xbar_values))
         rbar = float(np.mean(r_values))
+        # Global display limits use the median-n constants (for chart rendering).
         ucl_xbar = xbarbar + a2 * rbar
         lcl_xbar = xbarbar - a2 * rbar
         ucl_r = d4 * rbar
         lcl_r = d3 * rbar
 
-        ooc_xbar = [i for i, v in enumerate(xbar_values) if v > ucl_xbar or v < lcl_xbar]
-        ooc_r = [i for i, v in enumerate(r_values) if v > ucl_r or v < lcl_r]
+        # OOC detection uses per-subgroup constants so unequal subgroup sizes get
+        # the statistically correct limits (SPC_RULES §5: constants depend on n).
+        ooc_xbar: list[int] = []
+        ooc_r: list[int] = []
+        for i, (g, xbar_v, r_v) in enumerate(zip(groups, xbar_values, r_values)):
+            n_i = max(2, min(10, len(g)))
+            a2_i, d3_i, d4_i = _XBAR_R_CONSTANTS[n_i]
+            if xbar_v > xbarbar + a2_i * rbar or xbar_v < xbarbar - a2_i * rbar:
+                ooc_xbar.append(i)
+            if r_v > d4_i * rbar or r_v < d3_i * rbar:
+                ooc_r.append(i)
         ooc_indices = sorted(set(ooc_xbar + ooc_r))
 
         return {
@@ -173,6 +183,8 @@ class XbarREngine:
                 "d3": float(d3),
                 "d4": float(d4),
                 "source": source,
+                "subgroup_sizes": counts,
+                "sizes_uniform": len(set(counts)) == 1,
             },
             "metadata": {
                 "is_valid": True,

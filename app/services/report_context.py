@@ -42,6 +42,15 @@ def _infer_time_range(df: pd.DataFrame, columns: List[str]) -> Tuple[Optional[st
         series = series[series != ""]
         if series.empty:
             continue
+        # Attempt datetime-aware ordering so non-ISO formats (M/D/YYYY etc.) sort
+        # correctly; fall back to lexicographic only when parsing fails entirely.
+        try:
+            dt_series = pd.to_datetime(series, errors="coerce")
+            if dt_series.notna().any():
+                valid_dt = dt_series.dropna()
+                return str(series.loc[valid_dt.idxmin()]), str(series.loc[valid_dt.idxmax()])
+        except (TypeError, ValueError, OverflowError):
+            pass
         return str(series.min()), str(series.max())
     return None, None
 
