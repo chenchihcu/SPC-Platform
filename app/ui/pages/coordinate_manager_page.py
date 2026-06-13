@@ -50,7 +50,9 @@ import pandas as pd
 
 class CoordValidationWorker(QThread):
     """Asynchronously validates a coordinate file snippet (first 1000 rows)."""
-    finished = Signal(str, bool, list, int)  # file_path, is_valid, missing_required, total_rows
+    # Named 'validated' (not 'finished') to avoid shadowing QThread.finished,
+    # which must remain the real QThread completion signal for safe deleteLater.
+    validated = Signal(str, bool, list, int)  # file_path, is_valid, missing_required, total_rows
 
     def __init__(self, file_path: str, parent=None):
         super().__init__(parent)
@@ -70,7 +72,7 @@ class CoordValidationWorker(QThread):
             total_rows = len(df)
             if self.isInterruptionRequested():
                 return
-            self.finished.emit(self.file_path, is_valid, missing_required or [], total_rows)
+            self.validated.emit(self.file_path, is_valid, missing_required or [], total_rows)
         except (
             pd.errors.EmptyDataError,
             pd.errors.ParserError,
@@ -80,7 +82,7 @@ class CoordValidationWorker(QThread):
             TypeError,
             KeyError,
         ):
-            self.finished.emit(self.file_path, False, ["檔案讀取錯誤"], 0)
+            self.validated.emit(self.file_path, False, ["檔案讀取錯誤"], 0)
 
 
 class CoordinateManagerPage(QWidget):
@@ -486,8 +488,10 @@ class CoordinateManagerPage(QWidget):
             QGuiApplication.restoreOverrideCursor()
             self._on_validation_finished(fp, iv, mr, tr)
 
-        self._validation_worker.finished.connect(_on_validation_complete)
+        self._validation_worker.validated.connect(_on_validation_complete)
         _vw = self._validation_worker
+        # Cleanup and deletion wired to the real QThread.finished (fires after run()
+        # fully exits), not to the custom validated signal (emitted from inside run()).
         self._validation_worker.finished.connect(
             lambda w=_vw: setattr(self, "_validation_worker", None)
             if self._validation_worker is w

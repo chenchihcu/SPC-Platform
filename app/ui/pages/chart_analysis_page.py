@@ -184,6 +184,8 @@ class _DetailsHintWorker(QThread):
         hints = infer_root_cause_hints(self._payload)
         anomalies = classify_anomalies(self._payload)
         suggestions = get_optimization_suggestions(self._payload)
+        if self._is_cancelled:
+            return
         parts: list[str] = []
         if hints:
             items = " / ".join((h.get("hint") or "") for h in hints[:3])
@@ -1301,6 +1303,12 @@ class ChartAnalysisPage(QWidget):
             try:
                 if self._details_worker.isRunning():
                     self._details_worker.cancel()
+                    # Disconnect stale result_ready so an abandoned worker (wait
+                    # timeout) cannot overwrite the new analysis's label text.
+                    try:
+                        self._details_worker.result_ready.disconnect(self._details_label.setText)
+                    except RuntimeError:
+                        pass
                     self._details_worker.wait(500)
             except RuntimeError:
                 self._details_worker = None

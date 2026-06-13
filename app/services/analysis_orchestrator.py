@@ -68,9 +68,14 @@ class AnalysisOrchestrator:
         spec_key = primary_feature.lower()
         spec_entry = (workorder_spec or {}).get(spec_key) or {}
         try:
-            usl = float(spec_entry.get("usl") or 0)
-            lsl = float(spec_entry.get("lsl") or 0)
-            target = float(spec_entry.get("target") or 0)
+            usl_raw = spec_entry.get("usl")
+            lsl_raw = spec_entry.get("lsl")
+            target_raw = spec_entry.get("target")
+            if usl_raw is None and lsl_raw is None:
+                return None, f"分析失敗: 工單規格缺少 {primary_feature} 的 USL/LSL，請先建立規格。"
+            usl = float(usl_raw) if usl_raw is not None else 0.0
+            lsl = float(lsl_raw) if lsl_raw is not None else 0.0
+            target = float(target_raw) if target_raw is not None else 0.0
             if not target and (usl or lsl):
                 target = (usl + lsl) / 2.0
             elif not target:

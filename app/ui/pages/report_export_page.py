@@ -346,7 +346,9 @@ class ReportExportPage(QWidget):
         self._set_report_lamp("loading", "匯出中…")
         self.btn_export.setEnabled(False)
 
-        worker = PptxExportWorker(path, ids, self)
+        # No parent: avoids Qt destroying a running QThread when the page is torn
+        # down. Lifetime is managed via self._export_worker + finished→deleteLater.
+        worker = PptxExportWorker(path, ids)
         self._export_worker = worker
         worker.progress_updated.connect(self._on_export_progress)
         worker.export_finished.connect(self._on_export_finished)

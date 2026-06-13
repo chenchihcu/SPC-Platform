@@ -77,7 +77,9 @@ def test_zero_variance_data_skips_shapiro_without_warning():
     assert result["statistics"]["shapiro_skip_reason"] == "zero_variance"
     assert result["statistics"]["test_name"] == "Shapiro-Wilk (skipped: zero variance)"
     assert result["statistics"]["p_value"] == 1.0
-    assert result["statistics"]["is_normal"] is True
+    # Zero-variance data is degenerate; the test was skipped, so is_normal must be
+    # False — not True — per SPC_RULES §2.1 ("test not informative" for spike distributions).
+    assert result["statistics"]["is_normal"] is False
     assert not any("range zero" in str(w.message) for w in caught)
 
 

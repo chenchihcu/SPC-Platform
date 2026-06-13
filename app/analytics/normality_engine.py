@@ -71,7 +71,7 @@ class NormalityEngine:
 
                 r_squared_val = float(r**2)
 
-            is_normal = bool(p_value >= 0.05)
+            is_normal = False if normality_test_skipped else bool(p_value >= 0.05)
 
             if not (np.isfinite(r_squared_val) and np.isfinite(p_value)):
                 return {
