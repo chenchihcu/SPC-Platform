@@ -53,3 +53,6 @@ tmp/*
 !.cursor/rules/**
 !.cursor/plans/
 !.cursor/plans/**
+
+# Agent skill run artifacts — keep skill sources, ignore transient workspace dirs
+.agents/skills/*-workspace/
