@@ -1,0 +1,51 @@
+{
+  "skill_name": "spc-validation-matrix",
+  "evals": [
+    {
+      "id": 1,
+      "name": "happy_path_normal_baseline",
+      "prompt": "幫我用 golden_dataset/normal_baseline 跑一次完整的 cross-validation matrix:全部 33 個 chart_id × Volume/Area/Height 三特徵的 1/2/3 元組合 × full/top10pct/by_part_type 三種 filter,輸出 CSV 與 SUMMARY.md。完成後告訴我 PASS 比例與 wall-clock。",
+      "expected_output": "Outputs/cross_validation_<timestamp>/matrix.csv (≥200 cells) + SUMMARY.md 顯示 PASS rate ≥ 90%、無 STALL/OVERLOAD。",
+      "files": [],
+      "assertions": [
+        {"name": "csv_exists", "kind": "file_exists", "path_glob": "Outputs/cross_validation_*/matrix.csv"},
+        {"name": "summary_exists", "kind": "file_exists", "path_glob": "Outputs/cross_validation_*/SUMMARY.md"},
+        {"name": "pass_rate_acceptable", "kind": "summary_contains_regex", "regex": "Pass rate: \\*\\*(9[0-9]|100)\\."},
+        {"name": "no_stall_in_summary", "kind": "summary_not_contains", "needle": "## STALL cells"}
+      ]
+    },
+    {
+      "id": 2,
+      "name": "subset_dual_with_short_timeout",
+      "prompt": "只跑 Height + Volume 雙特徵下的 scatter_spec / quadrant / bivariate_outlier 三個引擎,filter 用 full,timeout 設 10 秒。完成後給我 CSV 與 wall-clock。",
+      "expected_output": "matrix.csv 應只包含 6 列(3 charts × 1 features-pair × 1 filter × 1 fixture × 2 arities-effective);全 PASS;timeout 環境變數 SPC_VALIDATION_ENGINE_TIMEOUT_S=10 已生效。",
+      "files": [],
+      "assertions": [
+        {"name": "csv_row_count_small", "kind": "csv_row_count_lte", "path_glob": "Outputs/cross_validation_*/matrix.csv", "max": 10},
+        {"name": "only_three_engines", "kind": "csv_distinct_values_subset", "column": "chart_id", "allowed": ["scatter_spec", "quadrant", "bivariate_outlier"]}
+      ]
+    },
+    {
+      "id": 3,
+      "name": "degenerate_fixtures_keep_contract",
+      "prompt": "用 sigma_zero_constant 與 partial_spec 兩個 fixture 跑 imr / histogram_spec / boxplot 這三個 engine,確認契約守得住:即便 is_valid=False,只要 data={} 與 statistics={} 並且 metadata.error 非空,仍應算 PASS。",
+      "expected_output": "matrix.csv 中對退化 fixture 的列,status 多為 PASS(契約守住即 PASS,即使 is_valid=False)。FAIL 列的 error 欄會具體指出契約違反。",
+      "files": [],
+      "assertions": [
+        {"name": "csv_exists", "kind": "file_exists", "path_glob": "Outputs/cross_validation_*/matrix.csv"},
+        {"name": "no_error_status", "kind": "csv_count_eq", "column": "status", "value": "ERROR", "expected": 0}
+      ]
+    },
+    {
+      "id": 4,
+      "name": "watchdog_catches_stall",
+      "prompt": "我想驗證 watchdog 真的會抓到 stall。請寫一個小測試:monkey-patch app.viewmodels.chart_analysis_viewmodel.compute_analysis_payload 改為先 time.sleep(60) 再回傳,然後跑 run_matrix 用 SPC_VALIDATION_ENGINE_TIMEOUT_S=2(實際每 cell 上限 = 2 × 5 = 10 s)。確認 SUMMARY.md 出現「## STALL cells」段落,且整體 wall-clock 不超過 60 秒。",
+      "expected_output": "SUMMARY.md 含 STALL section;wall-clock ≤ 60 秒;不會卡住整個程序。",
+      "files": [],
+      "assertions": [
+        {"name": "stall_section_present", "kind": "summary_contains", "needle": "## STALL cells"},
+        {"name": "wall_clock_bounded", "kind": "summary_contains_regex", "regex": "Wall-clock: \\*\\*([0-5]?[0-9])\\."}
+      ]
+    }
+  ]
+}
