@@ -30,6 +30,7 @@ class ClickableLabel(QLabel):
     clicked = Signal()
 
     def mousePressEvent(self, event) -> None:
+        """Emit clicked for left-button presses, then preserve QLabel handling."""
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
         super().mousePressEvent(event)
@@ -143,7 +144,7 @@ class ControlPanel(QWidget):
         # Initialize with "All" to avoid blank boxes before data load
         self.refdes_combo.addItem(FILTER_ALL)
         self.part_type_combo.addItem(FILTER_ALL)
-        
+
         self._ensure_combo_only_refdes_filter()
 
         # Optional filters (product, time range, line) — visible only when df has columns
@@ -285,7 +286,7 @@ class ControlPanel(QWidget):
         btn_layout.addWidget(self.target_btn)
         btn_layout.addWidget(self.refresh_btn)
         action_layout.addLayout(btn_layout)
-        
+
         root.addWidget(action_widget)
 
     def sync_feature_states(self, selected: list) -> None:
@@ -398,7 +399,7 @@ class ControlPanel(QWidget):
         self.board_specify_combo.blockSignals(True)
         self.refdes_combo.blockSignals(True)
         self.part_type_combo.blockSignals(True)
-        
+
         try:
             self.board_specify_combo.clear()
             self.refdes_combo.clear()

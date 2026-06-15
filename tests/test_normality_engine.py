@@ -1,5 +1,3 @@
-import warnings
-
 import numpy as np
 import pandas as pd
 
@@ -66,19 +64,11 @@ def test_empty_series_returns_invalid():
     assert result["metadata"]["is_valid"] is False
 
 
-def test_zero_variance_data_skips_shapiro_without_warning():
+def test_zero_variance_data_rejected_by_spc_guard():
     data = pd.Series([100.0] * 80)
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        result = NormalityEngine.compute_normality(data)
-
-    assert result["metadata"]["is_valid"] is True
-    assert result["statistics"]["normality_test_skipped"] is True
-    assert result["statistics"]["shapiro_skip_reason"] == "zero_variance"
-    assert result["statistics"]["test_name"] == "Shapiro-Wilk (skipped: zero variance)"
-    assert result["statistics"]["p_value"] == 1.0
-    assert result["statistics"]["is_normal"] is True
-    assert not any("range zero" in str(w.message) for w in caught)
+    result = NormalityEngine.compute_normality(data)
+    assert result["metadata"]["is_valid"] is False
+    assert "Standard deviation is 0" in result["metadata"]["error"]
 
 
 def test_large_dataset_uses_full_data_without_sampling() -> None:
