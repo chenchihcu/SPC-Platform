@@ -454,21 +454,6 @@ def problem_type_zh(problem_type: str) -> str:
     return _PROBLEM_TYPE_ZH.get(problem_type, problem_type)
 
 
-_PROCESS_STATE_SEVERITY: Dict[str, str] = {
-    "穩定":     "ok",
-    "警示":     "warning",
-    "偏移":     "warning",
-    "漂移":     "error",
-    "局部群聚": "warning",
-    "失控":     "error",
-}
-
-
-def process_state_severity(state: str) -> str:
-    """Return ok / warning / error for a process state label."""
-    return _PROCESS_STATE_SEVERITY.get(state, "warning")
-
-
 # ── SMT SPI engineering narrative generator ───────────────────────────────────
 
 _SPI_CAUSE_HINTS: Dict[str, List[str]] = {

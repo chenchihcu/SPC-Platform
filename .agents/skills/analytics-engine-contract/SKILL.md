@@ -1,3 +1,9 @@
+---
+name: analytics-engine-contract
+version: 1.0.0
+description: 分析引擎契約 — 定義本專案所有 analytics engine(SPCEngine、CapabilityEngine、NormalityEngine 等)共通的回傳結構、guard 模式與測試慣例。Use this skill 當使用者要新增 engine、檢查 engine 回傳值、為 engine 撰寫測試,或除錯 is_valid / chart_type / metadata 欄位。觸發詞包含「engine」「analytics 契約」「is_valid」「chart_type」「statistics」「metadata」「return structure」。
+---
+
 # Analytics Engine Contract — Universal Skill
 
 Defines the standard return structure, guard pattern, and testing conventions for all analytics engines in this project. Every engine (`SPCEngine`, `CapabilityEngine`, `NormalityEngine`, etc.) follows this contract. Use this when adding a new engine or verifying an existing one.
@@ -148,6 +154,28 @@ payload["parameters"] = {
 **Routing**: `chart_analysis_page._PARAM_KEY_FOR_CHART` maps every `chart_id` → the key in this dict. `_resolve_chart_data(chart_id)` returns `parameters[_display_feature][key]` for instant feature switching without re-analysis.
 
 **Applies only when n=1**. For n=2 or n=3 selections, `payload["parameters"]` is absent.
+
+---
+
+## Resolved Slice Shape (`get_feature_payload_slice`)
+
+`chart_registry.get_feature_payload_slice(payload, chart_id, feature)` resolves the per-chart slice that downstream renderers consume. **Most** chart_ids return the standard engine result `{chart_type, data, statistics, metadata}` shape — these can be validated directly against the contract.
+
+**Exception — `chart_id == "imr"`**: returns a **payload-shaped** dict, not an engine result. See `app/analytics/chart_registry.py` (search for `if chart_id == "imr":`):
+
+```python
+# imr slice = a synthetic mini-payload, NOT an engine result
+{
+    ...payload top-level keys...,
+    "spc":  {...},   # SPCEngine.compute_imr() result (engine-shaped)
+    "cap":  {...},   # CapabilityEngine.compute_capability() result
+    "dist": {...},   # DistributionEngine.compute_histogram() result
+}
+```
+
+Validators / consumers **must not** assume `slice["chart_type"]` / `slice["metadata"]` for `chart_id == "imr"`. Instead:
+- Check `slice["spc"]` (and `cap`/`dist`) as the real engine results.
+- The `spc-validation-matrix` skill handles this in `engine_invoker.check_data_renderability()` (allows composite slice with empty top-level `data`).
 
 ---
 

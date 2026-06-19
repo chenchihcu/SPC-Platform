@@ -1,3 +1,9 @@
+---
+name: qa-auto-engineer
+version: 1.0.0
+description: QA 自動工程師 — 自動從頭到尾操作 SPC/SPI Platform UI,擷取每頁截圖、發現視覺缺失、功能異常與效能問題,輸出結構化缺失報告。Use this skill 當使用者要做端對端 UI 測試、找介面 bug、產出 QA 缺失報告。觸發詞包含「QA 測試」「找問題」「掃描問題」「缺失報告」「端對端測試」「E2E」「defect report」。
+---
+
 # QA 自動工程師 — 端對端 UI 測試技能
 
 自動從頭到尾操作 SPC/SPI Platform，發現視覺缺失、功能異常、效能問題，並輸出一份結構化的缺失報告。
@@ -41,17 +47,27 @@ Phase 5: 輸出缺失報告
 
 ## Phase 1 — 啟動程式
 
-```bash
-# 在背景啟動程式（Windows）
-cd "c:\Users\user\Documents\SPC Platform"
-pythonw main.py &
-# 或
-start /B python main.py
+> **截圖機制（Opus 4.8 / 現行 harness）**：本 harness **沒有**桌面截圖 MCP（Playwright 只能驅動瀏覽器，無法截 PySide6 桌面視窗）。舊版引用的 `mcp__Claude_in_Chrome__computer` 已失效。改用**程式內 Qt 截圖**——直接在 Python 內建立 `MainWindow`、以其自身方法導頁、用 `QWidget.grab().save(path, "PNG")` 存圖。可參考既有腳本 `presentations/smt-spi-platform-overview/capture_ui_screenshots.py`。
+
+```python
+# 程式內截圖骨架（在 repo 根目錄執行）
+import sys
+from PySide6.QtWidgets import QApplication
+from PySide6.QtTest import QTest
+
+app = QApplication(sys.argv)
+from app.ui.main_window import MainWindow
+w = MainWindow()
+w.resize(1360, 820)
+w.show()
+app.processEvents()
+QTest.qWait(400)                      # 等視窗初始化（事件迴圈，非 sleep）
+w.grab().save("Outputs/qa_report_YYYYMMDD_HHMM/00_startup.png", "PNG")
 ```
 
-- 等待 **3 秒** 讓視窗初始化。
-- 使用電腦工具截圖（`mcp__Claude_in_Chrome__computer` 或同類工具）。
-- 儲存截圖為 `00_startup.png`。
+- 用 `app.processEvents()` + `QTest.qWait(...)` 取代固定 `sleep`：等的是事件迴圈穩定，不是牆鐘時間。
+- 導頁用 app 自身方法（如 `w._go_to_page(stack_idx)`），不要模擬滑鼠點擊座標。
+- 儲存截圖為 `00_startup.png`，再用 **Read** 工具讀回該 PNG 做視覺分析。
 - **分析啟動畫面**：
   - [ ] 視窗是否出現？（若無則記錄 CRIT-001：程式無法啟動）
   - [ ] 標題列文字是否完整、未截斷？
@@ -62,11 +78,11 @@ start /B python main.py
 
 ## Phase 2 — 頁面巡迴
 
-對每一頁執行以下固定流程：
-1. 點擊左側導覽切換至該頁
-2. 等待 1 秒
-3. 截圖
-4. 依該頁的「檢查清單」逐項分析
+對每一頁執行以下固定流程（程式內導頁，非滑鼠模擬）：
+1. `w._go_to_page(stack_idx)` 切換至該頁
+2. `app.processEvents()` + `QTest.qWait(~350ms)`（等渲染穩定，非固定 sleep）
+3. `w.grab().save(path, "PNG")` 截圖
+4. 用 **Read** 讀回 PNG，依該頁「檢查清單」逐項分析
 5. 將發現加入缺失清單
 
 ### 2-1 資料設定頁（資料）
@@ -281,7 +297,7 @@ start /B python main.py
 # QA 缺失報告
 **程式**：SPC/SPI Platform v2
 **測試日期**：YYYY-MM-DD HH:MM
-**測試執行者**：Codex QA 自動工程師
+**測試執行者**：Claude QA 自動工程師
 **測試範圍**：端對端 UI 測試（全流程）
 
 ---
@@ -345,7 +361,7 @@ start /B python main.py
 
 ### 截圖工具使用
 
-使用 `mcp__Claude_in_Chrome__computer` 工具截圖並分析桌面畫面。每次截圖後：
+用**程式內 Qt 截圖**（`w.grab().save(path, "PNG")`，見 Phase 1），存檔後以 **Read** 工具讀回 PNG 做視覺分析。本 harness 無桌面截圖 MCP，勿引用已失效的 `mcp__Claude_in_Chrome__computer`。每次讀回截圖後：
 1. 仔細觀察畫面的每一個細節
 2. 檢查所有可見文字是否完整（無 `…`）
 3. 檢查元件邊界是否正常
@@ -364,6 +380,8 @@ start /B python main.py
 - 對話框訊息
 
 ### 等待時間準則
+
+> 這些是 `QTest.qWait()` 的**上限預算**搭配 `app.processEvents()`，不是固定 `time.sleep`。優先輪詢可觀察條件（狀態列文字、圖表已繪、worker `finished`），達標即往下；只有到上限仍無變化才視為逾時。
 
 | 操作 | 建議等待時間 |
 |---|---|
@@ -389,18 +407,12 @@ start /B python main.py
 
 ## 快速啟動指令
 
-```python
-# 若需要從 Codex 內直接觸發，執行以下 Bash 指令
-import subprocess
-proc = subprocess.Popen(
-    ["python", "main.py"],
-    cwd=r"c:\Users\user\Documents\SPC Platform",
-    creationflags=subprocess.CREATE_NEW_CONSOLE  # Windows only
-)
+**首選：程式內驅動腳本**（可截圖、可分析）。將整個巡迴寫成一支腳本：建立 `MainWindow` → 逐頁 `_go_to_page` → `grab().save()`，輸出到 `Outputs/qa_report_*/`，再用 Read 讀回各 PNG 分析。範本見 `presentations/smt-spi-platform-overview/capture_ui_screenshots.py` 與 Phase 1 骨架。
+
+```bash
+# 以 repo 既有腳本快速產生基準截圖（headed 環境）
+cd "c:\Users\user\Documents\SPC Platform"
+python presentations/smt-spi-platform-overview/capture_ui_screenshots.py
 ```
 
-或直接使用 Bash 工具：
-```bash
-cd "c:\Users\user\Documents\SPC Platform"
-start python main.py
-```
+> **不要**用 `subprocess.Popen` / `start python main.py` 外部啟動再期待截圖——本 harness 無桌面截圖 MCP，外部視窗無法被擷取分析。外部啟動僅適用於純粹確認「能否開起來」，且應改用 `python scripts/check_launch.py`（見 `run-spc` 技能）。

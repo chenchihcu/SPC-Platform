@@ -67,4 +67,15 @@ def test_large_dataset_keeps_full_sample_for_display():
 def test_small_data_still_returns_valid():
     # RunChartEngine does not enforce a minimum sample count; it accepts any N.
     result = RunChartEngine.compute_run_chart(pd.Series([1.0, 2.0]))
-    assert "metadata" in result
+    assert result["metadata"]["is_valid"] is True
+
+
+def test_infinite_values_do_not_propagate():
+    # ±inf must be sanitized before aggregation: center_line and normalize_std
+    # must stay finite (regression guard for the removed finite/zero check).
+    data = pd.Series([1.0, 2.0, 3.0, 4.0, 5.0, np.inf, -np.inf, 6.0, 7.0, 8.0])
+    result = RunChartEngine.compute_run_chart(data)
+    assert result["metadata"]["is_valid"] is True
+    stats = result["statistics"]
+    assert np.isfinite(stats["center_line"])
+    assert np.isfinite(stats["normalize_std"])

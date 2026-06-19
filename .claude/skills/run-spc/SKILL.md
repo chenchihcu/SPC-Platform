@@ -1,6 +1,7 @@
 ---
-name: run-SPC
-description: Run and verify the SPC Platform Windows/PySide6 app. Use when launching the app, checking startup, validating Qt offscreen startup, choosing the Python runtime, or confirming check_launch.py passed.
+name: run-spc
+description: 啟動與驗證 SPC Platform 的 Windows/PySide6 應用程式。Use this skill 當要啟動 app、檢查啟動流程、驗證 Qt offscreen 啟動、選擇 Python runtime,或確認 check_launch.py 通過時。觸發詞包含「啟動」「launch app」「check_launch」「Qt offscreen」「startup」「驗證啟動」。
+version: 1.0.0
 ---
 
 # Run SPC

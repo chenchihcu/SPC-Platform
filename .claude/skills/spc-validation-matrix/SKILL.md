@@ -1,5 +1,6 @@
 ---
 name: spc-validation-matrix
+version: 1.0.0
 description: SPC/SPI Platform v2 跨組合整合驗證器 — 一次同時驗證圖表輸出、函數定義、統計數據、報告匯出在所有合理特徵組合下都正確,並且大量組合下不會停滯或超出系統計算負荷。Use this skill 當使用者要做交叉驗證、組合驗證、cross validation matrix、驗證所有 engine、圖表/統計/匯出整合驗證、確認大量組合下不會 stall、或在 release 前/合併新 engine 後做整體 sanity sweep。觸發詞包含「交叉驗證」「組合驗證」「驗證所有圖表」「跨特徵驗證」「stall test」「matrix validation」「regression sweep」。
 type: validation
 compatibility:

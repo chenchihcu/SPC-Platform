@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 from typing import Dict, Any
 
+from app.analytics.statistical_utils import StatisticalUtils
+
 class DistributionEngine:
     """
     Engine for calculating Frequency Histograms and Normal Distribution curves.
@@ -13,14 +15,18 @@ class DistributionEngine:
         Computes bins, frequencies and an overlaid ideal Normal Curve scaling.
         Note: Independent of Capability Engine. Doesn't require specifications.
         """
-        valid_data = data.replace([np.inf, -np.inf], np.nan).dropna()
-        if len(valid_data) < 2:
+        is_valid, msg = StatisticalUtils.has_sufficient_samples(
+            data, min_samples=2, require_variance=False
+        )
+        if not is_valid:
             return {
                 "chart_type": "Distribution",
                 "data": {},
                 "statistics": {},
-                "metadata": {"is_valid": False, "error": "Insufficient data to compute distribution geometry (N<2)."}
+                "metadata": {"is_valid": False, "error": msg}
             }
+
+        valid_data = data.replace([np.inf, -np.inf], np.nan).dropna()
             
         # Compute histogram frequencies and bins
         counts, bin_edges = np.histogram(valid_data, bins=bins)

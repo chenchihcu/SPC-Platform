@@ -90,6 +90,3 @@ def get_failure_mode(failure_mode_id: str) -> Dict[str, Any] | None:
     return None
 
 
-def list_failure_modes() -> List[Dict[str, Any]]:
-    """Return all failure modes (read-only list of dicts)."""
-    return list(FAILURE_MODES)

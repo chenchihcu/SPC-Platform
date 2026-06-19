@@ -136,9 +136,9 @@ class ParetoEngine:
         if df.empty:
             return {
                 "chart_type": "Pareto",
-                "data": {"categories": [], "counts": [], "cumulative_pct": [], "component_ids": []},
+                "data": {},
                 "statistics": {},
-                "metadata": {"is_valid": True, "mode": "component"},
+                "metadata": {"is_valid": False, "error": "無有效資料可進行元件 Pareto 分析。", "mode": "component"},
             }
         vals = df[target_col].astype(float).to_numpy()
         oos = np.zeros(len(df), dtype=int)

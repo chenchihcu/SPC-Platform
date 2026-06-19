@@ -28,7 +28,36 @@ class StatisticalUtils:
             
         if np.std(valid_data, ddof=1) == 0:
             return False, "Standard deviation is 0 (all values identical). Process variation cannot be measured."
-            
+
+        return True, ""
+
+    @staticmethod
+    def has_sufficient_samples(
+        data: pd.Series,
+        min_samples: int,
+        require_variance: bool = False,
+    ) -> Tuple[bool, str]:
+        """
+        Validity gate for descriptive / trend charts (histogram, run chart,
+        Q-Q normality) that are statistically well-defined below the SPC
+        N>=10 capability gate. Sanitizes +/-inf, enforces ``min_samples``,
+        and only requires non-zero variance when ``require_variance`` is True.
+
+        Distinct from :meth:`is_valid_for_spc`, which is the stricter SPC
+        control-limit / capability gate (N>=10, sigma!=0).
+        """
+        if data is None or data.empty:
+            return False, "No data available."
+
+        valid_data = data.replace([np.inf, -np.inf], np.nan).dropna()
+        n = len(valid_data)
+
+        if n < min_samples:
+            return False, f"資料筆數不足 (N={n}),至少需要 {min_samples} 筆有效資料。"
+
+        if require_variance and np.std(valid_data, ddof=1) == 0:
+            return False, "Standard deviation is 0 (all values identical). Process variation cannot be measured."
+
         return True, ""
 
     @staticmethod

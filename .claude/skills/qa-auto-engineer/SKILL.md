@@ -1,5 +1,6 @@
 ---
 name: qa-auto-engineer
+version: 1.0.0
 description: QA 自動工程師 — 自動從頭到尾操作 SPC/SPI Platform UI,擷取每頁截圖、發現視覺缺失、功能異常與效能問題,輸出結構化缺失報告。Use this skill 當使用者要做端對端 UI 測試、找介面 bug、產出 QA 缺失報告。觸發詞包含「QA 測試」「找問題」「掃描問題」「缺失報告」「端對端測試」「E2E」「defect report」。
 ---
 
@@ -414,4 +415,4 @@ cd "c:\Users\user\Documents\SPC Platform"
 python presentations/smt-spi-platform-overview/capture_ui_screenshots.py
 ```
 
-> **不要**用 `subprocess.Popen` / `start python main.py` 外部啟動再期待截圖——本 harness 無桌面截圖 MCP，外部視窗無法被擷取分析。外部啟動僅適用於純粹確認「能否開起來」，且應改用 `python scripts/check_launch.py`（見 `run-SPC` 技能）。
+> **不要**用 `subprocess.Popen` / `start python main.py` 外部啟動再期待截圖——本 harness 無桌面截圖 MCP，外部視窗無法被擷取分析。外部啟動僅適用於純粹確認「能否開起來」，且應改用 `python scripts/check_launch.py`（見 `run-spc` 技能）。

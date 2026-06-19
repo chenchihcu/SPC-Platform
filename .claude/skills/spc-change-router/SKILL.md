@@ -1,6 +1,7 @@
 ---
 name: spc-change-router
-description: Route SPC Platform tasks to the right source documents, reviewer subagent, and verification gates. Use when a task touches UI/theme, analytics engines, chart registry, reports/exports, docs/harness, release validation, or when the user asks what checks to run.
+version: 1.0.0
+description: 把 SPC Platform 任務路由到正確的來源文件、reviewer subagent 與驗證 gate。Use this skill 當任務涉及 UI/theme、analytics engine、chart registry、報告/匯出、docs/harness、release validation,或使用者詢問該跑哪些檢查時。觸發詞包含「該跑什麼檢查」「route」「change router」「驗證 gate」「reviewer」「UI/theme」「analytics engine」。
 ---
 
 # SPC Change Router

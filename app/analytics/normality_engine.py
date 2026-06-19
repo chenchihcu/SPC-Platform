@@ -3,6 +3,8 @@ import pandas as pd
 from typing import Dict, Any
 import scipy.stats as stats  # type: ignore[import-untyped]
 
+from app.analytics.statistical_utils import StatisticalUtils
+
 class NormalityEngine:
     """
     Engine to assess Normal Distribution characteristics of a given data series.
@@ -14,16 +16,19 @@ class NormalityEngine:
         """
         Calculates theoretical vs actual quantiles (Q-Q plot) and formal normality tests.
         """
-        valid_data = data.dropna()
-        n = len(valid_data)
-        
-        if n < 3:
+        is_valid, msg = StatisticalUtils.has_sufficient_samples(
+            data, min_samples=3, require_variance=False
+        )
+        if not is_valid:
             return {
                 "chart_type": "Normality",
                 "data": {},
                 "statistics": {},
-                "metadata": {"is_valid": False, "error": "需要至少3筆以上的資料進行常態檢定。(N < 3)"}
+                "metadata": {"is_valid": False, "error": msg}
             }
+
+        valid_data = data.replace([np.inf, -np.inf], np.nan).dropna()
+        n = len(valid_data)
             
         try:
             # Use full-data normality testing; switch method by dataset size.

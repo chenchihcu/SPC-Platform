@@ -64,11 +64,15 @@ def test_empty_series_returns_invalid():
     assert result["metadata"]["is_valid"] is False
 
 
-def test_zero_variance_data_rejected_by_spc_guard():
+def test_zero_variance_data_skips_shapiro():
+    # SPC_RULES §2.1: zero-variance series skip Shapiro but stay valid (p=1.0),
+    # so the UI remains populated rather than erroring out.
     data = pd.Series([100.0] * 80)
     result = NormalityEngine.compute_normality(data)
-    assert result["metadata"]["is_valid"] is False
-    assert "Standard deviation is 0" in result["metadata"]["error"]
+    assert result["metadata"]["is_valid"] is True
+    assert result["statistics"]["normality_test_skipped"] is True
+    assert result["statistics"]["shapiro_skip_reason"] == "zero_variance"
+    assert float(result["statistics"]["p_value"]) == 1.0
 
 
 def test_large_dataset_uses_full_data_without_sampling() -> None:

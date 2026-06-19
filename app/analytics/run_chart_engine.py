@@ -2,9 +2,11 @@
 Run Chart engine: individual values in run order with center line.
 Phase 4 P1: trend view without control limits.
 """
-import pandas as pd
 import numpy as np
+import pandas as pd
 from typing import Dict, Any
+
+from app.analytics.statistical_utils import StatisticalUtils
 
 
 class RunChartEngine:
@@ -19,14 +21,18 @@ class RunChartEngine:
         Compute run-order data for plotting.
         Returns metadata.is_valid, data (indices, values), statistics (center_line).
         """
-        valid_data = data.dropna()
-        if valid_data.empty:
+        is_valid, msg = StatisticalUtils.has_sufficient_samples(
+            data, min_samples=1, require_variance=False
+        )
+        if not is_valid:
             return {
                 "chart_type": "RunChart",
                 "data": {},
                 "statistics": {},
-                "metadata": {"is_valid": False, "target_col": target_col, "error": "無資料。"},
+                "metadata": {"is_valid": False, "target_col": target_col, "error": msg},
             }
+
+        valid_data = data.replace([np.inf, -np.inf], np.nan).dropna()
         n = len(valid_data)
         center = float(valid_data.mean())
         normalize_mean = center

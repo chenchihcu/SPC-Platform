@@ -1,5 +1,6 @@
 ---
 name: analytics-engine-contract
+version: 1.0.0
 description: 分析引擎契約 — 定義本專案所有 analytics engine(SPCEngine、CapabilityEngine、NormalityEngine 等)共通的回傳結構、guard 模式與測試慣例。Use this skill 當使用者要新增 engine、檢查 engine 回傳值、為 engine 撰寫測試,或除錯 is_valid / chart_type / metadata 欄位。觸發詞包含「engine」「analytics 契約」「is_valid」「chart_type」「statistics」「metadata」「return structure」。
 ---
 
