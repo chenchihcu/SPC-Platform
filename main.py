@@ -50,11 +50,9 @@ try:
     class ElectricSplash(QSplashScreen):
         def __init__(self) -> None:
             from PySide6.QtGui import QPixmap
-            from PySide6.QtCore import Qt
-            # 建立一個 600x380 的透明 pixmap 供 QPainter 繪製
-            pixmap = QPixmap(600, 380)
-            pixmap.fill(Qt.transparent)
-            super().__init__(pixmap)
+            # 建立一個成員變數保存 pixmap，確保 painter 繪圖後能手動觸發顯示快取重繪
+            self.splash_pixmap = QPixmap(600, 380)
+            super().__init__(self.splash_pixmap)
             self.progress = 0
             self.status_msg = "正在初始化系統..."
             self._update_splash_pixmap()
@@ -63,15 +61,16 @@ try:
             self.progress = val
             self.status_msg = msg
             self._update_splash_pixmap()
-            self.repaint()
             
         def _update_splash_pixmap(self) -> None:
             from PySide6.QtGui import QPainter, QLinearGradient, QColor, QFont, QPen
             from PySide6.QtCore import Qt, QRect
             from app.bootstrap.font_runtime import preferred_qt_font_family
             
-            pixmap = self.pixmap()
-            painter = QPainter(pixmap)
+            # 清除舊內容以防殘留
+            self.splash_pixmap.fill(Qt.transparent)
+            
+            painter = QPainter(self.splash_pixmap)
             painter.setRenderHint(QPainter.Antialiasing)
             
             # 1. 繪製 Electric Blue 科技感漸層背景
@@ -140,6 +139,9 @@ try:
             painter.drawText(QRect(300, 320, 260, 20), Qt.AlignRight | Qt.AlignVCenter, "© 2026 SPC Platform Group")
             
             painter.end()
+            
+            # CRITICAL: 必須調用 setPixmap 重新覆蓋顯示緩衝, 否則視窗內容將無法重新繪製 (呈現全黑一片)
+            self.setPixmap(self.splash_pixmap)
 
 except ImportError:
     ElectricSplash = None  # type: ignore
