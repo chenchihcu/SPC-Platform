@@ -18,7 +18,11 @@ from app.ui.widgets.page_templates import (
     create_summary_card,
     set_button_role,
 )
-from app.ui.workflow_labels import WORKFLOW_LABEL_CHARTS, workflow_label_for_stack
+from app.ui.workflow_labels import (
+    WORKFLOW_LABEL_CHARTS,
+    WORKFLOW_LABEL_STATISTICS_DATA,
+    workflow_label_for_stack,
+)
 from app.utils.dataframe_utils import safe_columns
 from app.utils.enums import SampleMode
 
@@ -70,3 +74,4 @@ def test_shared_lightweight_data_contract_helpers() -> None:
     assert SampleMode.FIRST.value == "首件"
     assert safe_columns(pd.DataFrame({1: [1], "BoardNo": ["B1"]})) == ["1", "BoardNo"]
     assert workflow_label_for_stack(2) == WORKFLOW_LABEL_CHARTS
+    assert workflow_label_for_stack(8) == WORKFLOW_LABEL_STATISTICS_DATA

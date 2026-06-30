@@ -1,6 +1,6 @@
 import pandas as pd
 
-from app.analytics.chart_registry import CHART_ORDER
+from app.analytics.chart_registry import CHART_ORDER, TEXT_SUMMARY_CHART_IDS, TEXT_SUMMARY_GROUP_LABEL
 from app.data.session_store import SessionStore
 from app.ui.pages.report_export_page import (
     REPORT_CHART_GROUP_ORDER,
@@ -32,6 +32,11 @@ def test_grouping_keeps_chart_order_inside_each_group() -> None:
 
 def test_unknown_chart_defaults_to_comparison_group() -> None:
     assert get_report_chart_group("unknown_chart") == "比較分析"
+
+
+def test_text_summary_charts_are_grouped_under_statistics_data() -> None:
+    assert REPORT_CHART_GROUP_ORDER[-1] == TEXT_SUMMARY_GROUP_LABEL
+    assert all(get_report_chart_group(chart_id) == TEXT_SUMMARY_GROUP_LABEL for chart_id in TEXT_SUMMARY_CHART_IDS)
 
 
 def test_resolve_report_features_expands_for_single_feature_with_parameters() -> None:

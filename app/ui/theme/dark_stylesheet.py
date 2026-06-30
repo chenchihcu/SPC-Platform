@@ -160,6 +160,9 @@ from app.ui.theme.tokens import (
     CHART_GROUP_COMPARISON_COLOR,
     CHART_GROUP_COMPARISON_BG,
     CHART_GROUP_COMPARISON_BORDER,
+    CHART_GROUP_STAT_DATA_COLOR,
+    CHART_GROUP_STAT_DATA_BG,
+    CHART_GROUP_STAT_DATA_BORDER,
     CHART_SELECTOR_CONTENT_MARGIN,
     CHART_SELECTOR_CHECKBOX_MIN_HEIGHT,
     CHART_CARD_HEADER_BUTTON_HEIGHT,
@@ -891,6 +894,9 @@ def get_app_stylesheet() -> str:
     QFrame#accordionGroup[chartGroup="comparison"] {{
         border-right: 2px solid {CHART_GROUP_COMPARISON_BORDER};
     }}
+    QFrame#accordionGroup[chartGroup="stat-data"] {{
+        border-right: 2px solid {CHART_GROUP_STAT_DATA_BORDER};
+    }}
 
     /* ── DataSetupPage 欄位分隔線 ───────────────────────────────── */
     QFrame[class="dataColSeparator"] {{
@@ -968,6 +974,12 @@ def get_app_stylesheet() -> str:
         color: {CHART_GROUP_COMPARISON_COLOR};
         border-color: {CHART_GROUP_COMPARISON_BORDER};
         border-left: 3px solid {CHART_GROUP_COMPARISON_COLOR};
+    }}
+    QPushButton[class="accordionHeader"][chartGroup="stat-data"]:checked {{
+        background: {CHART_GROUP_STAT_DATA_BG};
+        color: {CHART_GROUP_STAT_DATA_COLOR};
+        border-color: {CHART_GROUP_STAT_DATA_BORDER};
+        border-left: 3px solid {CHART_GROUP_STAT_DATA_COLOR};
     }}
     QPushButton[class="accordionHeader"]:focus {{
         border: 2px solid {FOCUS_RING_BORDER};
@@ -1078,6 +1090,10 @@ def get_app_stylesheet() -> str:
     QFrame#chartDashboardCard[chartGroup="comparison"],
     QFrame#controlCard[chartGroup="comparison"] {{
         border-left: {ACCENT_STRIPE_W}px solid {CHART_GROUP_COMPARISON_COLOR};
+    }}
+    QFrame#chartDashboardCard[chartGroup="stat-data"],
+    QFrame#controlCard[chartGroup="stat-data"] {{
+        border-left: {ACCENT_STRIPE_W}px solid {CHART_GROUP_STAT_DATA_COLOR};
     }}
 
     /* Progress Bar */
@@ -1554,6 +1570,10 @@ def get_app_stylesheet() -> str:
     QCheckBox[chartGroup="comparison"]::indicator:checked {{
         background-color: {CHART_GROUP_COMPARISON_COLOR};
         border-color: {CHART_GROUP_COMPARISON_COLOR};
+    }}
+    QCheckBox[chartGroup="stat-data"]::indicator:checked {{
+        background-color: {CHART_GROUP_STAT_DATA_COLOR};
+        border-color: {CHART_GROUP_STAT_DATA_COLOR};
     }}
     QCheckBox::indicator:focus {{
         border: 2px solid {FOCUS_RING_BORDER};

@@ -29,7 +29,7 @@ from PySide6.QtCore import Qt, Signal, QThread, QTimer
 from PySide6.QtCore import QEvent
 
 from app.analytics.chart_registry import (
-    get_charts_by_ui_group,
+    get_visual_charts_by_ui_group,
     resolve_chart_payload,
     format_chart_description,
     format_chart_description_compact,
@@ -37,6 +37,7 @@ from app.analytics.chart_registry import (
     is_chart_available_for_selection,
     get_chart_display_name,
     get_incompatible_reason,
+    is_text_summary_chart,
     CHART_ORDER,
     CHART_UI_GROUPS_ORDER,
     CHART_UI_GROUP_BY_ID,
@@ -67,7 +68,6 @@ from app.charts.correlation_matrix_chart import CorrelationMatrixChart
 from app.charts.correlation_heatmap_chart import CorrelationHeatmapChart
 from app.charts.anova_parttype_chart import AnovaPartTypeChart
 from app.charts.pattern_recognition_chart import PatternRecognitionChart
-from app.charts.summary_card_chart import SummaryCardChart
 from app.charts.parallel_coord_chart import ParallelCoordChart
 from app.charts.pass_fail_chart import PassFailChart
 from app.charts.run_chart_3f_chart import RunChart3F
@@ -963,7 +963,7 @@ class ChartAnalysisPage(QWidget):
         condition_blocked_registry: frozenset[str] = frozenset(
             ROUTER_TO_REGISTRY_ID.get(k, k) for k in get_condition_blocked_ids(ctx)
         )
-        grouped = get_charts_by_ui_group(selected_features)
+        grouped = get_visual_charts_by_ui_group(selected_features)
 
         # Fetch badge states from recommendation presenter
         from app.analytics.chart_recommendation_presenter import get_chart_recommendations
@@ -1094,14 +1094,6 @@ class ChartAnalysisPage(QWidget):
             return ChartOnlyPage(BivariateOutlierChart(self), desc, self)
         if chart_id == "density":
             return ChartOnlyPage(DensityChart(self), desc, self)
-        if chart_id == "ooc_analysis":
-            return ChartOnlyPage(SummaryCardChart(self, title="OOC Analysis"), desc, self)
-        if chart_id == "shift_detection":
-            return ChartOnlyPage(SummaryCardChart(self, title="Shift Detection"), desc, self)
-        if chart_id == "drift_detection":
-            return ChartOnlyPage(SummaryCardChart(self, title="Drift Detection"), desc, self)
-        if chart_id == "outlier_analysis":
-            return ChartOnlyPage(SummaryCardChart(self, title="Outlier Analysis"), desc, self)
         if chart_id == "pattern_recognition":
             return ChartOnlyPage(PatternRecognitionChart(self), desc, self)
         if chart_id == "anomaly_3f":
@@ -1238,7 +1230,7 @@ class ChartAnalysisPage(QWidget):
                 chart_name = str(entry.get("chart_name") or chart_id)
                 severity = str(entry.get("severity") or "info")
                 metric = str(entry.get("metric_snapshot") or "")
-                if not chart_id:
+                if not chart_id or is_text_summary_chart(chart_id):
                     continue
                 label = f"{flabel} → {chart_name}" if flabel else chart_name
                 btn = QPushButton(label)

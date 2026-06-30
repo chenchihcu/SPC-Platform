@@ -51,6 +51,13 @@ WORKFLOW_SECTION_LABELS: Dict[str, str] = {
 }
 # UI 頂部選單：工程決策五大分類（單一分析目的）
 CHART_UI_GROUPS_ORDER = ["製程監控", "製程能力", "異常根源", "變數關係", "比較分析"]
+TEXT_SUMMARY_GROUP_LABEL = "統計資料"
+TEXT_SUMMARY_CHART_IDS: tuple[str, ...] = (
+    "ooc_analysis",
+    "shift_detection",
+    "drift_detection",
+    "outlier_analysis",
+)
 CHART_UI_GROUP_BY_ID: Dict[str, str] = {
     "imr": "製程監控",
     "xbar_r": "製程監控",
@@ -656,17 +663,56 @@ def get_charts_by_ui_group(
         entry = _CATALOG_BY_ID.get(chart_id)
         if not entry:
             continue
-        item = {
-            "id": chart_id,
-            "short_name": CHART_SHORT_NAMES.get(chart_id, entry.get("display_name_zh", chart_id)),
-            "name": get_chart_display_name(chart_id),
-            "root_cause_stage": CHART_ROOT_CAUSE_STAGE_BY_ID.get(chart_id, ""),
-            "next_chart_ids": CHART_NEXT_STEP_BY_ID.get(chart_id, []),
-        }
-        if selected_features is not None:
-            item["available"] = is_chart_available_for_selection(chart_id, selected_features)
-            item["incompatible_reason"] = get_incompatible_reason(chart_id, selected_features) or ""
-        result[group].append(item)
+        result[group].append(_build_ui_chart_item(chart_id, entry, selected_features))
+    return result
+
+
+def _build_ui_chart_item(
+    chart_id: str,
+    entry: Dict[str, Any],
+    selected_features: Optional[List[str]],
+) -> Dict[str, Any]:
+    item = {
+        "id": chart_id,
+        "short_name": CHART_SHORT_NAMES.get(chart_id, entry.get("display_name_zh", chart_id)),
+        "name": get_chart_display_name(chart_id),
+        "root_cause_stage": CHART_ROOT_CAUSE_STAGE_BY_ID.get(chart_id, ""),
+        "next_chart_ids": CHART_NEXT_STEP_BY_ID.get(chart_id, []),
+        "is_text_summary": is_text_summary_chart(chart_id),
+    }
+    if selected_features is not None:
+        item["available"] = is_chart_available_for_selection(chart_id, selected_features)
+        item["incompatible_reason"] = get_incompatible_reason(chart_id, selected_features) or ""
+    return item
+
+
+def is_text_summary_chart(chart_id: str) -> bool:
+    """Return True when the chart id renders textual statistical summary data."""
+    return chart_id in TEXT_SUMMARY_CHART_IDS
+
+
+def get_visual_charts_by_ui_group(
+    selected_features: Optional[List[str]] = None,
+) -> Dict[str, List[Dict[str, Any]]]:
+    """Return the five UI chart groups excluding text-only statistical summaries."""
+    grouped = get_charts_by_ui_group(selected_features)
+    return {
+        group: [item for item in items if not is_text_summary_chart(str(item.get("id", "")))]
+        for group, items in grouped.items()
+    }
+
+
+def get_text_summary_charts(
+    selected_features: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+    """Return text-only statistical summaries in chart order for data browsing pages."""
+    result: List[Dict[str, Any]] = []
+    for chart_id in CHART_ORDER:
+        if not is_text_summary_chart(chart_id):
+            continue
+        entry = _CATALOG_BY_ID.get(chart_id)
+        if entry:
+            result.append(_build_ui_chart_item(chart_id, entry, selected_features))
     return result
 
 

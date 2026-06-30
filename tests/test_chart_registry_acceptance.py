@@ -1,14 +1,19 @@
 from app.analytics.chart_registry import (
     CHART_UI_GROUPS_ORDER,
+    TEXT_SUMMARY_CHART_IDS,
+    TEXT_SUMMARY_GROUP_LABEL,
     build_chart_interpretation_sections,
     format_chart_description_compact,
     get_charts_by_root_cause_flow,
+    get_text_summary_charts,
+    get_visual_charts_by_ui_group,
     get_charts_by_ui_group,
     get_feature_payload_slice,
     get_incompatible_reason,
     get_incompatible_short_reason,
     get_multi_feature_payload_slice,
     get_payload_slice,
+    is_text_summary_chart,
     resolve_chart_payload,
 )
 from app.services.report_intent_presets import INTENT_PRESETS
@@ -143,6 +148,24 @@ def test_ui_group_is_refactored_to_five_decision_categories():
     assert CHART_UI_GROUPS_ORDER == ["製程監控", "製程能力", "異常根源", "變數關係", "比較分析"]
     grouped = get_charts_by_ui_group(["Volume", "Area", "Height"])
     assert set(grouped.keys()) == set(CHART_UI_GROUPS_ORDER)
+
+
+def test_visual_chart_groups_exclude_text_summaries():
+    grouped = get_visual_charts_by_ui_group(["Volume"])
+    visual_ids = {item["id"] for items in grouped.values() for item in items}
+
+    assert set(grouped.keys()) == set(CHART_UI_GROUPS_ORDER)
+    assert not visual_ids.intersection(TEXT_SUMMARY_CHART_IDS)
+
+
+def test_text_summary_chart_contract_is_stable():
+    summaries = get_text_summary_charts(["Volume"])
+
+    assert TEXT_SUMMARY_GROUP_LABEL == "統計資料"
+    assert [item["id"] for item in summaries] == list(TEXT_SUMMARY_CHART_IDS)
+    assert all(item["is_text_summary"] is True for item in summaries)
+    assert all(is_text_summary_chart(chart_id) for chart_id in TEXT_SUMMARY_CHART_IDS)
+    assert is_text_summary_chart("imr") is False
 
 
 def test_intent_presets_match_five_category_packages():

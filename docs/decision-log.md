@@ -1,5 +1,14 @@
 # Decision Log
 
+## 2026-06-30 統計圖表與統計資料分流
+
+- Decision: 新增左側並列選單 `統計資料`，將 `ooc_analysis`、`shift_detection`、`drift_detection`、`outlier_analysis` 四個純文字摘要從 `統計圖表` selector 分流到一頁式資料瀏覽表；`統計圖表` 保留五組真正圖表視覺輸出。
+- Scope: `chart_registry` 分流 helper、`ChartAnalysisPage` visual-only selector、`StatisticsDataPage`、`MainWindow` 導覽與診斷跳轉、`ReportExportPage` 分組、UI tokens/QSS、focused tests 與 README/spec 文件。
+- Reason: 使用者在圖表頁期待看到實際統計圖表；純文字摘要放在五組 checkbox 中會造成「選了圖表但只看到文字」的落差。分流後可用資料表集中比較狀態、主要數值、比率/幅度、門檻與來源。
+- Impact: 左側可見流程為 8 個按鈕但仍維持 6 個視覺列（`統計圖表 / 統計資料` 與 `診斷一 / 診斷二` 並列）；報告匯出新增 `統計資料` 分組。chart IDs、payload shape、SPC 公式、資料庫 schema、PPTX builder contract 與 `ENGINEERING_DEFAULT_CHART_IDS` 不變。
+- Risk: `StatisticsDataPage` 目前聚合既有文字摘要 payload 的主要數值與狀態，若未來引擎新增更多文字摘要欄位，應擴充表格解析而非回放到圖表 selector。
+- Rollback: 回退 UI/registry/report/tests/docs 變更即可恢復原 selector；不需要資料庫 migration、payload consumer rollback 或公式規格變更。
+
 ## 2026-06-30 規格管理新增手動新增產品規格
 
 - Decision: 在資料庫的「規格管理」合併表新增「新增規格」入口，讓使用者可直接建立既有或全新產品的錫膏印刷規格與鋼板厚度規格，新增表單一律從系統預設值開始。

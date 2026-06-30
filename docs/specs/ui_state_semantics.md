@@ -53,6 +53,7 @@ QSS in `app/ui/theme/dark_stylesheet.py` references these tokens for `state` or 
 | Chart analysis autoswitch hint | info | 特徵切換觸發自動改選時顯示 `autoswitch_reason`（來源圖/目標圖/原因），屬可追溯提示，不使用 alarm 色。 |
 | Chart analysis context strip | info | 圖表頁在 chart card 區上方常駐顯示 active features、1F/2F/3F 模式、選取圖表數、標準化狀態與 batch/PartType/RefDes filter，避免使用者只靠 tooltip 判讀。 |
 | Chart analysis card status | ready, incompatible, nodata, error | 每張圖卡顯示 `Ready/Incompatible/NoData/Error`；來源為 `render_status[chart_id]`，並帶原因文案；`QLabel[class="statusIndicator"][state=*]` 在 QSS 中提供不同邊框/背景/文字色。 |
+| Statistics data page | success, warning, error, nodata, info | `StatisticsDataPage` 將 OOC/Shift/Drift/Outlier 文字摘要集中為一頁式 `QTableWidget`，不使用左側子清單；項目欄使用 Qt standard icons，狀態欄使用 `create_status_badge(...)`，長 CJK 摘要與來源文字以 tooltip 保留完整內容。 |
 | 製程統計分析輸出（`DiagnosticPage`） | Normal, Warning, Alarm, Info | 報告式欄位值依 `summary.process.dashboard_layers` 狀態欄位轉為 `dashValue*` class；缺值顯示 `UNKNOWN/VERIFY`。 |
 | Report export page | selected, incompatible, info | Chart checkboxes：不相容時 `state="incompatible"`；首次載入套用工程建議預設勾選；產生預覽時僅取消不相容勾選、其餘保留；預覽 **[F] 匯出範圍摘要** 顯示已選/可用/不相容；另存 PPTX 選檔後有唯讀確認清單（證據圖、預估畫廊頁、分布分析敘事頁）再寫檔。 |
 | Control panel status row | ok, pending, warning | QLabel `class`: status-ok / status-pending / status-warning; Phase 2 added Unicode prefix (✓ / ○ / ⚠). |

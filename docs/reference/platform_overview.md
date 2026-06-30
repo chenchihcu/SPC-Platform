@@ -1,6 +1,6 @@
 # SPI 製程統計分析（Overview）
 
-本文件是參考用的高層總覽。**文件同步快照：2026-05-25**；架構行為仍以 repo root `README.md` 與 `docs/specs/project_architecture.md` 的 current snapshot 為準。
+本文件是參考用的高層總覽。**文件同步快照：2026-06-30**；架構行為仍以 repo root `README.md` 與 `docs/specs/project_architecture.md` 的 current snapshot 為準。
 
 ## 系統定位
 
@@ -13,7 +13,7 @@ PySide6 桌面工程分析平台，核心功能：
 ## 程式入口與主流程
 
 - 入口：`main.py -> app.ui.main_window.run_app()`
-- UI shell：`app/ui/main_window.py`（堆疊頁為 **資料／量測／圖表／報告／參考／診斷／量測庫**；左側 `CollapsibleSidebar` 顯示 6 個流程按鈕，`NAV_TO_STACK=[0,6,2,5,3,4]`；右側 `QTabWidget#workflowTabs` 保留 6 個內部頁面但 tab bar 隱藏；`量測` 頁不顯示於流程導覽）
+- UI shell：`app/ui/main_window.py`（堆疊頁為 **資料／量測／圖表／報告／參考／診斷／量測庫／診斷二／統計資料**；左側 `CollapsibleSidebar` 顯示 8 個流程按鈕但維持 6 個視覺列，`NAV_TO_STACK=[0,6,2,8,5,7,3,4]`；右側 `QTabWidget#workflowTabs` 保留 8 個可見 workflow page mapping 但 tab bar 隱藏；`量測` 頁不顯示於流程導覽）
 - 製程統計分析輸出（`summary.process.dashboard_layers` + `diagnostic_evidence_matrix`）：`app/ui/pages/diagnostic_page.py`
 - 分析前置與快取決策：`app/services/analysis_orchestrator.py`
 - 分析 payload 組裝：`app/viewmodels/chart_analysis_viewmodel.py`

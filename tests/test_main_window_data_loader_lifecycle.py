@@ -183,16 +183,16 @@ def test_manage_specs_requested_routes_to_library_spec_tab(qapp: QApplication) -
     assert mw.pages["量測庫"].tabs.currentIndex() == 2
 
 
-def test_left_sidebar_navigation_uses_seven_visible_workflow_steps(qapp: QApplication) -> None:
+def test_left_sidebar_navigation_uses_eight_visible_workflow_steps(qapp: QApplication) -> None:
     mw = MainWindow()
 
     assert isinstance(mw.workspace, QTabWidget)
-    assert mw.workspace.count() == 7
+    assert mw.workspace.count() == 8
     assert [mw.workspace.tabText(i) for i in range(mw.workspace.count())] == [
         label for label, _stack_index in VISIBLE_WORKFLOW_TABS
     ]
     assert mw.workspace.tabBar().isHidden()
-    assert TAB_TO_STACK == [0, 6, 2, 5, 7, 3, 4]
+    assert TAB_TO_STACK == [0, 6, 2, 8, 5, 7, 3, 4]
     assert not mw.navigation.isHidden()
     assert [btn.text() for btn in mw.navigation._step_buttons] == [
         label for label, _stack_index in VISIBLE_WORKFLOW_TABS
@@ -224,7 +224,7 @@ def test_sidebar_findability_groups_are_bounded(qapp: QApplication) -> None:
         for text in section_texts
     ]
     assert normalized == ["流程", "分析條件", "特徵", "動作"]
-    assert len(mw.navigation._step_buttons) == 7
+    assert len(mw.navigation._step_buttons) == 8
     assert mw.control_panel.target_btn.text() == "下一步"
     assert mw.control_panel.refresh_btn.text() == "重新分析"
 
@@ -300,6 +300,17 @@ def test_navigation_tooltips_match_sidebar_button_order(qapp: QApplication) -> N
     mw = MainWindow()
     buttons = mw.navigation._step_buttons
 
-    assert len(buttons) == 7
-    assert len(NAV_STEP_TOOLTIPS) == 7
+    assert len(buttons) == 8
+    assert len(NAV_STEP_TOOLTIPS) == 8
     assert [btn.toolTip() for btn in buttons] == NAV_STEP_TOOLTIPS
+
+
+def test_text_summary_diagnostic_link_routes_to_statistics_data_page(qapp: QApplication) -> None:
+    mw = MainWindow()
+
+    mw._on_navigate_to_chart("ooc_analysis", ["Volume"])
+
+    assert mw.workspace.currentIndex() == STACK_TO_TAB[8]
+    assert TAB_TO_STACK[mw.workspace.currentIndex()] == 8
+    assert mw.navigation._current_stack_index == 3
+    assert mw.pages["統計資料"]._pending_select_chart_id == "ooc_analysis"

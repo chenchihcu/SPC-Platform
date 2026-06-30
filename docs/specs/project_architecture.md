@@ -68,7 +68,7 @@ docs/
 
 主介面為混合導航兩欄式：
 - 左欄：`CollapsibleSidebar`（可見 `NavigationPanel` 流程導覽、全域篩選、特徵快捷、下一步、重新分析）
-- 右欄：`QTabWidget#workflowTabs` 內部頁面容器（保留 6 個 workflow page mapping，但 tab bar 隱藏）
+- 右欄：`QTabWidget#workflowTabs` 內部頁面容器（保留 8 個可見 workflow page mapping，但 tab bar 隱藏）
 
 主視窗尺寸由 `app/ui/theme/layout_policy.py` 的共用 helper 控制：新開視窗依目前螢幕可用工作區置中，現行初次開啟使用 `0.93` 可用區比例；`fit_top_level_to_available(...)` 同時套用於解讀、匯出確認與資料庫編輯對話框；從 `QSettings` 還原的幾何若離屏或超出工作區，會重設為安全尺寸後再建立 splitter 配比。
 
@@ -79,26 +79,30 @@ docs/
 
 ## 4.1 堆疊頁與左側流程導覽（權威：`app/ui/main_window.py`）
 
-**堆疊順序 `STACK_ORDER`**（索引 0..6）：
+**堆疊順序 `STACK_ORDER`**（索引 0..8）：
 | 索引 | 頁名 | 類別／說明 |
 |------|------|------------|
 | 0 | 資料 | `DataSetupPage`（整合座標、工單、量測匯入） |
 | 1 | 量測 | `ComponentSelectPage`（元件／量測特徵選定；**不顯示於可見流程導覽**，多由圖表頁切換進入） |
-| 2 | 圖表 | `ChartAnalysisPage`（管制圖與統計分析） |
+| 2 | 圖表 | `ChartAnalysisPage`（管制圖、能力、根因、關係與比較等真正圖表視覺輸出） |
 | 3 | 報告 | `ReportExportPage`（工程 PPTX） |
 | 4 | 參考 | `DataManagementPage`（說明與參考資料） |
-| 5 | 診斷 | `DiagnosticPage`（製程統計分析報告輸出，整合 Alarm/KPI、規格能力、組合矩陣與證據矩陣） |
+| 5 | 診斷 | `DiagnosticPage`（診斷一：製程統計分析報告輸出，整合 Alarm/KPI、規格能力、組合矩陣與證據矩陣） |
 | 6 | 量測庫 | `MeasurementLibraryPage`（SQLite 主資料庫查詢與載入） |
+| 7 | 診斷二 | `DiagnosticMatrixPage`（診斷證據矩陣與組合分析） |
+| 8 | 統計資料 | `StatisticsDataPage`（OOC/Shift/Drift/Outlier 文字統計摘要一頁式資料瀏覽） |
 
-**可見流程導覽 `VISIBLE_WORKFLOW_TABS`**（Nav 0..5）：
+**可見流程導覽 `VISIBLE_WORKFLOW_TABS`**（Nav 0..7；`統計圖表 / 統計資料` 與 `診斷一 / 診斷二` 並列，仍維持 6 個視覺列）：
 - `資料設定` (Tab 0 -> Stack 0)
 - `資料庫` (Tab 1 -> Stack 6)
 - `統計圖表` (Tab 2 -> Stack 2)
-- `診斷` (Tab 3 -> Stack 5)
-- `報告匯出` (Tab 4 -> Stack 3)
-- `說明` (Tab 5 -> Stack 4)
+- `統計資料` (Tab 3 -> Stack 8)
+- `診斷一` (Tab 4 -> Stack 5)
+- `診斷二` (Tab 5 -> Stack 7)
+- `報告匯出` (Tab 6 -> Stack 3)
+- `說明` (Tab 7 -> Stack 4)
 
-`NAV_TO_STACK = [0, 6, 2, 5, 3, 4]` 為左側流程導覽映射。`TAB_TO_STACK = [0, 6, 2, 5, 3, 4]` 保留給內部 `QTabWidget#workflowTabs` 頁面容器與既有快捷鍵相容；tab bar 不顯示。相較於舊版，`WorkorderPage` 已整合至 `DataSetupPage`，且 `量測` 頁仍保留為內部頁面。
+`NAV_TO_STACK = [0, 6, 2, 8, 5, 7, 3, 4]` 為左側流程導覽映射。`TAB_TO_STACK = [0, 6, 2, 8, 5, 7, 3, 4]` 保留給內部 `QTabWidget#workflowTabs` 頁面容器與既有快捷鍵相容；tab bar 不顯示。相較於舊版，`WorkorderPage` 已整合至 `DataSetupPage`，且 `量測` 頁仍保留為內部頁面。
 
 側欄可尋性契約：左欄只放跨頁流程與全域分析控制，不承載表單內選檔/儲存/管理按鈕，也不承載資料表列操作。若側欄密度不足，優先收合分析條件，而不是加入更多側欄 action；流程導覽與 `下一步` / `重新分析` 必須保持可辨識。
 
@@ -139,11 +143,13 @@ docs/
 `app/analytics/chart_registry.py` 為圖表契約單一來源，定義了圖表 ID、類別、特徵數相容性及四區塊（Definition/Formula/Source/Interpretation）描述。
 
 **UI 選單分組 (`CHART_UI_GROUPS_ORDER`)：**
-- **製程監控**：I-MR, Xbar-R, Run Chart, OOC, Shift/Drift, Patterns (含 3F)
+- **製程監控**：I-MR, Xbar-R, Run Chart, Patterns, EWMA/CUSUM (含 3F)
 - **製程能力**：Cp/Cpk, Normality, Boxplot, Pass/Fail Matrix (含 3F)
 - **異常根源**：Pareto, Spatial Heatmap, Repeated Offender, Anomaly/Consistency 3F
 - **變數關係**：Scatter, Correlation matrix, Correlation heatmap, Density, Quadrant, Bivariate Outlier, Parallel Coord
 - **比較分析**：Subgroup, ANOVA (PartType)
+
+`ChartAnalysisPage` 使用 `get_visual_charts_by_ui_group()`，因此五組 selector 只呈現真正圖表視覺輸出。文字摘要 chart IDs `ooc_analysis`、`shift_detection`、`drift_detection`、`outlier_analysis` 保留原 chart ID、payload shape 與引擎公式，但透過 `TEXT_SUMMARY_GROUP_LABEL = "統計資料"` / `get_text_summary_charts()` 顯示於 `StatisticsDataPage`，報告匯出頁也將它們獨立成 `統計資料` 分組；`ENGINEERING_DEFAULT_CHART_IDS` 不因分組而改變。
 
 **工程診斷路徑 (`ROOT_CAUSE_FLOW_ORDER`)：**
 1. 製程監控 -> 2. 製程能力 -> 3. 異常根源 -> 4. 變數關係 -> 5. 比較分析
@@ -275,6 +281,7 @@ UI 要求：
 
 | 日期 | 內容 |
 |-----|-----|
+| 2026-06-30 | 統計圖表與統計資料分流：左側導覽新增 `統計資料`（與 `統計圖表` 並列），OOC/Shift/Drift/Outlier 文字摘要移至 `StatisticsDataPage` 一頁式資料表；圖表頁 selector 保持五組 visual charts，報告匯出新增 `統計資料` 分組。chart IDs、payload shape、SPC 公式、工程報告預設清單不變。 |
 | 2026-05-26 | Qt desktop layout/theme remediation：主視窗初次開啟改為 `0.93` 可用區 fitting；新增 `fit_top_level_to_available(...)` 並套用至解讀、匯出確認與資料庫編輯對話框；Data Setup 改為一頁式量化表格布局與 `DataSetupLayoutBudget` 診斷輸出；側欄高度不足時以可見 affordance 收合分析條件並保留 `下一步` / `重新分析`。 |
 | 2026-05-24 | 分析與 PPTX 匯出效能收斂：Nelson rule 3/4 與 summary 缺陷統計改為向量化；payload 組裝避免 selected feature 重算；ReportService 優先重用相符分析快取並加入單次匯出 chart image cache；PPTX 匯出改為背景 worker；圖表卡片改為 first-use lazy creation；performance harness 增加 Nelson 與 report cache reuse 觀測欄位。SPC 公式、chart ID、payload top-level shape、PPTX 內容契約不變。 |
 | 2026-05-23 | UI shell 改為左側可見流程導覽：`NavigationPanel` 承載 6 個 workflow buttons，右側 `QTabWidget#workflowTabs` 保留為內部容器但隱藏 tab bar；側欄可尋性契約限制為流程、全域篩選、特徵快捷與下一步/重新分析，並在高度不足時優先收合分析條件。 |

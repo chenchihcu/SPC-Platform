@@ -9,6 +9,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication, QCheckBox, QGridLayout
 from PySide6.QtCore import QEvent
 
+from app.analytics.chart_registry import TEXT_SUMMARY_CHART_IDS
 from app.ui.pages.chart_analysis_page import ChartAnalysisPage
 from app.ui.state.app_status_model import AppStatusModel, STATE_ANALYZING, STATE_SUCCESS
 from app.ui.widgets.status_bar import StatusBarWidget
@@ -93,6 +94,7 @@ def test_chart_page_uses_compact_selector_and_card_header(qapp: QApplication) ->
     assert content_layout.itemAtPosition(0, 1) is not None
     options = [cb for cb in content.findChildren(QCheckBox) if cb.parentWidget() is content]
     assert len(options) >= 6
+    assert not set(page._chart_id_to_checkbox).intersection(TEXT_SUMMARY_CHART_IDS)
     assert max(option.geometry().bottom() for option in options) <= content.rect().bottom()
 
 

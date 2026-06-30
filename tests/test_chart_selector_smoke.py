@@ -10,6 +10,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QFrame, QSizePolicy
 
+from app.analytics.chart_registry import TEXT_SUMMARY_CHART_IDS
 from app.ui.pages.chart_analysis_page import ChartAnalysisPage
 from app.ui.pages import report_export_page
 from app.ui.pages.report_export_page import ReportExportPage
@@ -29,6 +30,7 @@ def test_chart_analysis_selector_works_without_intent_presets(qapp: QApplication
     assert not hasattr(page, "_intent_button_group")
     assert not hasattr(page, "_intent_buttons")
     assert page._chart_id_to_checkbox
+    assert not set(page._chart_id_to_checkbox).intersection(TEXT_SUMMARY_CHART_IDS)
     assert any(cb.isChecked() for cb in page._chart_id_to_checkbox.values())
 
 
@@ -39,6 +41,7 @@ def test_report_export_selector_works_without_intent_presets(qapp: QApplication)
     assert not hasattr(page, "_intent_buttons")
     assert not hasattr(page, "_intent_hint_label")
     assert page._chart_checkboxes
+    assert set(TEXT_SUMMARY_CHART_IDS).issubset(page._chart_checkboxes)
     assert any(cb.isChecked() for cb in page._chart_checkboxes.values())
 
 

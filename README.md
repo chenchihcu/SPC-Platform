@@ -9,7 +9,7 @@ SPI 製程統計分析桌面平台（PySide6）。
     - **供應商格式相容**：量測 CSV 支援供應商限定 profile；目前 `振順豐` TOP 寬表會在供應商匹配（或未選供應商且路徑/欄位簽名完全符合）時轉為標準 `RefDes/Pad/Volume/Area/Height/BoardNo` 長表，不擴大全域欄位別名。
     - **歷史量測庫 (Measurement Library)**：基於 SQLite (`data/spc_master.db`) 的量測數據存儲與快速檢索分析；量測 session 會保存供應商名稱、雙工單與料號，從量測庫回載時會同步回 `SessionStore` 供供應商限定 CSV profile 使用；規格管理以合併表呈現「錫膏印刷規格 + 鋼板厚度規格」，可手動新增每產品 active 規格並由兩庫各自維護版本；供應商管理分頁之 `supplier_code` 由系統自動產生（`SUP-0001` 流水格式）且 UI 唯讀不可手改。
 - **② 分析 (Analysis)**：
-    - **統計圖表 (Chart Analysis)**：支援 1F/2F/3F 多特徵同步分析（Volume/Area/Height），自動相容性切換；所有 Matplotlib 圖表共用 `BaseChart` 視覺語意（量測線、中心線、管制限、規格限、OOC/OOS 標記、樣本揭露），圖卡具備 `Ready/Incompatible/NoData/Error` 狀態標籤。
+    - **統計圖表 (Chart Analysis)**：支援 1F/2F/3F 多特徵同步分析（Volume/Area/Height），自動相容性切換；所有 Matplotlib 圖表共用 `BaseChart` 視覺語意（量測線、中心線、管制限、規格限、OOC/OOS 標記、樣本揭露），圖卡具備 `Ready/Incompatible/NoData/Error` 狀態標籤；純文字摘要（失控、偏移、漂移、離群）改由同列左側選單 `統計資料` 以一頁式資料表瀏覽。
     - **製程統計分析 (Process Statistics Analysis)**：整合 `DiagnosticPage` 視野，採少容器報告式輸出呈現 `dashboard_layers` 的 Alarm/KPI/規格能力/穩定性/第 8 層根因建議；另以 `diagnostic_evidence_matrix` 展開 `特徵 × 圖表 × 篩選 × 顯示` 候選組合，輸出 7 個固定子分頁的白話判讀列、組合矩陣、證據矩陣與多圖表關聯判讀。
 - **③ 輸出 (Output)**：
     - **專業報告匯出 (Report Export)**：一鍵產生 `engineering` 模板 PPTX 工程報告，支援圖表預覽、匯出範圍摘要、自動生成證據頁 (2x2 Chart Gallery) 與圖表證據覆蓋表；報告會揭露資料來源、未納入證據與診斷證據類型，無有效 X/Y 座標時空間分析不作為有效判讀證據。
@@ -29,7 +29,7 @@ SPI 製程統計分析桌面平台（PySide6）。
 - **SPI 製程對應知識庫**：人維護權威稿為 **`SPI_製程對應知識庫_v1.0.xlsx`**（見 `app/services/spi_process_kb_loader.py` 常數 `CANONICAL_SPI_KB_WORKBOOK_BASENAME`）；版本化 JSON 置於 `data/spi_process_kb/v1/`（四區塊：多訊號規則 R001–R030、三維對應、檢查門檻、圖表速查）；`multi_signal_diagnosis` 執行期載入並併入診斷 payload；以 `scripts/import_spi_process_kb_xlsx.py` 自該 xlsx 匯入更新。
 - CI baseline 為 `lint -> type check -> tests -> qt_audit -> check_launch`。
 
-## Current Architecture (2026-05-26)
+## Current Architecture (2026-06-30)
 
 ### Runtime Flow
 
@@ -41,7 +41,8 @@ main.py
       -> ChartAnalysisViewModel (engine payload assembly)
       -> analysis_payload_finalize (statistical signals + diagnostic_evidence_matrix)
       -> chart_registry (chart contract + compatibility + payload routing)
-      -> ChartAnalysisPage UI state model (`active_features`, `selected_chart_ids`, `autoswitch_reason`, `render_status`; chart cards lazy-create on first visible use)
+      -> ChartAnalysisPage UI state model (`active_features`, `selected_chart_ids`, `autoswitch_reason`, `render_status`; visual chart cards lazy-create on first visible use)
+      -> StatisticsDataPage（一頁式瀏覽 OOC/Shift/Drift/Outlier 文字統計摘要）
       -> DiagnosticPage（製程統計分析報告輸出：`summary.process.dashboard_layers` + `diagnostic_evidence_matrix`）
       -> ReportService (PPTX-only engineering report orchestration, `template_type=engineering`; reuses matching analysis cache and per-export chart image cache)
 ```
@@ -81,7 +82,7 @@ docs/
 
 ### Main window stack（與左側流程導覽）
 
-堆疊順序見 `app/ui/main_window.py` 之 `STACK_ORDER`：**資料**、**量測**（元件／特徵選定；**不顯示於流程導覽**）、**圖表**、**報告**、**參考**、**診斷**、**量測庫**。左側 `CollapsibleSidebar` 顯示 6 個流程按鈕（`資料設定`、`資料庫`、`統計圖表`、`診斷`、`報告匯出`、`說明`），透過 `NAV_TO_STACK = [0, 6, 2, 5, 3, 4]` 與 `TAB_TO_STACK = [0, 6, 2, 5, 3, 4]` 對應到內部堆疊；右側 `QTabWidget#workflowTabs` 保留為頁面容器但隱藏 tab bar。左側欄只承載流程切換、全域篩選、特徵快捷與 `下一步` / `重新分析`，表單與資料表列操作保留在內容區；當視窗高度不足時，側欄會先收合 `分析條件` 並顯示已收合提示，保留目前篩選值、流程導覽與底部主動作可辨識。Data Setup 主區採量化表格布局與 `DataSetupLayoutBudget` 診斷輸出，避免回到整頁垂直 scroll 作為主要布局。
+堆疊順序見 `app/ui/main_window.py` 之 `STACK_ORDER`：**資料**、**量測**（元件／特徵選定；**不顯示於流程導覽**）、**圖表**、**報告**、**參考**、**診斷**、**量測庫**、**診斷二**、**統計資料**。左側 `CollapsibleSidebar` 顯示 8 個流程按鈕（`資料設定`、`資料庫`、`統計圖表`、`統計資料`、`診斷一`、`診斷二`、`報告匯出`、`說明`），其中 `統計圖表 / 統計資料` 與 `診斷一 / 診斷二` 各自並列，維持 6 個視覺列；透過 `NAV_TO_STACK = [0, 6, 2, 8, 5, 7, 3, 4]` 與 `TAB_TO_STACK = [0, 6, 2, 8, 5, 7, 3, 4]` 對應到內部堆疊；右側 `QTabWidget#workflowTabs` 保留為頁面容器但隱藏 tab bar。左側欄只承載流程切換、全域篩選、特徵快捷與 `下一步` / `重新分析`，表單與資料表列操作保留在內容區；當視窗高度不足時，側欄會先收合 `分析條件` 並顯示已收合提示，保留目前篩選值、流程導覽與底部主動作可辨識。Data Setup 主區採量化表格布局與 `DataSetupLayoutBudget` 診斷輸出，避免回到整頁垂直 scroll 作為主要布局。
 
 ## Quick Start
 

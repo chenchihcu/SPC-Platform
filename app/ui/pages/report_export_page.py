@@ -32,17 +32,20 @@ from app.analytics.chart_registry import (
     CHART_ORDER, get_chart_display_name,
     is_chart_available_for_selection, get_incompatible_reason,
     CHART_UI_GROUPS_ORDER, CHART_UI_GROUP_BY_ID,
+    TEXT_SUMMARY_GROUP_LABEL, is_text_summary_chart,
 )
 from app.services.report_service import ENGINEERING_DEFAULT_CHART_IDS, TEMPLATE_ENGINEERING
 
 if TYPE_CHECKING:
     from app.ui.state.app_status_model import AppStatusModel
 
-# 與圖表分析頁保持一致（使用 chart_registry 的分組定義）
-REPORT_CHART_GROUP_ORDER = CHART_UI_GROUPS_ORDER
+# 與圖表分析頁保持一致；文字摘要在報告選擇器中獨立成「統計資料」分組。
+REPORT_CHART_GROUP_ORDER = [*CHART_UI_GROUPS_ORDER, TEXT_SUMMARY_GROUP_LABEL]
 
 
 def get_report_chart_group(chart_id: str) -> str:
+    if is_text_summary_chart(chart_id):
+        return TEXT_SUMMARY_GROUP_LABEL
     return CHART_UI_GROUP_BY_ID.get(chart_id, "比較分析")
 
 

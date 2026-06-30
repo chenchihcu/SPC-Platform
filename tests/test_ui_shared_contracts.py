@@ -18,7 +18,7 @@ from app.ui.theme import apply_dark_theme
 from app.ui.theme.dark_stylesheet import get_app_stylesheet
 from app.ui.theme.tokens import SECONDARY_TAB_COMPACT_MIN_WIDTH
 from app.ui.widgets.page_templates import empty_state_label, set_drop_zone_active, style_table
-from app.ui.workflow_labels import VISIBLE_WORKFLOW_TABS, WORKFLOW_LABEL_CHARTS
+from app.ui.workflow_labels import VISIBLE_WORKFLOW_TABS, WORKFLOW_LABEL_CHARTS, WORKFLOW_LABEL_STATISTICS_DATA
 
 
 def _ensure_app() -> QApplication:
@@ -137,7 +137,9 @@ def test_workflow_chart_label_is_single_source_for_visible_text() -> None:
     source = Path("app/ui/pages/measurement_library_page.py").read_text(encoding="utf-8")
 
     assert WORKFLOW_LABEL_CHARTS == "統計圖表"
+    assert WORKFLOW_LABEL_STATISTICS_DATA == "統計資料"
     assert "統計圖表" in labels
+    assert "統計資料" in labels
     assert "管制圖表" not in labels
     assert "管制圖表" not in source
     assert "WORKFLOW_LABEL_CHARTS" in source
