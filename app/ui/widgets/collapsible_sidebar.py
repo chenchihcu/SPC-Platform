@@ -210,6 +210,14 @@ class CollapsibleSidebar(QWidget):
             self.collapse_changed.emit(False)
             self._sync_control_density()
 
+    def is_collapsed(self) -> bool:
+        return self._collapsed
+
+    def set_collapsed(self, collapsed: bool) -> None:
+        if self._collapsed == collapsed:
+            return
+        self._on_toggle()
+
     def resizeEvent(self, event) -> None:
         """Re-evaluate sidebar density whenever the available height changes."""
         super().resizeEvent(event)

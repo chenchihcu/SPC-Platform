@@ -117,7 +117,17 @@ class DataSetupPage(QWidget):
 
         self._grid_layout: QGridLayout | None = None # 用於響應式切換
 
-        outer = QtWidgets.QVBoxLayout(self)
+        self.scroll_area = QtWidgets.QScrollArea(self)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        
+        self.scroll_content = QtWidgets.QWidget()
+        self.scroll_content.setObjectName("dataSetupScrollContent")
+        self.scroll_content.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+
+        outer = QtWidgets.QVBoxLayout(self.scroll_content)
         outer.setContentsMargins(
             DATA_SETUP_PAGE_MARGIN_H,
             DATA_SETUP_PAGE_MARGIN_V,
@@ -153,7 +163,7 @@ class DataSetupPage(QWidget):
 
         lbl_prod = QLabel("分析產品")
         lbl_prod.setProperty("class", "caption")
-        lbl_prod.setFixedWidth(DATA_SETUP_INLINE_LABEL_WIDTH)
+        lbl_prod.setMinimumWidth(DATA_SETUP_INLINE_LABEL_WIDTH)
         lbl_prod.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         header_lay.addWidget(lbl_prod, 0)
         self.product_combo = QComboBox()
@@ -321,6 +331,12 @@ class DataSetupPage(QWidget):
         self._reload_supplier_options()
         self._on_spec_validity_changed(self._stencil_content.has_valid_main_thickness())
         self._refresh_readiness()
+        
+        self.scroll_area.setWidget(self.scroll_content)
+        main_lay = QtWidgets.QVBoxLayout(self)
+        main_lay.setContentsMargins(0, 0, 0, 0)
+        main_lay.addWidget(self.scroll_area)
+
         self._update_layout_tier(layout_tier_from_width(self.width()))
 
     @staticmethod
@@ -550,7 +566,7 @@ class DataSetupPage(QWidget):
         lay.setSpacing(SPACING_8)
         lbl = QLabel(label_text)
         lbl.setProperty("class", "caption")
-        lbl.setFixedWidth(DATA_SETUP_INLINE_LABEL_WIDTH)
+        lbl.setMinimumWidth(DATA_SETUP_INLINE_LABEL_WIDTH)
         lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         bind_label_to_widget(lbl, field, label_text)
         lay.addWidget(lbl, 0)

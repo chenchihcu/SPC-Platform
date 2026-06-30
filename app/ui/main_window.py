@@ -624,6 +624,12 @@ class MainWindow(QMainWindow):
             fallback_size=DEFAULT_WINDOW_SIZE,
         )
 
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        if self.width() < 860:
+            if hasattr(self, "_sidebar") and self._sidebar and not self._sidebar.is_collapsed():
+                self._sidebar.set_collapsed(True)
+
     def closeEvent(self, event) -> None:
         """
         Gracefully terminate all background workers before closing.

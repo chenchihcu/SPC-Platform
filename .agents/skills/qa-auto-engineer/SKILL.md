@@ -405,9 +405,10 @@ w.grab().save("Outputs/qa_report_YYYYMMDD_HHMM/00_startup.png", "PNG")
 
 ---
 
-## 快速啟動指令
+## 快速啟動與稽核指令
 
-**首選：程式內驅動腳本**（可截圖、可分析）。將整個巡迴寫成一支腳本：建立 `MainWindow` → 逐頁 `_go_to_page` → `grab().save()`，輸出到 `Outputs/qa_report_*/`，再用 Read 讀回各 PNG 分析。範本見 `presentations/smt-spi-platform-overview/capture_ui_screenshots.py` 與 Phase 1 骨架。
+**視覺截圖檢測**：
+將整個巡迴寫成一支腳本，建立 `MainWindow` → 逐頁 `_go_to_page` → `grab().save()`，輸出到 `Outputs/qa_report_*/`，再進行分析。範本見 `presentations/smt-spi-platform-overview/capture_ui_screenshots.py`。
 
 ```bash
 # 以 repo 既有腳本快速產生基準截圖（headed 環境）
@@ -415,4 +416,13 @@ cd "c:\Users\user\Documents\SPC Platform"
 python presentations/smt-spi-platform-overview/capture_ui_screenshots.py
 ```
 
-> **不要**用 `subprocess.Popen` / `start python main.py` 外部啟動再期待截圖——本 harness 無桌面截圖 MCP，外部視窗無法被擷取分析。外部啟動僅適用於純粹確認「能否開起來」，且應改用 `python scripts/check_launch.py`（見 `run-spc` 技能）。
+**多解析度動態幾何與文字截斷稽核**：
+為確保在投影機 (1024x768 / 1280x720)、筆電 (1366x768 / 1920x1080) 與 2K/4K 大螢幕 DPI 縮放下的佈局相容性，可利用 Layout Auditor 稽核器自動抓圖並稽核 visible widgets 的幾何衝突：
+
+```bash
+# 執行多環境模擬並產出幾何稽核報告
+python scripts/run_resolution_audit.py
+```
+
+稽核結果將自動生成並彙整於 `Outputs/resolution_audit_report.md`，包含 `TRUNCATION` (文字截斷)、`OVERLAP` (元件重疊) 與 `OVERFLOW` (視窗溢出) 的詳細缺陷清單。
+
