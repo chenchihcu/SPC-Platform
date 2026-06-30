@@ -1089,15 +1089,29 @@ class MainWindow(QMainWindow):
         from app.data.session_store import SessionStore
         return SessionStore()
 
-def run_app() -> None:
+def run_app(splash: Optional[Any] = None) -> None:
     from app.bootstrap.dpi import setup_high_dpi
     setup_high_dpi()
-    app = QApplication(sys.argv)
+    
+    core_app = QApplication.instance()
+    if not core_app:
+        app = QApplication(sys.argv)
+    else:
+        app = cast(QApplication, core_app)
+        
     from app.ui.theme import apply_app_theme
     from app.ui.debug.ui_runtime_diagnostics import log_ui_diagnostics, ui_diagnostics_enabled
 
+    if splash:
+        splash.set_progress(70, "正在配置介面視覺主題...")
+        app.processEvents()
+
     bundled_families = register_qt_bundled_fonts()
     apply_app_theme(app)
+
+    if splash:
+        splash.set_progress(80, "正在套用字型設定與語系核心...")
+        app.processEvents()
 
     # Keep Qt fallback consistent with bundled CJK fonts used by chart rendering.
     ui_font_family = preferred_qt_font_family()
@@ -1107,7 +1121,20 @@ def run_app() -> None:
     else:
         _log.warning("No bundled Qt fonts detected; selected_ui_font=%s", ui_font_family)
 
+    if splash:
+        splash.set_progress(90, "正在建立主視窗與子頁面...")
+        app.processEvents()
+
     window = MainWindow()
+    
+    if splash:
+        splash.set_progress(100, "啟動完成！")
+        app.processEvents()
+        # 稍微停留一下，給使用者良好的視覺感受
+        from PySide6.QtCore import QThread
+        QThread.msleep(300)
+        splash.finish(window)
+        
     window.show()
     if ui_diagnostics_enabled():
         QTimer.singleShot(0, lambda: log_ui_diagnostics(window, reason="startup"))
