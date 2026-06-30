@@ -79,6 +79,9 @@ If impact is broad (`>=4` production files, `>=2` subsystems, or contract change
 - Before merge/join, deduplicate lookup-side keys when repetition is possible.
 - Sanitize `np.inf`/`-np.inf` before statistical aggregation.
 - Do not introduce broad silent exception handlers in analytics/import/report paths.
+- **Data Deletion Safety**: Any action deleting persistent records (measurements, coordinate configs, specs, suppliers, etc.) MUST implement a double-confirmation dialogue barrier (asking twice in sequence, deleting only if both are "Yes").
+- **Spec Alteration Safety**: Adding or editing version-controlled specs/configs MUST show a confirmation warning dialog before presenting the editor, ensuring the user is aware a new version history log will be generated.
+
 
 ## Bugfix Scope (Agents)
 - **Fix**: wrong results, crashes, resource leaks (including Qt `QThread`/widget lifecycle), or runtime-contract violations.
