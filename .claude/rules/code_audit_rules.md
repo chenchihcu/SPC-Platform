@@ -146,3 +146,31 @@ def draw_chart(self, data):
     self._draw_content(data)
     self.canvas.draw()
 ```
+
+---
+
+## P9. 效能回歸基準（→ A）
+
+判定效能回歸前,固定環境連續量測 ≥5 次,以 median + 變異係數(CoV)區分主機噪音與真實回歸;確認後才重錄 baseline(噪音)或開修復任務(回歸)。
+
+```python
+import statistics
+times = [measure_op() for _ in range(5)]
+med = statistics.median(times)
+cov = statistics.pstdev(times) / med if med else 0.0
+# cov 偏高 → 視為噪音,附審計註記後重錄 baseline;
+# 否則 median 超門檻 → 視為回歸,建立修復任務(明確 module / metric)。
+```
+
+---
+
+## P10. Windows 啟動環境（→ A）
+
+Windows host 啟動先 `ensure_home_env()`(補 `HOME` / `USERPROFILE`),避免 `_overlapped` import 失敗 / `WinError 10106`。驗證:`check_launch` + `import _overlapped` 不報錯。
+
+```python
+import os
+def ensure_home_env():
+    if not os.environ.get("HOME"):
+        os.environ["HOME"] = os.environ.get("USERPROFILE", "")
+```

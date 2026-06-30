@@ -1,5 +1,23 @@
 # Decision Log
 
+## 2026-06-30 規格管理新增手動新增產品規格
+
+- Decision: 在資料庫的「規格管理」合併表新增「新增規格」入口，讓使用者可直接建立既有或全新產品的錫膏印刷規格與鋼板厚度規格，新增表單一律從系統預設值開始。
+- Scope: `MeasurementLibraryPage` 規格管理 action row/dialog/refresh logic、錫膏與鋼板 registry 的 `product_part_no` 保留、focused UI/SQLite tests、README 與架構規格。
+- Reason: 每個產品可能對應不同鋼板、Height 基準與 Volume/Area/Height 管制上下限；只允許編輯既有列會阻塞 X3000=A、VS80=B 這種大量產品規格建檔流程。
+- Impact: 新產品可由規格管理頁直接建立 active 規格版本，spec-only 產品也會出現在規格頁產品篩選；新增後不自動切換目前分析，仍需使用者明確選用規格。SPC 公式、規格解析契約與資料庫 schema 不變。
+- Risk: 本次仍是產品層 active 規格；若未來需同產品依鋼板序號或供應商鋼板批次覆蓋規格，應新增覆蓋層，不回寫本次產品層契約。
+- Rollback: 回退 UI/registry/tests/docs 變更即可移除新增入口；已新增的 SQLite 產品與規格版本可用 UI 刪除或由資料庫備份還原。
+
+## 2026-06-30 振順豐 TOP.csv supplier-specific import profile
+
+- Decision: 新增 `振順豐` 供應商限定量測匯入 profile，將 TOP 寬表 `Component ID/PAD ID/Volume(mm)<n>/Height(mm)<n>/Area(mm)<n>` 轉為標準 `RefDes/Pad/Volume/Height/Area/BoardNo` 長表；供應商匹配優先，未選供應商時僅允許路徑含 `振順豐` 且欄位簽名完整時自動啟用。
+- Scope: `MeasurementLoader`、`DataLoaderWorker` 供應商上下文傳遞、Data Setup 自動儲存供應商同步、`measurement_sessions.supplier` 可重入 migration、量測庫保存/回載 supplier、focused loader/library tests、README 與資料/架構契約。
+- Reason: 振順豐 TOP.csv 的量測欄位是 `(mm)` 寬表，現有全域別名只支援一般/百分比格式，導致寬表轉長後仍缺 `Volume/Area/Height` 標準欄位；此格式只適用振順豐，不應放大全域映射。
+- Impact: 振順豐 TOP.csv 可匯入為 valid，保留 `raw_rows/raw_columns/board_count/measurement_units/vendor_profile` metadata；其他供應商不會因 `(mm)` 欄位自動匹配。量測庫會保存 supplier 並於回載時寫回 `SessionStore`，避免路徑更名後失去供應商 profile。SPC 公式與規格比對語意不變，絕對量測值不隱性轉百分比。
+- Risk: 若振順豐未來改欄位命名或少輸出某個量測族，profile 會回報 signature error；需依新樣本更新 profile 與測試，不應放寬為全域 alias。
+- Rollback: 回退 loader/profile、供應商上下文傳遞、量測庫 supplier 欄位讀寫、tests/docs 即可恢復舊匯入行為；既有 SQLite 若已新增 `measurement_sessions.supplier` 可保留空值相容，必要時以備份還原資料庫。
+
 ## 2026-05-26 Qt desktop layout and theme remediation
 
 - Decision: 將主視窗與代表性對話框收斂到 `availableGeometry()` fitting policy，並將 Data Setup 從垂直堆疊/整頁 scroll 假設改為一頁式量化表格布局。

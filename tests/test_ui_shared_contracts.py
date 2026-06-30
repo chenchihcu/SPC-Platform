@@ -13,7 +13,7 @@ from app.ui.pages.data_management_page import DataManagementPage
 from app.ui.pages.data_setup_page import DataSetupPage
 from app.ui.pages.data_upload_page import DataUploadPage
 from app.ui.pages.diagnostic_page import DiagnosticPage
-from app.ui.pages.measurement_library_page import MeasurementLibraryPage
+from app.ui.pages.measurement_library_page import MeasurementLibraryPage, _COL_NAMES
 from app.ui.theme import apply_dark_theme
 from app.ui.theme.dark_stylesheet import get_app_stylesheet
 from app.ui.theme.tokens import SECONDARY_TAB_COMPACT_MIN_WIDTH
@@ -96,6 +96,39 @@ def test_measurement_library_uses_compact_table_toolbars() -> None:
     assert len(table_toolbars) == page.tabs.count()
     assert page._count_lbl.parentWidget() is page.tabs.widget(0)
     assert page.status_lamp.parentWidget() is page.tabs.widget(0)
+    page.close()
+
+
+def test_measurement_library_table_includes_supplier_context_column() -> None:
+    _ensure_app()
+    page = MeasurementLibraryPage()
+
+    assert "供應商" in _COL_NAMES
+    assert page._table.columnCount() == len(_COL_NAMES)
+    assert page._table.horizontalHeaderItem(_COL_NAMES.index("供應商")).text() == "供應商"
+    page.close()
+
+
+def test_measurement_library_context_preserves_supplier_name() -> None:
+    _ensure_app()
+    page = MeasurementLibraryPage()
+
+    context = page._build_measurement_context(
+        {
+            "id": 7,
+            "product_name": "DemoProduct",
+            "supplier": "振順豐",
+            "product_part_no": "PART-001",
+            "supplier_work_order_no": "SUP-100",
+            "outsource_work_order_no": "OUT-200",
+            "batch_no": "",
+        }
+    )
+
+    assert context["supplier"] == "振順豐"
+    assert context["supplier_work_order_no"] == "SUP-100"
+    assert context["outsource_work_order_no"] == "OUT-200"
+    assert context["batch_no"] == "OUT-200"
     page.close()
 
 

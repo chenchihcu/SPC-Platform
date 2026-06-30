@@ -60,7 +60,18 @@ from app.data.paste_printing_spec_library import (
     set_active_paste_printing_spec_version,
     update_paste_printing_spec_metadata,
 )
-from app.data.paste_printing_spec_registry import save as save_paste_printing_spec
+from app.data.paste_printing_spec_registry import (
+    DEFAULT_AREA_LSL,
+    DEFAULT_AREA_TARGET,
+    DEFAULT_AREA_USL,
+    DEFAULT_HEIGHT_LSL,
+    DEFAULT_HEIGHT_USL,
+    DEFAULT_VOLUME_LSL,
+    DEFAULT_VOLUME_TARGET,
+    DEFAULT_VOLUME_USL,
+    list_products as list_paste_spec_products,
+    save as save_paste_printing_spec,
+)
 from app.data.stencil_thickness_library import (
     delete_stencil_thickness_version,
     list_stencil_thickness_versions,
@@ -68,10 +79,13 @@ from app.data.stencil_thickness_library import (
     update_stencil_thickness_metadata,
 )
 from app.data.stencil_thickness_registry import (
+    DEFAULT_THICKNESS_MAIN,
+    DEFAULT_THICKNESS_PRECISION,
     STENCIL_NORMAL,
     STENCIL_STEPPED,
     UNIT_MODE_ABSOLUTE,
     UNIT_MODE_PERCENT,
+    list_products as list_stencil_spec_products,
     save as save_stencil_thickness_spec,
 )
 from app.data.supplier_library import (
@@ -148,12 +162,14 @@ class _EditSessionDialog(QDialog):
         form.setSpacing(SPACING_8)
 
         self.product_name_edit = QLineEdit(str(session.get("product_name", "") or ""))
+        self.supplier_edit = QLineEdit(str(session.get("supplier", "") or ""))
         self.supplier_work_order_edit = QLineEdit(str(session.get("supplier_work_order_no", "") or ""))
         self.outsource_work_order_edit = QLineEdit(str(session.get("outsource_work_order_no", "") or ""))
         self.part_no_edit = QLineEdit(str(session.get("product_part_no", "") or ""))
         self.notes_edit = QLineEdit(str(session.get("notes", "") or ""))
 
         form.addRow("產品名稱：", self.product_name_edit)
+        form.addRow("供應商名稱：", self.supplier_edit)
         form.addRow("供應商製令工單：", self.supplier_work_order_edit)
         form.addRow("醫電製令工單：", self.outsource_work_order_edit)
         form.addRow("產品料號：", self.part_no_edit)
@@ -179,6 +195,7 @@ class _EditSessionDialog(QDialog):
         """Return edited measurement-session fields."""
         return {
             "product_name": self.product_name_edit.text().strip(),
+            "supplier": self.supplier_edit.text().strip(),
             "supplier_work_order_no": self.supplier_work_order_edit.text().strip(),
             "outsource_work_order_no": self.outsource_work_order_edit.text().strip(),
             "product_part_no": self.part_no_edit.text().strip(),
@@ -234,6 +251,24 @@ class _EditCoordinateDialog(QDialog):
 class _PasteSpecForm(QWidget):
     """錫膏印刷規格表單（僅限值欄位）。"""
 
+    _DEFAULTS: Dict[str, float] = {
+        "default_volume_lsl": DEFAULT_VOLUME_LSL,
+        "default_volume_target": DEFAULT_VOLUME_TARGET,
+        "default_volume_usl": DEFAULT_VOLUME_USL,
+        "default_area_lsl": DEFAULT_AREA_LSL,
+        "default_area_target": DEFAULT_AREA_TARGET,
+        "default_area_usl": DEFAULT_AREA_USL,
+        "default_height_lsl": DEFAULT_HEIGHT_LSL,
+        "default_height_usl": DEFAULT_HEIGHT_USL,
+    }
+
+    @staticmethod
+    def _text_or_default(version: Dict[str, Any], key: str) -> str:
+        value = version.get(key)
+        if value is None or str(value).strip() == "":
+            value = _PasteSpecForm._DEFAULTS[key]
+        return str(value)
+
     def __init__(self, version: Optional[Dict[str, Any]] = None, parent=None) -> None:
         super().__init__(parent)
         v = version or {}
@@ -255,7 +290,7 @@ class _PasteSpecForm(QWidget):
             row_layout.setSpacing(SPACING_8)
             for field_key, field_label in (("lsl", "下限"), ("target", "標準值"), ("usl", "上限")):
                 full_key = f"default_{metric_key}_{field_key}"
-                edit = QLineEdit(str(v.get(full_key, "") or ""))
+                edit = QLineEdit(self._text_or_default(v, full_key))
                 edit.setPlaceholderText(field_label)
                 edit.setFixedWidth(MEAS_LIB_WORKORDER_MIN_WIDTH)
                 self._limit_fields[full_key] = edit
@@ -270,7 +305,7 @@ class _PasteSpecForm(QWidget):
         height_row_layout.setSpacing(SPACING_8)
         for field_key, field_label in (("lsl", "下限"), ("usl", "上限")):
             full_key = f"default_height_{field_key}"
-            edit = QLineEdit(str(v.get(full_key, "") or ""))
+            edit = QLineEdit(self._text_or_default(v, full_key))
             edit.setPlaceholderText(field_label)
             edit.setFixedWidth(MEAS_LIB_WORKORDER_MIN_WIDTH)
             self._limit_fields[full_key] = edit
@@ -323,6 +358,13 @@ class _PasteSpecForm(QWidget):
 class _StencilSpecForm(QWidget):
     """鋼板厚度規格表單（僅限值欄位）。"""
 
+    @staticmethod
+    def _text_or_default(version: Dict[str, Any], key: str, default: float) -> str:
+        value = version.get(key)
+        if value is None or str(value).strip() == "":
+            value = default
+        return str(value)
+
     def __init__(self, version: Optional[Dict[str, Any]] = None, parent=None) -> None:
         super().__init__(parent)
         v = version or {}
@@ -338,8 +380,12 @@ class _StencilSpecForm(QWidget):
         if idx >= 0:
             self.stencil_type_combo.setCurrentIndex(idx)
 
-        self.thickness_main_edit = QLineEdit(str(v.get("thickness_main", "") or ""))
-        self.thickness_precision_edit = QLineEdit(str(v.get("thickness_precision", "") or ""))
+        self.thickness_main_edit = QLineEdit(
+            self._text_or_default(v, "thickness_main", DEFAULT_THICKNESS_MAIN)
+        )
+        self.thickness_precision_edit = QLineEdit(
+            self._text_or_default(v, "thickness_precision", DEFAULT_THICKNESS_PRECISION)
+        )
 
         self.precision_is_main_combo = QComboBox()
         self.precision_is_main_combo.addItem("主厚度=精密", True)
@@ -353,7 +399,9 @@ class _StencilSpecForm(QWidget):
         if mode_idx >= 0:
             self.unit_mode_combo.setCurrentIndex(mode_idx)
 
-        self.height_denominator_edit = QLineEdit(str(v.get("height_denominator_mm", "") or ""))
+        self.height_denominator_edit = QLineEdit(
+            self._text_or_default(v, "height_denominator_mm", DEFAULT_THICKNESS_MAIN)
+        )
 
         form.addRow("鋼板類型：", self.stencil_type_combo)
         form.addRow("主厚度(mm)：", self.thickness_main_edit)
@@ -407,9 +455,17 @@ class _StencilSpecForm(QWidget):
 class _EditCombinedSpecDialog(QDialog):
     """合併編輯一個產品的錫膏印刷規格 + 鋼板厚度規格。"""
 
-    def __init__(self, joined: Dict[str, Any], parent=None) -> None:
+    def __init__(
+        self,
+        joined: Optional[Dict[str, Any]] = None,
+        parent=None,
+        *,
+        is_new: bool = False,
+    ) -> None:
         super().__init__(parent)
-        self.setWindowTitle("編輯產品規格")
+        joined = joined or {}
+        self._is_new = bool(is_new or not joined)
+        self.setWindowTitle("新增產品規格" if self._is_new else "編輯產品規格")
         self.setMinimumWidth(DIALOG_MIN_WIDTH_STANDARD)
 
         paste = joined.get("paste") or {}
@@ -436,7 +492,9 @@ class _EditCombinedSpecDialog(QDialog):
         shared_form.setContentsMargins(0, 0, 0, 0)
         shared_form.setSpacing(SPACING_8)
         self.product_name_edit = QLineEdit(str(product_name))
+        self.product_name_edit.setPlaceholderText("例如 X3000 / VS80")
         self.part_no_edit = QLineEdit(str(product_part_no))
+        self.part_no_edit.setPlaceholderText("產品料號")
         shared_form.addRow("產品名稱：", self.product_name_edit)
         shared_form.addRow("產品料號：", self.part_no_edit)
         layout.addLayout(shared_form)
@@ -552,7 +610,7 @@ class _EditSupplierDialog(QDialog):
 # Main Page
 # ─────────────────────────────────────────────────────────────────────────────
 
-_COL_NAMES = ["產品名稱", "工單編號", "料號", "上傳時間", "筆數", "量測檔", "備註"]
+_COL_NAMES = ["產品名稱", "供應商", "工單編號", "料號", "上傳時間", "筆數", "量測檔", "備註"]
 _COORD_COL_NAMES = ["產品名稱", "產品料號", "註冊時間", "主要版次", "列數", "座標檔路徑"]
 # 規格管理（合併錫膏印刷規格 + 鋼板厚度規格）
 _COMBINED_SPEC_COL_NAMES = [
@@ -816,14 +874,9 @@ class MeasurementLibraryPage(QWidget):
         self._table.setHorizontalHeaderLabels(_COL_NAMES)
         style_table(self._table, role="library")
         hdr = self._table.horizontalHeader()
-        hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        hdr.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        hdr.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        hdr.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
-        hdr.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
-        hdr.setSectionResizeMode(6, QHeaderView.ResizeMode.Stretch)
-        hdr.setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)
+        for col in range(len(_COL_NAMES) - 1):
+            hdr.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+        hdr.setSectionResizeMode(len(_COL_NAMES) - 1, QHeaderView.ResizeMode.Stretch)
 
         self._table.itemDoubleClicked.connect(self._on_row_double_clicked)
         meas_root.addWidget(self._table, 1)
@@ -995,6 +1048,10 @@ class MeasurementLibraryPage(QWidget):
         self._sp_active_btn.setProperty("class", "secondary")
         self._sp_active_btn.clicked.connect(self._on_combined_spec_active_clicked)
 
+        self._sp_add_btn = QPushButton("新增規格")
+        self._sp_add_btn.setProperty("class", "secondary")
+        self._sp_add_btn.clicked.connect(self._on_combined_spec_add_clicked)
+
         self._sp_edit_btn = QPushButton("編輯資料")
         self._sp_edit_btn.setProperty("class", "secondary")
         self._sp_edit_btn.clicked.connect(self._on_combined_spec_edit_clicked)
@@ -1003,6 +1060,7 @@ class MeasurementLibraryPage(QWidget):
         self._sp_delete_btn.setProperty("class", "danger")
         self._sp_delete_btn.clicked.connect(self._on_combined_spec_delete_clicked)
         self._apply_uniform_action_button_size(
+            self._sp_add_btn,
             self._sp_load_btn,
             self._sp_active_btn,
             self._sp_edit_btn,
@@ -1011,6 +1069,7 @@ class MeasurementLibraryPage(QWidget):
         self._add_table_action_row(
             spec_root,
             self._sp_count_lbl,
+            self._sp_add_btn,
             self._sp_load_btn,
             self._sp_active_btn,
             self._sp_edit_btn,
@@ -1111,7 +1170,9 @@ class MeasurementLibraryPage(QWidget):
         self.refresh()
         registered_product_names = self._list_registered_product_names()
         self._refresh_coordinates_with_product_names(registered_product_names)
-        self._refresh_combined_specs_with_product_names(registered_product_names)
+        self._refresh_combined_specs_with_product_names(
+            self._list_spec_product_names(registered_product_names)
+        )
         self.refresh_suppliers()
 
     def _set_status_state(self, state: str, message: str) -> None:
@@ -1136,6 +1197,19 @@ class MeasurementLibraryPage(QWidget):
         return [str(r.get("product_name") or "") for r in list_registered()]
 
     @staticmethod
+    def _list_spec_product_names(registered_product_names: Optional[List[str]] = None) -> List[str]:
+        raw_names = list(registered_product_names or [])
+        raw_names.extend(list_paste_spec_products())
+        raw_names.extend(list_stencil_spec_products())
+
+        names_by_ci: Dict[str, str] = {}
+        for raw in raw_names:
+            name = str(raw or "").strip()
+            if name:
+                names_by_ci.setdefault(name.lower(), name)
+        return [names_by_ci[key] for key in sorted(names_by_ci)]
+
+    @staticmethod
     def _reload_registered_product_combo(combo: QComboBox, names: List[str]) -> None:
         prev = combo.currentText()
         combo.blockSignals(True)
@@ -1157,6 +1231,7 @@ class MeasurementLibraryPage(QWidget):
         file_path: str,
         *,
         product_name: str = "",
+        supplier: str = "",
         work_order_no: str = "",
         supplier_work_order_no: str = "",
         outsource_work_order_no: str = "",
@@ -1172,6 +1247,7 @@ class MeasurementLibraryPage(QWidget):
             session_id = save_measurement_session(
                 file_path,
                 product_name=product_name,
+                supplier=supplier,
                 work_order_no="",
                 supplier_work_order_no=supplier_work_order_no,
                 outsource_work_order_no=outsource_work_order_no,
@@ -1254,6 +1330,7 @@ class MeasurementLibraryPage(QWidget):
 
             values = [
                 str(s.get("product_name") or ""),
+                str(s.get("supplier") or ""),
                 work_order_display,
                 str(s.get("product_part_no") or ""),
                 dt_short,
@@ -1263,13 +1340,13 @@ class MeasurementLibraryPage(QWidget):
             ]
             for col, text in enumerate(values):
                 item = _make_item(text)
-                if col in (4, 5):
+                if col in (5, 6):
                     item.setTextAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
                 # 儲存原始 session dict 在第 0 欄 UserRole（供 edit/delete/load 取用）
                 if col == 0:
                     item.setData(Qt.ItemDataRole.UserRole, s)
                 # 儲存完整路徑在量測檔欄 ToolTip
-                if col == 5:
+                if col == 6:
                     item.setToolTip(file_path)
                 self._table.setItem(row_idx, col, item)
 
@@ -1288,6 +1365,7 @@ class MeasurementLibraryPage(QWidget):
         return data if isinstance(data, dict) else None
 
     def _build_measurement_context(self, session: Dict[str, Any]) -> Dict[str, Any]:
+        supplier = str(session.get("supplier") or "").strip()
         supplier_work_order_no = str(session.get("supplier_work_order_no") or "").strip()
         outsource_work_order_no = str(session.get("outsource_work_order_no") or "").strip()
         legacy_work_order_no = str(session.get("work_order_no") or "").strip()
@@ -1300,6 +1378,7 @@ class MeasurementLibraryPage(QWidget):
         return {
             "session_id": session_id_int,
             "product_name": str(session.get("product_name") or "").strip(),
+            "supplier": supplier,
             "product_part_no": str(session.get("product_part_no") or "").strip(),
             "work_order_no": "",
             "supplier_work_order_no": supplier_work_order_no,
@@ -1360,6 +1439,7 @@ class MeasurementLibraryPage(QWidget):
             ok = update_measurement_session(
                 int(session.get("id", 0)),
                 product_name=vals["product_name"],
+                supplier=vals["supplier"],
                 work_order_no="",
                 supplier_work_order_no=vals["supplier_work_order_no"],
                 outsource_work_order_no=vals["outsource_work_order_no"],
@@ -1389,6 +1469,15 @@ class MeasurementLibraryPage(QWidget):
             QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
+            return
+        reply2 = QMessageBox.question(
+            self,
+            "二次確認",
+            "此動作無法復原，您真的確定要刪除此記錄嗎？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply2 != QMessageBox.StandardButton.Yes:
             return
         session_id = session.get("id")
         if session_id is None:
@@ -1518,9 +1607,19 @@ class MeasurementLibraryPage(QWidget):
             return
         reply = QMessageBox.question(
             self, "確認刪除", f"確定要刪除座標記錄「{os.path.basename(str(v['file_path']))}」嗎？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
         )
-        if reply == QMessageBox.StandardButton.Yes and delete_coordinate_version(int(v["id"])):
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        reply2 = QMessageBox.question(
+            self, "二次確認", "此動作無法復原，您真的確定要刪除此座標記錄嗎？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        if reply2 != QMessageBox.StandardButton.Yes:
+            return
+        if delete_coordinate_version(int(v["id"])):
             self.refresh_coordinates()
             show_dark_information(self, "已刪除", "版本記錄已移除。")
 
@@ -1532,7 +1631,7 @@ class MeasurementLibraryPage(QWidget):
 
     def refresh_combined_specs(self) -> None:
         """Refresh combined spec rows using the current product selector."""
-        self._refresh_combined_specs_with_product_names(self._list_registered_product_names())
+        self._refresh_combined_specs_with_product_names(self._list_spec_product_names())
 
     def _refresh_combined_specs_with_product_names(self, product_names: List[str]) -> None:
         """重新查詢並填寫合併後的規格管理表。"""
@@ -1662,6 +1761,12 @@ class MeasurementLibraryPage(QWidget):
         self._sp_part_no_edit.clear()
         self.refresh_combined_specs()
 
+    def _focus_combined_spec_filters(self, product_name: str, product_part_no: str) -> None:
+        self._reload_registered_product_combo(self._sp_product_combo, self._list_spec_product_names())
+        idx = self._sp_product_combo.findText(str(product_name or "").strip())
+        self._sp_product_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        self._sp_part_no_edit.setText(str(product_part_no or "").strip())
+
     def _selected_combined_spec_row(self) -> Optional[Dict[str, Any]]:
         rows = self._sp_table.selectedItems()
         if not rows:
@@ -1720,9 +1825,85 @@ class MeasurementLibraryPage(QWidget):
                 "其中一側規格切換現用失敗，請檢查資料庫狀態。",
             )
 
+    def _select_combined_spec_row_by_identity(self, product_name: str, product_part_no: str) -> bool:
+        target_name = str(product_name or "").strip()
+        target_part_no = str(product_part_no or "").strip()
+        if not target_name:
+            return False
+        for row in range(self._sp_table.rowCount()):
+            item = self._sp_table.item(row, 0)
+            if item is None:
+                continue
+            data = item.data(Qt.ItemDataRole.UserRole)
+            if not isinstance(data, dict):
+                continue
+            row_name = str(data.get("product_name") or "").strip()
+            row_part_no = str(data.get("product_part_no") or "").strip()
+            if row_name == target_name and row_part_no == target_part_no:
+                self._sp_table.selectRow(row)
+                self._sp_table.scrollToItem(item)
+                return True
+        return False
+
+    def _on_combined_spec_add_clicked(self) -> None:
+        reply = QMessageBox.question(
+            self,
+            "確認新增規格",
+            "您即將建立新的規格版本，是否確認？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        dlg = _EditCombinedSpecDialog(parent=self, is_new=True)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            vals = dlg.get_values()
+        except ValueError as exc:
+            show_dark_warning(self, "輸入錯誤", str(exc))
+            return
+
+        paste_payload = vals["paste"]
+        stencil_payload = vals["stencil"]
+        product_name = str(paste_payload.get("product_name") or "")
+        product_part_no = str(paste_payload.get("product_part_no") or "")
+        try:
+            paste_ok = save_paste_printing_spec(paste_payload)
+            stencil_ok = save_stencil_thickness_spec(stencil_payload)
+        except (sqlite3.Error, OSError, ValueError, TypeError) as exc:
+            show_dark_warning(self, "新增失敗", str(exc))
+            self.refresh_combined_specs()
+            return
+
+        self._focus_combined_spec_filters(product_name, product_part_no)
+        self.refresh_combined_specs()
+        self._select_combined_spec_row_by_identity(product_name, product_part_no)
+        if paste_ok and stencil_ok:
+            show_dark_information(
+                self,
+                "已新增",
+                f"產品「{product_name}」的錫膏與鋼板規格已建立並設為現用。",
+            )
+        else:
+            show_dark_warning(
+                self,
+                "部分寫入失敗",
+                f"錫膏寫入：{'成功' if paste_ok else '失敗'}；鋼板寫入：{'成功' if stencil_ok else '失敗'}",
+            )
+
     def _on_combined_spec_edit_clicked(self) -> None:
         row = self._selected_combined_spec_row()
         if not row:
+            return
+        reply = QMessageBox.question(
+            self,
+            "確認編輯規格",
+            "您即將修改此產品的規格，這將會建立新的規格版本，是否確認？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
             return
         dlg = _EditCombinedSpecDialog(row, parent=self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
@@ -1810,6 +1991,15 @@ class MeasurementLibraryPage(QWidget):
             QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
+            return
+        reply2 = QMessageBox.question(
+            self,
+            "二次確認",
+            "此動作無法復原，您真的確定要刪除此規格記錄嗎？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply2 != QMessageBox.StandardButton.Yes:
             return
         deleted_any = False
         if paste and paste.get("id") is not None:
@@ -1959,6 +2149,15 @@ class MeasurementLibraryPage(QWidget):
             QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
+            return
+        reply2 = QMessageBox.question(
+            self,
+            "二次確認",
+            "此動作無法復原，您真的確定要刪除此供應商資料嗎？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply2 != QMessageBox.StandardButton.Yes:
             return
         try:
             ok = delete_supplier_record(int(record.get("id", 0)))

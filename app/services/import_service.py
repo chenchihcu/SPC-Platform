@@ -54,7 +54,8 @@ class DataLoaderWorker(QThread):
             self.progress_changed.emit("載入量測檔中 (Loading Measurements)...")
             if self.meas_path:
                 meas_loader = MeasurementLoader()
-                self.store.meas_df, self.store.meas_meta = meas_loader.load(self.meas_path)
+                supplier = str((self.store.workorder_master or {}).get("supplier") or "").strip()
+                self.store.meas_df, self.store.meas_meta = meas_loader.load(self.meas_path, supplier=supplier)
             else:
                 self.store.meas_df, self.store.meas_meta = pd.DataFrame(), {"is_valid": False}
 

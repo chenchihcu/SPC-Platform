@@ -55,6 +55,7 @@ SPI 檢測數據來源。
 | XOffset | X 偏移 |
 | YOffset | Y 偏移 |
 | Result | 判定結果 |
+| Pad | 焊墊/Pad 識別（選用；供缺陷結構彙整使用） |
 
 ## 最低必要欄位
 
@@ -77,6 +78,43 @@ BoardNo 或 Time
 | Volume | Vol |
 | Height | H |
 | Area | A |
+
+## 供應商限定映射：振順豐 TOP.csv
+
+振順豐量測檔使用專用 profile，不屬於全域別名表。啟用條件：
+
+- 供應商欄位為 `振順豐` 時啟用。
+- 若未選供應商，僅當檔案路徑含 `振順豐` 且欄位簽名完全符合時自動啟用。
+- 若已選其他供應商，即使檔名或路徑含 `振順豐` 也不套用此 profile。
+
+欄位簽名：
+
+```text
+Component ID
+PAD ID
+Volume(mm)<n>
+Height(mm)<n>
+Area(mm)<n>
+```
+
+轉換契約：
+
+| 原始欄位 | 標準欄位 |
+|---------|---------|
+| Component ID | RefDes |
+| PAD ID | Pad |
+| Volume(mm)<n> | Volume |
+| Height(mm)<n> | Height |
+| Area(mm)<n> | Area |
+| <n> | BoardNo = Board_<n> |
+
+此 profile 將寬表轉為長表，並於 `meas_meta` 記錄 `vendor_profile`、
+`raw_rows`、`raw_columns`、`board_count` 與 `measurement_units`。`Volume`、
+`Area`、`Height` 會轉為 numeric，但系統不隱性把絕對量測值轉成百分比；規格比對仍需由產品規格單位模式保證語意一致。
+
+量測庫 session 需保存 `supplier` 供應商名稱；從量測庫回載量測檔時，
+`MeasurementLibraryPage` 會把 `supplier` 放入 context，`MainWindow` 會同步寫回
+`SessionStore.workorder_master["supplier"]`，確保不依賴檔案路徑即可再次啟用供應商限定 profile。
 
 # 5. 資料關聯
 

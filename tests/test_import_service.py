@@ -32,12 +32,15 @@ def test_dataloader_empty_paths_use_empty_dataframes_and_blank_batch_qty() -> No
 
 
 def test_dataloader_batch_qty_uses_unique_board_count_when_boardno_exists(monkeypatch) -> None:
+    seen_suppliers: list[str] = []
+
     class _FakeCoordinateLoader:
         def load(self, _path: str):
             return pd.DataFrame({"RefDes": ["R1"], "X": [1.0], "Y": [2.0]}), {"is_valid": True}
 
     class _FakeMeasurementLoader:
-        def load(self, _path: str):
+        def load(self, _path: str, supplier: str = ""):
+            seen_suppliers.append(supplier)
             df = pd.DataFrame(
                 {
                     "BoardNo": ["B1", "B1", "B2", "B3"],
@@ -58,11 +61,13 @@ def test_dataloader_batch_qty_uses_unique_board_count_when_boardno_exists(monkey
     monkeypatch.setattr(import_service.JoinEngine, "join", staticmethod(_fake_join))
 
     store = _fresh_store()
+    store.workorder_master["supplier"] = "振順豐"
     worker = import_service.DataLoaderWorker(coord_path="coord.csv", meas_path="meas.csv")
     worker.store = store
 
     worker.run()
 
+    assert seen_suppliers == ["振順豐"]
     assert store.workorder_master.get("batch_qty") == "3"
     assert store.relation_meta.get("can_do_spatial") is True
     assert isinstance(store.joined_df, pd.DataFrame)
@@ -75,7 +80,8 @@ def test_dataloader_batch_qty_falls_back_to_row_count_without_boardno(monkeypatc
             return pd.DataFrame({"RefDes": ["R1"], "X": [1.0], "Y": [2.0]}), {"is_valid": True}
 
     class _FakeMeasurementLoader:
-        def load(self, _path: str):
+        def load(self, _path: str, supplier: str = ""):
+            _ = supplier
             df = pd.DataFrame({"RefDes": ["R1", "R2", "R3"], "Volume": [1.0, 2.0, 3.0]})
             return df, {"is_valid": True}
 

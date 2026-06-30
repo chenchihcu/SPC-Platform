@@ -817,8 +817,10 @@ class MainWindow(QMainWindow):
         batch_no = str(context.get("batch_no") or "").strip() or primary_work_order_no
         product_name = str(context.get("product_name") or "").strip()
         product_part_no = str(context.get("product_part_no") or "").strip()
+        supplier = str(context.get("supplier") or "").strip()
 
         master["work_order_no"] = ""
+        master["supplier"] = supplier
         master["supplier_work_order_no"] = supplier_work_order_no
         master["outsource_work_order_no"] = outsource_work_order_no
         master["batch_no"] = batch_no
@@ -843,6 +845,7 @@ class MainWindow(QMainWindow):
         outsource_work_order_no = master.get("outsource_work_order_no") or ""
         batch_no = (master.get("batch_no") or "").strip()
         product_part_no = master.get("product_part_no") or ""
+        supplier = master.get("supplier") or ""
         try:
             # 優先從 UI 即時讀取，避免 store 為舊值
             data_setup_page = self.pages["資料"]
@@ -855,6 +858,8 @@ class MainWindow(QMainWindow):
                 product_name = info["product_name"]
             if not batch_no:
                 batch_no = info["batch_no"]
+            if not supplier:
+                supplier = info.get("supplier", "")
         except (KeyError, AttributeError):
             _log.warning(
                 "Workorder info is missing required fields during auto save",
@@ -866,10 +871,12 @@ class MainWindow(QMainWindow):
         store.workorder_master["supplier_work_order_no"] = supplier_work_order_no
         store.workorder_master["outsource_work_order_no"] = outsource_work_order_no
         store.workorder_master["batch_no"] = batch_no
+        store.workorder_master["supplier"] = supplier
         lib_page: MeasurementLibraryPage = self.pages["量測庫"]
         sid = lib_page.save_and_refresh(
             path,
             product_name=product_name,
+            supplier=supplier,
             work_order_no="",
             supplier_work_order_no=supplier_work_order_no,
             outsource_work_order_no=outsource_work_order_no,

@@ -75,6 +75,8 @@ docs/
 `DataSetupPage`（資料頁）目前為一頁式三步驟整合流程；主內容改為量化表格布局：工單列跨欄，座標區在左欄跨兩列，鋼板規格與量測區在右欄上下排列。`DataSetupLayoutBudget` 保留最新 `content_width/content_height`、左右欄寬、工單列高度、主內容高度與右側上下區高度；UI diagnostics snapshot 會輸出該 budget 供實機視窗/DPI 驗證。表格布局只將基準最小值套回 Qt layout，避免診斷預算把頁面撐出 `1280x752` / `1200x700` 等可用區。
 其中工單主檔輸入採雙欄位契約：`supplier_work_order_no`（供應商製令工單）與 `outsource_work_order_no`（醫電製令工單）；舊 `work_order_no` 僅保留相容鍵且寫入固定空字串，`batch_no` 仍作相容回填，不再作為主要輸入來源。
 
+量測 CSV 匯入由 `DataLoaderWorker` 讀取 `SessionStore.workorder_master["supplier"]` 後傳入 `MeasurementLoader.load(...)`。供應商限定 profile 只在 loader 層執行；目前 `振順豐` TOP 寬表 profile 會將 `Component ID/PAD ID/Volume(mm)<n>/Height(mm)<n>/Area(mm)<n>` 轉為標準長表，並保留單位 metadata，不改變全域 `SchemaMapper` 別名或 SPC 規格比對公式。`measurement_sessions` 會保存 `supplier` 供量測庫回載時重建供應商上下文，避免 profile 啟用只依賴原始檔案路徑。
+
 ## 4.1 堆疊頁與左側流程導覽（權威：`app/ui/main_window.py`）
 
 **堆疊順序 `STACK_ORDER`**（索引 0..6）：
@@ -224,6 +226,8 @@ docs/
   - `stencil_assignment_meta`
   - `stencil_assignments`
   - `audit_events`
+
+規格管理 UI（`MeasurementLibraryPage` 規格管理分頁）以合併表呈現同一產品的 active 錫膏印刷規格與 active 鋼板厚度規格；「新增規格」可直接建立既有或全新產品的兩側規格，產品料號保留在 `products.product_part_no`，新增後仍由使用者明確按「選用此規格」才套用到目前分析。
 
 規格解析契約（`app/services/spec_resolver.py`）：`Volume/Area` 取錫膏規格庫；`Height target` 取鋼板厚度規格庫基準（主厚度 100% 邏輯）；`Height LSL/USL` 取錫膏規格庫固定百分比值。`absolute` 模式僅在 resolver 以 `height_denominator_mm` 轉換為比對值域。
 

@@ -32,7 +32,7 @@ tmp/*
 
 # Runtime data and generated outputs
 Outputs/
-data/
+/data/
 tmp/*
 !tmp/.gitkeep
 !tmp/README.md

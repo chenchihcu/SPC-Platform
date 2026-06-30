@@ -152,6 +152,7 @@ def test_measurement_library_context_updates_workorder_master_with_legacy_fallba
         "library.csv",
         {
             "product_name": "DemoProduct",
+            "supplier": "振順豐",
             "product_part_no": "PART-001",
             "work_order_no": "WO-LEGACY",
             "supplier_work_order_no": "",
@@ -163,6 +164,7 @@ def test_measurement_library_context_updates_workorder_master_with_legacy_fallba
     assert calls == [{"meas_path": "library.csv"}]
     master = store.workorder_master
     assert master["product_name"] == "DemoProduct"
+    assert master["supplier"] == "振順豐"
     assert master["product_part_no"] == "PART-001"
     assert master["work_order_no"] == ""
     assert master["supplier_work_order_no"] == ""

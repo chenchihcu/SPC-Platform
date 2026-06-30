@@ -55,7 +55,8 @@ if ($null -ne $toolInput -and $toolInput.PSObject.Properties.Name -contains "com
 if ($toolName -match "^(Bash|PowerShell)$") {
     $destructivePatterns = @(
         "(?i)\brm\s+-[^\r\n;]*r[^\r\n;]*f\b",
-        "(?i)\bRemove-Item\b[^\r\n;]*\b-Recurse\b[^\r\n;]*\b-Force\b",
+        "(?i)\b(Remove-Item|ri|rmdir|rd)\b[^\r\n;]*(-Recurse|-r\b)[^\r\n;]*(-Force|-f\b)",
+        "(?i)\b(Remove-Item|ri|rmdir|rd)\b[^\r\n;]*(-Force|-f\b)[^\r\n;]*(-Recurse|-r\b)",
         "(?i)\bgit\s+reset\s+--hard\b",
         "(?i)\bgit\s+clean\s+-[^\r\n;]*[fdx]",
         "(?i)\bgit\s+checkout\s+--\b",

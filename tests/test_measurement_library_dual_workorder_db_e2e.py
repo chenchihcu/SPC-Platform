@@ -79,6 +79,7 @@ with db_conn() as conn:
     ).fetchone()
 assert "supplier_work_order_no" in cols
 assert "outsource_work_order_no" in cols
+assert "supplier" in cols
 assert legacy_row is not None
 assert legacy_row["work_order_no"] == ""
 assert migration_flag is not None and migration_flag["value"] == "1"
@@ -86,28 +87,37 @@ assert migration_flag is not None and migration_flag["value"] == "1"
 sid = save_measurement_session(
     "C:/tmp/meas_dual.csv",
     product_name="DualProduct",
+    supplier="振順豐",
     supplier_work_order_no="SUP-100",
     outsource_work_order_no="OUT-200",
     batch_no="OUT-200",
 )
 row = get_measurement_session(sid)
 assert row is not None
+assert row["supplier"] == "振順豐"
 assert row["supplier_work_order_no"] == "SUP-100"
 assert row["outsource_work_order_no"] == "OUT-200"
 assert row["work_order_no"] == ""
 
 rows = list_measurement_sessions(work_order_no="OUT-200")
 assert rows
+assert rows[0]["supplier"] == "振順豐"
 assert rows[0]["supplier_work_order_no"] == "SUP-100"
+
+rows_by_supplier = list_measurement_sessions(keyword="振順豐")
+assert rows_by_supplier
+assert rows_by_supplier[0]["supplier"] == "振順豐"
 
 ok = update_measurement_session(
     sid,
+    supplier="振順豐二廠",
     supplier_work_order_no="SUP-101",
     outsource_work_order_no="OUT-201",
 )
 assert ok is True
 row2 = get_measurement_session(sid)
 assert row2 is not None
+assert row2["supplier"] == "振順豐二廠"
 assert row2["supplier_work_order_no"] == "SUP-101"
 assert row2["outsource_work_order_no"] == "OUT-201"
 assert row2["work_order_no"] == ""
@@ -120,6 +130,7 @@ sid2 = save_measurement_session(
 row3 = get_measurement_session(sid2)
 assert row3 is not None
 assert row3["work_order_no"] == ""
+assert row3["supplier"] == ""
 assert row3["supplier_work_order_no"] == ""
 assert row3["outsource_work_order_no"] == ""
 """
