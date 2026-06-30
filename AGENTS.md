@@ -71,6 +71,10 @@ If impact is broad (`>=4` production files, `>=2` subsystems, or contract change
 - Keep UI state semantics aligned with `docs/specs/ui_state_semantics.md`.
 - UI/theme detailed harness rules live in `.cursor/rules/ui_theme.mdc` (or `.claude/rules/ui_theme.md`).
 
+## Qt/PySide6 Startup & Splash Screen Rules
+- **QSplashScreen Redraw**: When drawing custom graphics on a `QSplashScreen`'s pixmap using `QPainter`, you **MUST** call `setPixmap(pixmap)` at the end of the drawing method (after `painter.end()`) to force Qt to refresh its window display buffer. Failing to do so will result in a blank/black splash screen in production.
+- **Windows Console-less Execution**: To prevent CMD/Terminal console windows from flashing upon startup on Windows, prioritize using a `.vbs` script helper executing `pythonw.exe` instead of `python.exe` with hidden window mode (`WshShell.Run ..., 0, False`).
+
 ## Data Safety Rules
 - Before merge/join, deduplicate lookup-side keys when repetition is possible.
 - Sanitize `np.inf`/`-np.inf` before statistical aggregation.
