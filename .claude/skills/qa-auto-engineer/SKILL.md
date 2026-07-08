@@ -48,14 +48,20 @@ Phase 5: 輸出缺失報告
 ## Phase 1 — 啟動程式
 
 > **截圖機制（Opus 4.8 / 現行 harness）**：本 harness **沒有**桌面截圖 MCP（Playwright 只能驅動瀏覽器，無法截 PySide6 桌面視窗）。舊版引用的 `mcp__Claude_in_Chrome__computer` 已失效。改用**程式內 Qt 截圖**——直接在 Python 內建立 `MainWindow`、以其自身方法導頁、用 `QWidget.grab().save(path, "PNG")` 存圖。可參考既有腳本 `presentations/smt-spi-platform-overview/capture_ui_screenshots.py`。
+>
+> **QPA 防線（Institution 06 §11）**：視覺驗收截圖必須在原生 `windows` 平台渲染——
+> `run-spc` 的 `QT_QPA_PLATFORM=offscreen` 只用於啟動檢查，**不得帶進視覺 QA**；
+> offscreen 下的 `grab()` 僅算結構檢查，不能當視覺證據。骨架已含防線（下方前兩行）。
 
 ```python
 # 程式內截圖骨架（在 repo 根目錄執行）
-import sys
+import os, sys
 from PySide6.QtWidgets import QApplication
 from PySide6.QtTest import QTest
 
+os.environ.pop("QT_QPA_PLATFORM", None)   # 清掉 run-spc 啟動檢查殘留的 offscreen
 app = QApplication(sys.argv)
+assert app.platformName() != "offscreen", "視覺 QA 禁用 offscreen(§11);請在原生桌面 session 執行"
 from app.ui.main_window import MainWindow
 w = MainWindow()
 w.resize(1360, 820)
