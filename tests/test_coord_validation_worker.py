@@ -9,7 +9,7 @@ import pytest
 pytest.importorskip("PySide6")
 
 
-def test_coord_validation_worker_emits_finished_for_valid_snippet(tmp_path: Path) -> None:
+def test_coord_validation_worker_emits_validated_for_valid_snippet(tmp_path: Path) -> None:
     from app.ui.pages.coordinate_manager_page import CoordValidationWorker
 
     csv_path = tmp_path / "coord.csv"
@@ -21,7 +21,9 @@ def test_coord_validation_worker_emits_finished_for_valid_snippet(tmp_path: Path
     def _capture(*args: object) -> None:
         emitted.append(args)
 
-    worker.finished.connect(_capture)
+    # Payload signal is 'validated'; 'finished' is the real QThread.finished,
+    # which never fires when run() is invoked synchronously.
+    worker.validated.connect(_capture)
     worker.run()
 
     assert len(emitted) == 1
