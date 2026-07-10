@@ -37,8 +37,8 @@ self.combo.blockSignals(False)
 ## P2. QThread worker 清理（→ A）
 
 ```python
-# 正確
-self._worker = MyWorker(data, self)
+# 正確：無 parent + 成員引用持有 + deleteLater
+self._worker = MyWorker(data)          # 不以 page/window 為 parent
 self._worker.result_ready.connect(self._on_result)
 self._worker.finished.connect(self._worker.deleteLater)  # ← 必須
 self._worker.start()
@@ -46,9 +46,20 @@ self._worker.start()
 # 錯誤：缺少 deleteLater，worker 物件永遠不釋放
 self._worker.result_ready.connect(self._on_result)
 self._worker.start()
+
+# 錯誤：以 page 為 parent，頁面 teardown 時 Qt 銷毀執行中的 QThread
+self._worker = MyWorker(data, self)
 ```
 
-**檢查：** 找所有 `QThread` 子類別的 `.start()`，確認有 `finished.connect(...deleteLater)`。
+- parent 準則：worker 可能在頁面/視窗關閉時仍在執行者,不得以該頁面為 parent;
+  生命週期改由成員引用 + `QThread.finished` → 清理 lambda + `deleteLater` 管理
+  （見 `coordinate_manager_page` / `report_export_page` 的既有寫法）。
+  確定短命且有 cancel+wait 收尾的 worker 帶 parent 可接受。
+- 自訂 signal 不得命名 `finished`：會 shadow `QThread.finished`,
+  導致清理線路接到「從 run() 內部發射」的假完成訊號。
+
+**檢查：** 找所有 `QThread` 子類別的 `.start()`，確認有 `finished.connect(...deleteLater)`；
+找所有 `Signal(...)` 宣告，確認無 `finished` 命名；worker 建構帶 parent 者確認其屬短命情境。
 
 ---
 
@@ -174,3 +185,14 @@ def ensure_home_env():
     if not os.environ.get("HOME"):
         os.environ["HOME"] = os.environ.get("USERPROFILE", "")
 ```
+
+---
+
+## P11. UI 範圍程式衛生（→ C）
+
+> **範圍:** 承襲自 `ui_theme.md` 原 §7,適用其 paths(`app/ui/**`、`app/charts/**`、`app/services/report_*`);2026-07-10 歸位至本檔(該檔只留 UI/theme delta)。
+> 裸例外(bare `except:`)不在此列——它已是全域 A 類(check-categories.md「裸例外」),勿重複標記。
+
+- 禁 debug `print()`;一律用 logger。
+- Public method 應有 docstring。
+- 函式簽名應含回傳型別提示(return type hints)。

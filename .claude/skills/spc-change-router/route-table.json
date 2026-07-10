@@ -1,0 +1,63 @@
+{
+  "_authority": "SPC Platform 路由表機器可讀正本。消費者: .claude/hooks/changed-path-advisor.ps1 (執行期讀取)。人類可讀鏡像: .claude/skills/spc-change-router/SKILL.md 的 Route Table — 改路由時兩者同批更新。pathRegex 為 PowerShell -match 語法, 比對正規化(/ 轉 \\)後的 touched path。",
+  "surfaces": [
+    {
+      "key": "ui-theme",
+      "label": "UI/theme/chart visuals",
+      "pathRegex": "(?i)(^|\\\\)app\\\\ui\\\\|(^|\\\\)app\\\\charts\\\\|AI_RULES\\.md$",
+      "docs": ["AI_RULES.md", "docs/specs/ui_state_semantics.md"],
+      "reviewer": "qt-ui-token-auditor",
+      "gates": [
+        { "cmd": "python scripts/qt_audit.py app/", "when": "" },
+        { "cmd": "python scripts/check_launch.py", "when": "" }
+      ],
+      "notes": []
+    },
+    {
+      "key": "analytics",
+      "label": "Analytics/statistics/chart registry",
+      "pathRegex": "(?i)(^|\\\\)app\\\\analytics\\\\|chart_registry\\.py|docs\\\\governance\\\\SPC_RULES\\.md$",
+      "docs": ["docs/governance/SPC_RULES.md", ".claude/skills/analytics-engine-contract/SKILL.md"],
+      "reviewer": "spc-stat-contract-reviewer",
+      "gates": [
+        { "cmd": "python -m pytest -q", "when": "" },
+        { "cmd": "python .claude/skills/spc-validation-matrix/scripts/run_matrix.py --quick", "when": "when chart routing changes" }
+      ],
+      "notes": ["Preserve engine payload shape: chart_type, data, statistics, metadata."]
+    },
+    {
+      "key": "report-export",
+      "label": "Reports/PPTX/Excel exports",
+      "pathRegex": "(?i)(^|\\\\)app\\\\services\\\\report_|pptx_report_builder\\.py|diagnostic_excel_exporter\\.py",
+      "docs": ["README.md", "docs/specs/project_architecture.md"],
+      "reviewer": "report-export-parity-reviewer",
+      "gates": [
+        { "cmd": "python -m pytest -q", "when": "" },
+        { "cmd": "python scripts/check_launch.py", "when": "" }
+      ],
+      "notes": ["Check UI/report/PPTX/Excel evidence parity before completion."]
+    },
+    {
+      "key": "docs-harness",
+      "label": "Docs/harness/Claude automation",
+      "pathRegex": "(?i)(^|\\\\)docs\\\\|AGENTS\\.md$|CLAUDE\\.md$|\\.claude\\\\|scripts\\\\harness_check\\.ps1",
+      "docs": ["AGENTS.md", "docs/harness/README.md"],
+      "reviewer": "",
+      "gates": [
+        { "cmd": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/harness_check.ps1", "when": "" }
+      ],
+      "notes": []
+    },
+    {
+      "key": "release",
+      "label": "Release validation/performance",
+      "pathRegex": "(?i)(release|validation|golden_dataset|run_release_gate|release_check)",
+      "docs": ["docs/open-questions.md"],
+      "reviewer": "release-gate-triager",
+      "gates": [
+        { "cmd": "python scripts/run_release_gate.py", "when": "only when release scope requires it" }
+      ],
+      "notes": ["Keep Watchlist #7 numbering stable."]
+    }
+  ]
+}

@@ -56,3 +56,6 @@ tmp/*
 
 # Agent skill run artifacts — keep skill sources, ignore transient workspace dirs
 .agents/skills/*-workspace/
+
+# OpenCode (omo) session state — drafts/plans/run-continuation, machine-local
+.omo/

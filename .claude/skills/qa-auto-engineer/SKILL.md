@@ -1,6 +1,7 @@
 ---
 name: qa-auto-engineer
-version: 1.0.0
+version: 1.0.1
+allowed-tools: Read, Grep, Glob, Bash
 description: QA 自動工程師 — 自動從頭到尾操作 SPC/SPI Platform UI,擷取每頁截圖、發現視覺缺失、功能異常與效能問題,輸出結構化缺失報告。Use this skill 當使用者要做端對端 UI 測試、找介面 bug、產出 QA 缺失報告。觸發詞包含「QA 測試」「找問題」「掃描問題」「缺失報告」「端對端測試」「E2E」「defect report」。
 ---
 

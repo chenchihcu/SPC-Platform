@@ -1,6 +1,7 @@
 ---
 name: spc-validation-matrix
-version: 1.0.0
+version: 1.0.1
+allowed-tools: Read, Grep, Glob, Bash
 description: SPC/SPI Platform v2 跨組合整合驗證器 — 一次同時驗證圖表輸出、函數定義、統計數據、報告匯出在所有合理特徵組合下都正確,並且大量組合下不會停滯或超出系統計算負荷。Use this skill 當使用者要做交叉驗證、組合驗證、cross validation matrix、驗證所有 engine、圖表/統計/匯出整合驗證、確認大量組合下不會 stall、或在 release 前/合併新 engine 後做整體 sanity sweep。觸發詞包含「交叉驗證」「組合驗證」「驗證所有圖表」「跨特徵驗證」「stall test」「matrix validation」「regression sweep」。
 type: validation
 compatibility:
@@ -73,7 +74,7 @@ python .claude/skills/spc-validation-matrix/scripts/run_matrix.py \
 
 預設不傳任何旗標時:
 - `fixture = normal_baseline`
-- 全部 35 engines
+- 全部 33 個 chart_id(以 `chart_registry.CHART_CATALOG` 為準,勿在此另計數)
 - `features = Volume,Area,Height`
 - `filters = full,top10pct,by_part_type`
 - `arities = 1,2,3`

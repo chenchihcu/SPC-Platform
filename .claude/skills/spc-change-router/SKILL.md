@@ -1,6 +1,7 @@
 ---
 name: spc-change-router
-version: 1.0.0
+version: 1.0.1
+allowed-tools: Read, Grep, Glob
 description: 把 SPC Platform 任務路由到正確的來源文件、reviewer subagent 與驗證 gate。Use this skill 當任務涉及 UI/theme、analytics engine、chart registry、報告/匯出、docs/harness、release validation,或使用者詢問該跑哪些檢查時。觸發詞包含「該跑什麼檢查」「route」「change router」「驗證 gate」「reviewer」「UI/theme」「analytics engine」。
 ---
 
@@ -9,6 +10,8 @@ description: 把 SPC Platform 任務路由到正確的來源文件、reviewer su
 Classify the task before changing code. Keep routing concise and use existing repo guardrails.
 
 ## Route Table
+
+> 機器可讀正本:[`route-table.json`](route-table.json)(`changed-path-advisor.ps1` hook 執行期讀取;pathRegex/docs/reviewer/gates 以 JSON 為準)。下表為人類可讀鏡像——**改路由先改 JSON,再同批更新本表**。
 
 | Task surface | Read first | Prefer reviewer | Minimum verification |
 |---|---|---|---|

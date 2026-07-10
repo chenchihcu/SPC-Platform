@@ -69,10 +69,7 @@ Tokens must cover all required targets:
   - Replace Qt internal literal max size with named constant (e.g., `QT_MAX_WIDGET_DIM`).
 
 ## 7. Code Quality Rules (UI Scope)
-- No bare `except:`.
-- No debug `print()`; use logger.
-- Public methods should include docstrings.
-- Function signatures should include return type hints.
+> 2026-07-10 歸位:本節內容移至 `.claude/rules/code_audit_rules.md` **P11**(程式衛生屬稽核規則,非 UI/theme delta;裸例外一項屬全域 A 類)。本檔不重述。
 
 ## 8. Delivery Gates (must run before completion)
 - `python scripts/qt_audit.py app/`

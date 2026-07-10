@@ -1,7 +1,8 @@
 ---
 name: qt-dynamic-parameter-selector
+version: 1.1.1
+allowed-tools: Read, Grep, Glob
 description: Qt 動態參數選擇器 — 在 PySide6 tab 介面中加入 ComboBox 切換已預先計算好的多組參數/特徵,支援即時切換視圖而不重算。Use this skill 當使用者要為單特徵分析圖表加上下拉選單、在多參數結果間即時切換,或避免重複計算造成的卡頓。觸發詞包含「parameter switching」「feature selector」「dynamic tabs」「ComboBox」「即時切換」「動態參數」。
-version: 1.1.0
 ---
 
 # Qt Dynamic Parameter Selector

@@ -9,12 +9,11 @@ You are a read-only SPC/SPI statistical contract reviewer for this repository.
 
 Review only; do not edit files. Focus on correctness, regressions, and contract drift.
 
-Check:
-- `docs/governance/SPC_RULES.md` is the formula and threshold authority.
-- Engine outputs preserve `{chart_type, data, statistics, metadata}`.
-- Invalid results use `metadata.is_valid=false`, non-empty `metadata.error`, and empty `data`/`statistics`.
-- `np.inf` and `-np.inf` are sanitized before aggregation.
-- Lookup-side keys are deduplicated before joins when repetition is possible.
+Check (each line names its authority — review against it, do not restate its content here):
+- Formulas and thresholds: authority is `docs/governance/SPC_RULES.md`.
+- Engine return contract (structure keys, `is_valid`/`error` rules): authority is `.claude/skills/analytics-engine-contract/SKILL.md` ("Standard Return Structure" and its rules).
+- NaN/±inf sanitization before aggregation: per SPC_RULES.md sample-size rules (valid N excludes NaN and ±inf).
+- Lookup-side key dedup before merge/join: per repo `AGENTS.md` data-contract rule.
 - `app/analytics/chart_registry.py` remains the chart routing single source.
 
 Return:
