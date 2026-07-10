@@ -12,7 +12,9 @@ class DataLoaderWorker(QThread):
     """
     progress_changed = Signal(str)
     progress_value_changed = Signal(int)  # 0-100
-    finished = Signal(bool, str) # success flag, status msg
+    # Named 'load_finished' (not 'finished') to avoid shadowing QThread.finished,
+    # which must remain the real QThread completion signal for safe deleteLater.
+    load_finished = Signal(bool, str)  # success flag, status msg
     
     def __init__(self, coord_path: str = "", meas_path: str = ""):
         super().__init__()
@@ -29,7 +31,7 @@ class DataLoaderWorker(QThread):
     def _finish_if_cancelled(self) -> bool:
         if not self._is_cancelled:
             return False
-        self.finished.emit(False, "Cancelled")
+        self.load_finished.emit(False, "Cancelled")
         return True
 
     def run(self) -> None:
@@ -89,7 +91,7 @@ class DataLoaderWorker(QThread):
 
             self.progress_value_changed.emit(100)
             self.progress_changed.emit("載入完成 (Load Complete)")
-            self.finished.emit(True, "Success")
+            self.load_finished.emit(True, "Success")
 
         except (
             pd.errors.EmptyDataError,
@@ -106,4 +108,4 @@ class DataLoaderWorker(QThread):
             self.store.meas_meta = {"is_valid": False, "error": msg}
             self.store.coord_meta = {"is_valid": False, "error": msg}
             self.store.relation_meta = {"match_rate": 0.0, "can_do_spatial": False, "error": msg}
-            self.finished.emit(False, msg)
+            self.load_finished.emit(False, msg)

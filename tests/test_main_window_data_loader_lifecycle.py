@@ -70,7 +70,8 @@ class _FakeDataLoaderWorker:
         self.wait_calls: list[int] = []
         self.start_called = 0
         self.delete_later_called = 0
-        self.finished = _FakeSignal()
+        self.finished = _FakeSignal()  # real QThread.finished stand-in (deleteLater wiring)
+        self.load_finished = _FakeSignal()  # payload signal (success flag, status msg)
         self.progress_changed = _FakeSignal()
         self.progress_value_changed = _FakeSignal()
         _FakeDataLoaderWorker.created.append(self)
@@ -111,7 +112,8 @@ def test_start_loading_worker_cancels_previous_running_loader(qapp: QApplication
     assert first.wait_calls == []
     assert mw.worker is first
 
-    first.finished.emit(False, "Cancelled")
+    first.load_finished.emit(False, "Cancelled")
+    first.finished.emit()
     qapp.processEvents()
     second = _FakeDataLoaderWorker.created[-1]
     assert second is not first
@@ -132,7 +134,8 @@ def test_stale_finished_from_old_loader_does_not_override_new_worker(
     mw.start_loading_worker(meas_path="new.csv")
     assert _FakeDataLoaderWorker.created[-1] is old_worker
 
-    old_worker.finished.emit(False, "Cancelled")
+    old_worker.load_finished.emit(False, "Cancelled")
+    old_worker.finished.emit()
     qapp.processEvents()
     new_worker = _FakeDataLoaderWorker.created[-1]
     assert mw.worker is new_worker

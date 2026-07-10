@@ -974,15 +974,17 @@ class MainWindow(QMainWindow):
         self._loader_restart_queued = False
         self.worker = DataLoaderWorker(self.current_coord_path, self.current_meas_path)
         _lw = self.worker
-        # Clear Python ref BEFORE other ``finished`` slots: if ``on_load_finished`` starts a nested loader,
-        # we must not leave a stale wrapper after ``deleteLater`` (RuntimeError: Internal C++ object deleted).
-        self.worker.finished.connect(
+        # Clear Python ref BEFORE other ``load_finished`` slots: if ``on_load_finished`` starts a nested
+        # loader, we must not leave a stale wrapper after ``deleteLater`` (RuntimeError: Internal C++ object deleted).
+        self.worker.load_finished.connect(
             lambda _ok, _msg, w=_lw: setattr(self, "worker", None) if self.worker is w else None
         )
         self.worker.progress_changed.connect(self._on_loader_progress)
         if hasattr(self.worker, "progress_value_changed"):
             self.worker.progress_value_changed.connect(self._on_loader_progress_value)
-        self.worker.finished.connect(self.on_load_finished)
+        self.worker.load_finished.connect(self.on_load_finished)
+        # deleteLater on the real QThread.finished (fires after run() fully exits),
+        # not on the payload signal emitted from inside run().
         self.worker.finished.connect(self.worker.deleteLater)
         self.worker.start()
 
@@ -1006,7 +1008,7 @@ class MainWindow(QMainWindow):
             if not self._loader_restart_queued:
                 self._loader_restart_queued = True
                 with contextlib.suppress(TypeError, RuntimeError):
-                    prev_loader.finished.connect(
+                    prev_loader.load_finished.connect(
                         lambda _ok, _msg: QTimer.singleShot(0, self._start_data_loader_worker)
                     )
             self.statusBar().showMessage("正在停止上一個載入作業…", 3000)

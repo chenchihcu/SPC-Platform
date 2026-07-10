@@ -1,4 +1,4 @@
-"""Watchlist #1: DataLoaderWorker QThread.start() + finished signal (not synchronous run())."""
+"""Watchlist #1: DataLoaderWorker QThread.start() + load_finished signal (not synchronous run())."""
 
 from __future__ import annotations
 
@@ -40,8 +40,10 @@ def test_data_loader_worker_loads_golden_csvs_via_qthread(qapp, tmp_path: Path) 
         def _on_finished(ok: bool, msg: str) -> None:
             outcomes.append((ok, msg))
 
-        worker.finished.connect(_on_finished)
+        worker.load_finished.connect(_on_finished)
         loop = QEventLoop()
+        # Quit on the real QThread.finished: fires after run() exits, i.e. after
+        # the load_finished payload above has been delivered.
         worker.finished.connect(loop.quit)
         QTimer.singleShot(120_000, loop.quit)
 
@@ -61,7 +63,7 @@ def test_data_loader_worker_loads_golden_csvs_via_qthread(qapp, tmp_path: Path) 
 def test_data_loader_worker_cancel_before_start_emits_finished(qapp) -> None:
     worker = DataLoaderWorker("", "")
     outcomes: list[tuple[bool, str]] = []
-    worker.finished.connect(lambda ok, msg: outcomes.append((ok, msg)))
+    worker.load_finished.connect(lambda ok, msg: outcomes.append((ok, msg)))
     loop = QEventLoop()
     worker.finished.connect(loop.quit)
     QTimer.singleShot(10_000, loop.quit)
