@@ -179,9 +179,9 @@ def test_chart_evidence_coverage_tracks_three_feature_counts_and_missing_xy() ->
         available_features=selected_features,
         has_coordinate_data=True,
     )
-    assert coverage_with_xy["summary"]["total"] == 33
-    assert coverage_with_xy["summary"]["available"] == 22
-    assert coverage_with_xy["summary"]["incompatible"] == 11
+    assert coverage_with_xy["summary"]["total"] == 36
+    assert coverage_with_xy["summary"]["available"] == 24
+    assert coverage_with_xy["summary"]["incompatible"] == 12
     assert coverage_with_xy["summary"]["excluded"] == 0
 
     coverage_without_xy = build_chart_evidence_coverage(
@@ -191,8 +191,8 @@ def test_chart_evidence_coverage_tracks_three_feature_counts_and_missing_xy() ->
         has_coordinate_data=False,
     )
     by_id = {item["chart_id"]: item for item in coverage_without_xy["items"]}
-    assert coverage_without_xy["summary"]["available"] == 22
-    assert coverage_without_xy["summary"]["incompatible"] == 10
+    assert coverage_without_xy["summary"]["available"] == 24
+    assert coverage_without_xy["summary"]["incompatible"] == 11
     assert coverage_without_xy["summary"]["excluded"] == 1
     assert by_id["spatial_heatmap"]["status"] == "未納入"
     assert by_id["spatial_heatmap"]["reason"] == "缺座標資料"

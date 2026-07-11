@@ -412,7 +412,7 @@ def _compute_lisa_payload(filtered_df: pd.DataFrame, col: str) -> Dict[str, Any]
             values_series,
             k=3,
         )
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError, KeyError, IndexError, ZeroDivisionError) as e:
         return {"chart_type": "LISA", "data": {}, "statistics": {}, "metadata": {"is_valid": False, "error": f"LISA 計算失敗: {str(e)}"}}
 
 
@@ -855,6 +855,26 @@ def compute_analysis_payload(
             payload["consistency_3f"] = consistency
             payload["parallel_coord"] = parallel_coord
             payload["pass_fail_matrix"] = pass_fail_matrix
+
+            # Compute hotelling_t2 and radar for triple feature payload
+            hotelling_t2 = _safe_compute_chart(
+                "HotellingT2",
+                MultivariateSPCEngine.compute_hotelling_t2,
+                filtered_df, selected_features,
+            )
+            radar_stats = {}
+            if "RefDes" in filtered_df.columns:
+                grouped_means = filtered_df.groupby("RefDes")[selected_features].mean()
+                for refdes_val, row in grouped_means.iterrows():
+                    radar_stats[str(refdes_val)] = {
+                        feat: float(row[feat]) for feat in selected_features
+                    }
+            radar = _safe_compute_chart(
+                "Radar",
+                lambda: build_radar_payload(radar_stats),
+            )
+            payload["hotelling_t2"] = hotelling_t2
+            payload["radar"] = radar
             # Keep per-feature bundles available even when analysis starts from n==3.
             # Required for 3F parallel charts and distribution/normality multi-feature rendering.
             if cancel_fn and cancel_fn():

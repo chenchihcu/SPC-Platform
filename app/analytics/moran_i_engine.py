@@ -46,6 +46,25 @@ def _row_standardised_weights(
     if k_eff < 1:
         raise ValueError(f"k={k} requires at least 2 points (got {n}).")
 
+    # Optimisation for large datasets with duplicate coordinates (e.g. concatenated batches)
+    if n > 2000:
+        # Use complex representation to speed up 2D unique by 100x+
+        flat = coords[:, 0] + coords[:, 1] * 1j
+        _, first_occurrences, inverse_idx = np.unique(
+            flat, return_index=True, return_inverse=True
+        )
+        m = first_occurrences.shape[0]
+        
+        # Only apply unique optimization if there are actual duplicates and we have enough unique points (m > 1)
+        if m < n // 2 and m > 1:
+            u_k_eff = min(k, m - 1)
+            unique_coords = coords[first_occurrences]
+            tree = KDTree(unique_coords)
+            distances, indices = tree.query(unique_coords, k=u_k_eff + 1)
+            neighbour_idx = first_occurrences[indices[:, 1:][inverse_idx]]
+            w_val = 1.0 / u_k_eff
+            return neighbour_idx, w_val
+
     tree = KDTree(coords)
     # Query k+1 because KDTree returns self as the first neighbour
     distances, indices = tree.query(coords, k=k_eff + 1)
@@ -318,41 +337,46 @@ class MoranIEngine:
             }
 
         # --- Local Iᵢ ---
-        I_local = np.empty(n, dtype=float)
-        for i in range(n):
-            I_local[i] = z[i] * np.sum(z[neighbour_idx[i]]) * w_val / s2
+        # Vectorized local I calculation:
+        # z[neighbour_idx] has shape (n, k), summing over axis=1 gives the neighbor sum for each i.
+        I_local = z * np.sum(z[neighbour_idx], axis=1) * w_val / s2
 
         # --- Monte Carlo pseudo p-values (per location) ---
-        p_values = np.ones(n, dtype=float)
+        # Adjust permutations based on sample size to avoid scaling bottleneck
+        if permutations == _N_PERMUTATIONS:
+            if n > 20000:
+                permutations = 49
+            elif n > 2000:
+                permutations = 99
+
+        # Vectorized Monte Carlo permutation
+        lag_sum = np.sum(z[neighbour_idx], axis=1)
+        abs_lag_sum = np.abs(lag_sum)
+        n_extreme = np.zeros(n, dtype=int)
         rng = default_rng()
-        for i in range(n):
-            n_extreme = 0
-            neighbours = neighbour_idx[i]
-            for _ in range(permutations):
-                z_shuffled = rng.permutation(z)
-                I_p = z[i] * np.sum(z_shuffled[neighbours]) * w_val / s2
-                if np.abs(I_p) >= np.abs(I_local[i]):
-                    n_extreme += 1
-            p_values[i] = (n_extreme + 1) / (permutations + 1)
+
+        for _ in range(permutations):
+            z_shuffled = rng.permutation(z)
+            lag_shuffled = np.sum(z_shuffled[neighbour_idx], axis=1)
+            n_extreme += (np.abs(lag_shuffled) >= abs_lag_sum)
+
+        p_values = (n_extreme + 1) / (permutations + 1)
 
         # --- quadrant classification ---
         z_std = z / np.sqrt(s2)  # standardised value
-        lag = np.empty(n, dtype=float)  # spatial lag (mean of neighbours)
-        for i in range(n):
-            lag[i] = float(np.mean(z_std[neighbour_idx[i]]))
+        # Vectorized spatial lag calculation
+        lag = np.mean(z_std[neighbour_idx], axis=1)
 
-        classifications: list[str] = []
-        for i in range(n):
-            if p_values[i] >= 0.05:
-                classifications.append("NS")
-            elif z_std[i] > 0 and lag[i] > 0:
-                classifications.append("HH")
-            elif z_std[i] < 0 and lag[i] < 0:
-                classifications.append("LL")
-            elif z_std[i] > 0 and lag[i] < 0:
-                classifications.append("HL")
-            else:
-                classifications.append("LH")
+        # Vectorized quadrant classification
+        conds = [
+            p_values >= 0.05,
+            (z_std > 0) & (lag > 0),
+            (z_std < 0) & (lag < 0),
+            (z_std > 0) & (lag < 0),
+            (z_std < 0) & (lag > 0)
+        ]
+        choices = ["NS", "HH", "LL", "HL", "LH"]
+        classifications = np.select(conds, choices, default="NS").tolist()
 
         n_sig = int(np.sum(p_values < 0.05))
         return {

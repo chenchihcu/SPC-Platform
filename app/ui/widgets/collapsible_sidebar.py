@@ -211,9 +211,11 @@ class CollapsibleSidebar(QWidget):
             self._sync_control_density()
 
     def is_collapsed(self) -> bool:
+        """Return True if the sidebar is currently collapsed, False otherwise."""
         return self._collapsed
 
     def set_collapsed(self, collapsed: bool) -> None:
+        """Programmatically set the sidebar collapse state."""
         if self._collapsed == collapsed:
             return
         self._on_toggle()

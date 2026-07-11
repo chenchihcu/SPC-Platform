@@ -40,7 +40,7 @@ def test_output_matrix_single_dual_triple_feature_payloads_exist():
         assert payload1.get(key) is not None, f"single-feature payload missing {key}"
     assert set(payload1.get("dual_parameters", {}).keys()) == {"Volume+Area", "Volume+Height", "Area+Height"}
     assert set(payload1.get("triple_parameters", {}).keys()) == {
-        "anomaly_3f", "consistency_3f", "parallel_coord", "pass_fail_matrix"
+        "anomaly_3f", "consistency_3f", "parallel_coord", "pass_fail_matrix", "hotelling_t2", "radar"
     }
 
     payload2, err2 = compute_analysis_payload(df, ["Volume", "Area"], 130, 70, 100, workorder_spec=spec)
@@ -53,6 +53,6 @@ def test_output_matrix_single_dual_triple_feature_payloads_exist():
     payload3, err3 = compute_analysis_payload(df, ["Volume", "Area", "Height"], 130, 70, 100, workorder_spec=spec)
     assert err3 is None
     assert payload3 is not None
-    for key in ("anomaly_3f", "consistency_3f", "parallel_coord", "pass_fail_matrix"):
+    for key in ("anomaly_3f", "consistency_3f", "parallel_coord", "pass_fail_matrix", "hotelling_t2", "radar"):
         assert payload3.get(key) is not None, f"triple-feature payload missing {key}"
     assert set((payload3.get("parameters") or {}).keys()) == {"Volume", "Area", "Height"}

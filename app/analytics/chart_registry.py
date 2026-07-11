@@ -250,11 +250,11 @@ CHART_ORDER = [
     # 製程能力
     "histogram_spec", "normality", "boxplot", "boxplot_3f", "pass_fail_matrix",
     # 異常根源
-    "pareto", "spatial_heatmap", "lisa", "repeated_offender", "outlier_analysis", "anomaly_3f", "consistency_3f",
+    "pareto", "spatial_heatmap", "lisa", "repeated_offender", "outlier_analysis", "anomaly_3f", "consistency_3f", "hotelling_t2",
     # 變數關係
     "scatter_spec", "correlation_matrix", "correlation_heatmap", "density", "quadrant", "bivariate_outlier", "parallel_coord",
     # 比較分析
-    "subgroup", "anova_parttype",
+    "subgroup", "anova_parttype", "radar",
 ]
 
 # Root-cause flow metadata (aligned to 5 decision categories)
@@ -275,7 +275,7 @@ ROOT_CAUSE_FLOW_ORDER: list[dict[str, Any]] = [
     {
         "stage_id": "anomaly_root_cause",
         "label": "異常根源",
-        "chart_ids": ["pareto", "spatial_heatmap", "lisa", "repeated_offender", "outlier_analysis", "anomaly_3f", "consistency_3f"],
+        "chart_ids": ["pareto", "spatial_heatmap", "lisa", "repeated_offender", "outlier_analysis", "anomaly_3f", "consistency_3f", "hotelling_t2"],
     },
     {
         "stage_id": "variable_relationship",
@@ -285,7 +285,7 @@ ROOT_CAUSE_FLOW_ORDER: list[dict[str, Any]] = [
     {
         "stage_id": "comparison_analysis",
         "label": "比較分析",
-        "chart_ids": ["subgroup", "anova_parttype"],
+        "chart_ids": ["subgroup", "anova_parttype", "radar"],
     },
 ]
 
