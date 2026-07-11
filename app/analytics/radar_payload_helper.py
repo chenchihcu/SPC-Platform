@@ -1,7 +1,9 @@
 """
 Radar chart payload helper — slices existing engine outputs into radar format.
 """
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Sequence
+
+import pandas as pd
 
 
 def build_radar_payload(
@@ -128,3 +130,52 @@ def build_radar_from_measurement_stats(
         Complete radar chart payload
     """
     return build_radar_payload(means_by_position, category_label="features")
+
+
+def build_radar_from_dataframe_groups(
+    df: pd.DataFrame,
+    feature_cols: Sequence[str],
+    group_col_candidates: Sequence[str] = ("RefDes",),
+    max_series: Optional[int] = None,
+) -> Dict[str, Any]:
+    """
+    Build a radar payload comparing the per-group mean of each triple-feature
+    across the first available group column. Default group column (RefDes)
+    matches the convention already used for the n==3 radar/hotelling_t2 path.
+
+    Args:
+        df: Source measurements; must contain a group column and feature_cols.
+        feature_cols: The 3 selected features (radar categories).
+        group_col_candidates: Group columns tried in order (first match wins).
+        max_series: Optional cap on number of groups shown (top-N by sample
+            count). None (default) keeps every group, matching the existing
+            n==3 path's behavior.
+
+    Returns:
+        Radar chart payload. Falls back to the degenerate-input payload
+        (metadata.is_valid=False) when no candidate group column or no
+        valid rows are available.
+    """
+    cols = [c for c in feature_cols if isinstance(df, pd.DataFrame) and c in df.columns]
+    group_col = next(
+        (c for c in group_col_candidates if isinstance(df, pd.DataFrame) and c in df.columns),
+        None,
+    )
+    if df is None or df.empty or group_col is None or not cols:
+        return build_radar_payload({}, category_label="features")
+
+    valid = df[[group_col, *cols]].dropna()
+    if valid.empty:
+        return build_radar_payload({}, category_label="features")
+
+    means = valid.groupby(group_col)[cols].mean()
+    group_order = means.index
+    if max_series is not None:
+        counts = valid.groupby(group_col).size().sort_values(ascending=False)
+        group_order = counts.head(max_series).index
+
+    statistics_map = {
+        str(name): {feat: float(means.loc[name, feat]) for feat in cols}
+        for name in group_order
+    }
+    return build_radar_payload(statistics_map, category_label="features")

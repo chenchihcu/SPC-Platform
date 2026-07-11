@@ -1,7 +1,10 @@
+import pandas as pd
+
 from app.analytics.radar_payload_helper import (
     build_radar_payload,
     extract_statistics_from_engine_outputs,
     build_radar_from_measurement_stats,
+    build_radar_from_dataframe_groups,
 )
 
 
@@ -84,3 +87,61 @@ class TestBuildRadarFromMeasurementStats:
         assert result["metadata"]["is_valid"] is True
         assert len(result["data"]["series"]) == 2
         assert result["data"]["series"][0]["name"] == "Center"
+
+
+class TestBuildRadarFromDataframeGroups:
+    def test_groups_by_refdes_mean_by_default(self):
+        df = pd.DataFrame({
+            "RefDes": ["R1", "R1", "C1", "C1"],
+            "Volume": [80.0, 90.0, 60.0, 70.0],
+            "Area": [10.0, 20.0, 30.0, 40.0],
+            "Height": [1.0, 2.0, 3.0, 4.0],
+        })
+        result = build_radar_from_dataframe_groups(df, ["Volume", "Area", "Height"])
+
+        assert result["metadata"]["is_valid"] is True
+        series_by_name = {s["name"]: s["values"] for s in result["data"]["series"]}
+        assert set(series_by_name) == {"R1", "C1"}
+        assert result["data"]["categories"] == ["Area", "Height", "Volume"]
+        # R1 group mean: Volume=85.0, Area=15.0, Height=1.5
+        r1_values = dict(zip(result["data"]["categories"], series_by_name["R1"]))
+        assert r1_values == {"Area": 15.0, "Height": 1.5, "Volume": 85.0}
+
+    def test_supports_custom_group_col_candidates_with_fallback(self):
+        df = pd.DataFrame({
+            "PartType": ["A", "A", "B"],
+            "Volume": [1.0, 2.0, 3.0],
+        })
+        result = build_radar_from_dataframe_groups(
+            df, ["Volume"], group_col_candidates=("PartType", "RefDes"),
+        )
+        assert result["metadata"]["is_valid"] is True
+        assert {s["name"] for s in result["data"]["series"]} == {"A", "B"}
+
+    def test_no_cap_by_default_keeps_every_group(self):
+        df = pd.DataFrame({
+            "RefDes": ["A", "A", "A", "B", "B", "C"],
+            "Volume": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        })
+        result = build_radar_from_dataframe_groups(df, ["Volume"])
+        names = {s["name"] for s in result["data"]["series"]}
+        assert names == {"A", "B", "C"}
+
+    def test_caps_series_to_max_series_by_sample_count_when_given(self):
+        df = pd.DataFrame({
+            "RefDes": ["A", "A", "A", "B", "B", "C"],
+            "Volume": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        })
+        result = build_radar_from_dataframe_groups(df, ["Volume"], max_series=2)
+        names = {s["name"] for s in result["data"]["series"]}
+        assert names == {"A", "B"}
+
+    def test_invalid_when_no_group_column_present(self):
+        df = pd.DataFrame({"Volume": [1.0, 2.0], "Area": [3.0, 4.0]})
+        result = build_radar_from_dataframe_groups(df, ["Volume", "Area"])
+        assert result["metadata"]["is_valid"] is False
+
+    def test_invalid_on_empty_dataframe(self):
+        df = pd.DataFrame({"RefDes": [], "Volume": []})
+        result = build_radar_from_dataframe_groups(df, ["Volume"])
+        assert result["metadata"]["is_valid"] is False

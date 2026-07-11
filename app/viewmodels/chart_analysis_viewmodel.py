@@ -17,7 +17,7 @@ from app.analytics.bivariate_outlier_engine import BivariateOutlierEngine
 from app.analytics.anomaly_3f_engine import Anomaly3FEngine
 from app.analytics.consistency_3f_engine import Consistency3FEngine
 from app.analytics.multivariate_spc_engine import MultivariateSPCEngine
-from app.analytics.radar_payload_helper import build_radar_payload
+from app.analytics.radar_payload_helper import build_radar_from_dataframe_groups
 from app.analytics.moran_i_engine import MoranIEngine
 from app.analytics.ewma_engine import EWMAEngine
 from app.analytics.cusum_engine import CUSUMEngine
@@ -710,7 +710,8 @@ def compute_analysis_payload(
                     ),
                     "radar": _safe_compute_chart(
                         "Radar",
-                        lambda: build_radar_payload({}),
+                        build_radar_from_dataframe_groups,
+                        filtered_df, _feature_cols,
                     ),
                 }
             payload["triple_parameters"] = triple_parameters
@@ -862,16 +863,10 @@ def compute_analysis_payload(
                 MultivariateSPCEngine.compute_hotelling_t2,
                 filtered_df, selected_features,
             )
-            radar_stats = {}
-            if "RefDes" in filtered_df.columns:
-                grouped_means = filtered_df.groupby("RefDes")[selected_features].mean()
-                for refdes_val, row in grouped_means.iterrows():
-                    radar_stats[str(refdes_val)] = {
-                        feat: float(row[feat]) for feat in selected_features
-                    }
             radar = _safe_compute_chart(
                 "Radar",
-                lambda: build_radar_payload(radar_stats),
+                build_radar_from_dataframe_groups,
+                filtered_df, selected_features,
             )
             payload["hotelling_t2"] = hotelling_t2
             payload["radar"] = radar

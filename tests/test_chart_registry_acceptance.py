@@ -150,6 +150,18 @@ def test_ui_group_is_refactored_to_five_decision_categories():
     assert set(grouped.keys()) == set(CHART_UI_GROUPS_ORDER)
 
 
+def test_hotelling_t2_and_radar_are_surfaced_in_ui_navigation():
+    grouped = get_charts_by_ui_group(["Volume", "Area", "Height"])
+    ids_by_group = {group: {item["id"] for item in items} for group, items in grouped.items()}
+    assert "hotelling_t2" in ids_by_group["異常根源"]
+    assert "radar" in ids_by_group["比較分析"]
+
+    flow = get_charts_by_root_cause_flow(["Volume", "Area", "Height"])
+    charts_by_stage = {stage["stage_id"]: {c["id"] for c in stage["charts"]} for stage in flow}
+    assert "hotelling_t2" in charts_by_stage["anomaly_root_cause"]
+    assert "radar" in charts_by_stage["comparison_analysis"]
+
+
 def test_visual_chart_groups_exclude_text_summaries():
     grouped = get_visual_charts_by_ui_group(["Volume"])
     visual_ids = {item["id"] for items in grouped.values() for item in items}
