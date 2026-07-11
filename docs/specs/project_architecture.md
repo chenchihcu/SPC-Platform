@@ -143,11 +143,11 @@ docs/
 `app/analytics/chart_registry.py` 為圖表契約單一來源，定義了圖表 ID、類別、特徵數相容性及四區塊（Definition/Formula/Source/Interpretation）描述。
 
 **UI 選單分組 (`CHART_UI_GROUPS_ORDER`)：**
-- **製程監控**：I-MR, Xbar-R, Run Chart, Patterns, EWMA/CUSUM (含 3F)
+- **製程監控**：I-MR, Xbar-R, Run Chart, Patterns, EWMA/CUSUM (含 3F), Hotelling T²
 - **製程能力**：Cp/Cpk, Normality, Boxplot, Pass/Fail Matrix (含 3F)
-- **異常根源**：Pareto, Spatial Heatmap, Repeated Offender, Anomaly/Consistency 3F
+- **異常根源**：Pareto, Spatial Heatmap, Repeated Offender, Anomaly/Consistency 3F, Moran's I LISA
 - **變數關係**：Scatter, Correlation matrix, Correlation heatmap, Density, Quadrant, Bivariate Outlier, Parallel Coord
-- **比較分析**：Subgroup, ANOVA (PartType)
+- **比較分析**：Subgroup, ANOVA (PartType), Radar Chart
 
 `ChartAnalysisPage` 使用 `get_visual_charts_by_ui_group()`，因此五組 selector 只呈現真正圖表視覺輸出。文字摘要 chart IDs `ooc_analysis`、`shift_detection`、`drift_detection`、`outlier_analysis` 保留原 chart ID、payload shape 與引擎公式，但透過 `TEXT_SUMMARY_GROUP_LABEL = "統計資料"` / `get_text_summary_charts()` 顯示於 `StatisticsDataPage`，報告匯出頁也將它們獨立成 `統計資料` 分組；`ENGINEERING_DEFAULT_CHART_IDS` 不因分組而改變。
 

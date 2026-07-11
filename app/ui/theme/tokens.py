@@ -511,6 +511,13 @@ CHART_PALETTE_OFFSET_R_EDGE  = "#0E7490"
 CHART_PALETTE_SOLDER_FILL    = "#DC2626"
 CHART_PALETTE_SOLDER_EDGE    = "#991B1B"
 
+# LISA cluster map palette (spatial autocorrelation categories)
+CHART_LISA_HH = "#d62728"   # red   — high-high cluster
+CHART_LISA_LL = "#1f77b4"   # blue  — low-low cluster
+CHART_LISA_HL = "#ff7f0e"   # orange — high-low outlier
+CHART_LISA_LH = "#17becf"   # cyan  — low-high outlier
+CHART_LISA_NS = "#7f7f7f"   # gray  — not significant
+
 # HTML/PPTX Report theme
 RPT_DARK_BG           = BG_PRIMARY
 RPT_DARK_BG_CODE      = BG_SECONDARY

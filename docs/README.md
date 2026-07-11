@@ -56,6 +56,9 @@
 | 統計公式與門檻 | `docs/governance/SPC_RULES.md` | 統計權威；變更須規格先於程式 |
 | 圖表契約稽核紀錄 | `docs/reports/chart_contract_audit.md` | 語意與實作落差、風險項與處置 |
 | 規格對齊觸發 | `docs/specs/spec_maintenance_and_alignment.md` | 圖表／payload 變更時應同步更新之文件 |
+| 多變量管制 | `app/analytics/multivariate_spc_engine.py`, `app/charts/hotelling_t2_chart.py` | Hotelling T² 多變量管制圖 — 同時監控多特徵（體積/面積/高度）的聯合變異 |
+| 雷達圖 | `app/analytics/radar_payload_helper.py`, `app/charts/radar_chart.py` | Radar Chart 群組比較 — 多 Image × 多指標規範化比較 |
+| 空間自相關 | `app/analytics/moran_i_engine.py`, `app/charts/lisa_chart.py` | Moran's I LISA 空間自相關圖 — PCB 缺陷群聚分析 (HH/LL/HL/LH/NS) |
 
 ## 文件分類
 

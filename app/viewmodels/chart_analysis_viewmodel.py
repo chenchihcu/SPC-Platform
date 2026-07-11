@@ -16,6 +16,9 @@ from app.analytics.quadrant_engine import QuadrantEngine
 from app.analytics.bivariate_outlier_engine import BivariateOutlierEngine
 from app.analytics.anomaly_3f_engine import Anomaly3FEngine
 from app.analytics.consistency_3f_engine import Consistency3FEngine
+from app.analytics.multivariate_spc_engine import MultivariateSPCEngine
+from app.analytics.radar_payload_helper import build_radar_payload
+from app.analytics.moran_i_engine import MoranIEngine
 from app.analytics.ewma_engine import EWMAEngine
 from app.analytics.cusum_engine import CUSUMEngine
 from app.analytics.run_chart_engine import RunChartEngine
@@ -313,6 +316,10 @@ def _build_feature_parameters(
             filtered_df, col, mode=SpatialEngine.MODE_VALUE,
             ucl=param_ucl, lcl=param_lcl, usl=col_usl, lsl=col_lsl,
         )
+        param_lisa = _safe_compute_chart(
+            "LISA", _compute_lisa_payload,
+            filtered_df, col,
+        )
         feature_payload = {
             "spc": param_spc,
             "cusum": param_cusum,
@@ -349,6 +356,7 @@ def _build_feature_parameters(
             param_repeated_offender,
             param_pareto,
             param_spatial,
+            param_lisa,
         ):
             if isinstance(d, dict):
                 d["analysis_context"] = _ctx
@@ -373,9 +381,39 @@ def _build_feature_parameters(
             "repeated_offender": param_repeated_offender,
             "pareto": param_pareto,
             "spatial": param_spatial,
+            "lisa": param_lisa,
         }
 
     return parameters
+
+
+def _compute_lisa_payload(filtered_df: pd.DataFrame, col: str) -> Dict[str, Any]:
+    """Helper: compute LISA payload from filtered_df and target column."""
+    if filtered_df is None or filtered_df.empty:
+        return {"chart_type": "LISA", "data": {}, "statistics": {}, "metadata": {"is_valid": False, "error": "Empty data"}}
+    if "X" not in filtered_df.columns or "Y" not in filtered_df.columns:
+        return {"chart_type": "LISA", "data": {}, "statistics": {}, "metadata": {"is_valid": False, "error": "缺乏座標資料 (Missing X/Y columns). 無法執行空間自相關分析。"}}
+    try:
+        x = filtered_df["X"].dropna()
+        y = filtered_df["Y"].dropna()
+        val = filtered_df[col].dropna()
+        # Align indices
+        common = x.index.intersection(y.index).intersection(val.index)
+        if len(common) < 5:
+            return {"chart_type": "LISA", "data": {}, "statistics": {}, "metadata": {"is_valid": False, "error": "座標資料不足 (Insufficient coordinate points). 至少需要 5 個點。"}}
+        # Stack X, Y into (N, 2) coords array; pass values as pd.Series
+        coords_df = pd.DataFrame({
+            "X": x.loc[common].to_numpy(dtype=float),
+            "Y": y.loc[common].to_numpy(dtype=float),
+        })
+        values_series = val.loc[common].reset_index(drop=True)
+        return MoranIEngine.compute_local_moran_i(
+            coords_df,
+            values_series,
+            k=3,
+        )
+    except Exception as e:
+        return {"chart_type": "LISA", "data": {}, "statistics": {}, "metadata": {"is_valid": False, "error": f"LISA 計算失敗: {str(e)}"}}
 
 
 def compute_analysis_payload(
@@ -435,6 +473,9 @@ def compute_analysis_payload(
                 mode=SpatialEngine.MODE_VALUE,
                 ucl=ucl, lcl=lcl, usl=usl, lsl=lsl,
             )
+            if cancel_fn and cancel_fn():
+                raise _AnalysisCancelled()
+            lisa = _compute_lisa_payload(filtered_df, target_col)
             if cancel_fn and cancel_fn():
                 raise _AnalysisCancelled()
             box = _compute_boxplot_for_df(filtered_df, target_col)
@@ -513,6 +554,7 @@ def compute_analysis_payload(
                 outlier_analysis,
                 subgroup,
                 repeated_offender,
+                lisa,
             ):
                 if isinstance(d, dict):
                     d["analysis_context"] = analysis_context
@@ -537,6 +579,7 @@ def compute_analysis_payload(
                 "repeated_offender": repeated_offender,
                 "pareto": pareto,
                 "spatial": spatial,
+                "lisa": lisa,
             }
             payload["spc"] = spc
             payload["xbar_r"] = xbar_r
@@ -558,6 +601,7 @@ def compute_analysis_payload(
             payload["outlier_analysis"] = outlier_analysis
             payload["subgroup"] = subgroup
             payload["repeated_offender"] = repeated_offender
+            payload["lisa"] = lisa
             payload["scatter_spec"] = None
             payload["correlation_matrix"] = None
             payload["correlation_heatmap"] = None
@@ -565,6 +609,8 @@ def compute_analysis_payload(
             payload["bivariate_outlier"] = None
             payload["anomaly_3f"] = None
             payload["consistency_3f"] = None
+            payload["hotelling_t2"] = None
+            payload["radar"] = None
             payload["parallel_coord"] = None
             payload["pass_fail_matrix"] = None
             if progress_callback:
@@ -657,6 +703,15 @@ def compute_analysis_payload(
                         PassFailEngine.compute_pass_fail,
                         filtered_df, _feature_cols, _spec_by_col,
                     ),
+                    "hotelling_t2": _safe_compute_chart(
+                        "HotellingT2",
+                        MultivariateSPCEngine.compute_hotelling_t2,
+                        filtered_df, _feature_cols,
+                    ),
+                    "radar": _safe_compute_chart(
+                        "Radar",
+                        lambda: build_radar_payload({}),
+                    ),
                 }
             payload["triple_parameters"] = triple_parameters
 
@@ -718,8 +773,11 @@ def compute_analysis_payload(
             payload["outlier_analysis"] = outlier_analysis
             payload["subgroup"] = _incompatible
             payload["repeated_offender"] = _incompatible
+            payload["lisa"] = None
             payload["anomaly_3f"] = None
             payload["consistency_3f"] = None
+            payload["hotelling_t2"] = None
+            payload["radar"] = None
             payload["parallel_coord"] = None
             payload["pass_fail_matrix"] = None
             # Build per-feature bundles for multi-feature tabs (histogram/normality/boxplot)
@@ -792,6 +850,7 @@ def compute_analysis_payload(
             payload["outlier_analysis"] = outlier_analysis
             payload["subgroup"] = _incompatible
             payload["repeated_offender"] = _incompatible
+            payload["lisa"] = None
             payload["anomaly_3f"] = anomaly
             payload["consistency_3f"] = consistency
             payload["parallel_coord"] = parallel_coord

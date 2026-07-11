@@ -51,6 +51,9 @@ ALL_CHARTS: dict[str, str] = {
     "boxplot":       "箱型圖（Boxplot）",
     "heatmap":       "空間熱圖（Spatial Heatmap）",
     "pareto":        "柏拉圖（Pareto）",
+    "hotelling_t2": "Hotelling T² 多變量管制圖（Hotelling T²）",
+    "radar": "Radar 綜合比較圖（Radar Chart）",
+    "lisa": "空間自相關（Moran's I LISA）",
 }
 
 # 各圖表所需的最低量測選取數
@@ -61,10 +64,13 @@ CHART_MIN_N: dict[str, int] = {
     "scatter": 2, "quadrant": 2, "bivariate": 2, "subgroup": 2,
     "anomaly": 3, "consistency": 3, "parallel": 3, "passfail": 3,
     "boxplot": 1, "heatmap": 1, "pareto": 1,
+    "hotelling_t2": 3,
+    "radar": 3,
+    "lisa": 1,
 }
 
 TEMPORAL_CHARTS: frozenset[str] = frozenset({"imr", "run_chart", "ewma", "cusum"})
-SPATIAL_CHARTS:  frozenset[str] = frozenset({"heatmap"})
+SPATIAL_CHARTS:  frozenset[str] = frozenset({"heatmap", "lisa"})
 TYPE_CHARTS:     frozenset[str] = frozenset({"pareto", "passfail"})
 
 # chart_router key → project chart_registry ID 對照表
@@ -88,6 +94,9 @@ ROUTER_TO_REGISTRY_ID: dict[str, str] = {
     "boxplot":       "boxplot",
     "heatmap":       "spatial_heatmap",
     "pareto":        "pareto",
+    "hotelling_t2": "hotelling_t2",
+    "radar": "radar",
+    "lisa": "lisa",
 }
 
 

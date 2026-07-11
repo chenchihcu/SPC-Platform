@@ -33,7 +33,7 @@ def main() -> int:
         sys.path.insert(0, str(REPO_ROOT))
 
     from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QComboBox, QLineEdit, QTabWidget, QWidget, QCheckBox
-    from PySide6.QtCore import Qt, QRect, QTimer
+    from PySide6.QtCore import Qt, QRect
     from PySide6.QtTest import QTest
 
     app = QApplication.instance()
@@ -244,7 +244,7 @@ def main() -> int:
                         cb.setChecked(True)
                 app.processEvents()
                 QTest.qWait(300)
-            except Exception as e:
+            except Exception:
                 pass
         
         # 稽核佈局並保存截圖

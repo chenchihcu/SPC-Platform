@@ -75,6 +75,9 @@ from app.charts.imr_3f_chart import IMR3F
 from app.charts.ewma_3f_chart import EWMA3F
 from app.charts.cusum_3f_chart import CUSUM3F
 from app.charts.boxplot_chart import BoxplotChart
+from app.charts.hotelling_t2_chart import HotellingT2Chart
+from app.charts.radar_chart import RadarChart
+from app.charts.lisa_chart import LisaChart
 from app.ui.theme.tokens import (
     SPACING_4,
     SPACING_8,
@@ -1116,6 +1119,12 @@ class ChartAnalysisPage(QWidget):
             return ChartOnlyPage(CUSUM3F(self), desc, self)
         if chart_id == "boxplot_3f":
             return ChartOnlyPage(BoxplotChart(self), desc, self)
+        if chart_id == "hotelling_t2":
+            return ChartOnlyPage(HotellingT2Chart(self), desc, self)
+        if chart_id == "radar":
+            return ChartOnlyPage(RadarChart(self), desc, self)
+        if chart_id == "lisa":
+            return ChartOnlyPage(LisaChart(self), desc, self)
         return QWidget()
 
     # ── Data resolution ───────────────────────────────────────────────

@@ -92,6 +92,9 @@ CHART_UI_GROUP_BY_ID: Dict[str, str] = {
     "parallel_coord": "變數關係",
     "subgroup": "比較分析",
     "anova_parttype": "比較分析",
+    "hotelling_t2": "異常根源",
+    "radar": "比較分析",
+    "lisa": "異常根源",
 }
 # 簡化名稱（頂部 checkbox 顯示）；tooltip 用 get_chart_display_name 或 CHART_DESCRIPTIONS
 CHART_SHORT_NAMES: Dict[str, str] = {
@@ -128,6 +131,9 @@ CHART_SHORT_NAMES: Dict[str, str] = {
     "ewma_3f": "EW3F",
     "cusum_3f": "CS3F",
     "boxplot_3f": "箱型3F",
+    "hotelling_t2": "T²",
+    "radar": "Radar",
+    "lisa": "LISA",
 }
 # 常用組合 preset：常態分析、箱型圖、X‑R、X‑S（X‑R 對應 imr，X‑S 用 run_chart 或 subgroup 暫以 run_chart 代表趨勢）
 PRESET_FAVORITE_CHART_IDS = ["normality", "boxplot", "imr", "run_chart"]
@@ -167,6 +173,9 @@ WORKFLOW_SECTION_BY_CHART: Dict[str, str] = {
     "ewma_3f": "multi_feature",
     "cusum_3f": "multi_feature",
     "boxplot_3f": "multi_feature",
+    "hotelling_t2": "multi_feature",
+    "radar": "multi_feature",
+    "lisa": "pcb_heatmap",
 }
 
 # Standard 4-section description placeholder when section not applicable
@@ -218,6 +227,9 @@ CHART_CATALOG = [
     {"id": "ewma_3f", "required_feature_count": REQUIRED_TRIPLE, "name": "三特徵 EWMA 並列（EWMA 3F）", "display_name_zh": "三特徵 EWMA 並列", "display_name_en": "EWMA 3F", "category": CATEGORY_TRIPLE, "payload_key": "parameters", "incompatible_reason": MSG_INCOMPATIBLE_TRIPLE},
     {"id": "cusum_3f", "required_feature_count": REQUIRED_TRIPLE, "name": "三特徵 CUSUM 並列（CUSUM 3F）", "display_name_zh": "三特徵 CUSUM 並列", "display_name_en": "CUSUM 3F", "category": CATEGORY_TRIPLE, "payload_key": "parameters", "incompatible_reason": MSG_INCOMPATIBLE_TRIPLE},
     {"id": "boxplot_3f", "required_feature_count": REQUIRED_TRIPLE, "name": "三特徵箱型概覽（Boxplot 3F）", "display_name_zh": "三特徵箱型概覽", "display_name_en": "Boxplot 3F", "category": CATEGORY_TRIPLE, "payload_key": "parameters", "incompatible_reason": MSG_INCOMPATIBLE_TRIPLE},
+    {"id": "hotelling_t2", "required_feature_count": 3, "name": "Hotelling T² 多變量管制圖", "display_name_zh": "Hotelling T² 多變量管制圖", "display_name_en": "Hotelling T²", "category": "三特徵綜合", "payload_key": "hotelling_t2", "incompatible_reason": "需選取 3 個特徵"},
+    {"id": "radar", "required_feature_count": 3, "name": "Radar 綜合比較圖（Radar）", "display_name_zh": "Radar 綜合比較圖", "display_name_en": "Radar Chart", "category": "三特徵綜合", "payload_key": "radar", "incompatible_reason": "需選取 3 個特徵"},
+    {"id": "lisa", "required_feature_count": REQUIRED_SINGLE, "name": "空間自相關（Moran's I LISA）", "display_name_zh": "空間自相關", "display_name_en": "Moran's I LISA", "category": CATEGORY_SINGLE, "payload_key": "lisa", "incompatible_reason": MSG_INCOMPATIBLE_SINGLE},
 ]
 
 # Cache: chart_id -> chart entry (eliminates repeated linear searches)
@@ -238,7 +250,7 @@ CHART_ORDER = [
     # 製程能力
     "histogram_spec", "normality", "boxplot", "boxplot_3f", "pass_fail_matrix",
     # 異常根源
-    "pareto", "spatial_heatmap", "repeated_offender", "outlier_analysis", "anomaly_3f", "consistency_3f",
+    "pareto", "spatial_heatmap", "lisa", "repeated_offender", "outlier_analysis", "anomaly_3f", "consistency_3f",
     # 變數關係
     "scatter_spec", "correlation_matrix", "correlation_heatmap", "density", "quadrant", "bivariate_outlier", "parallel_coord",
     # 比較分析
@@ -263,7 +275,7 @@ ROOT_CAUSE_FLOW_ORDER: list[dict[str, Any]] = [
     {
         "stage_id": "anomaly_root_cause",
         "label": "異常根源",
-        "chart_ids": ["pareto", "spatial_heatmap", "repeated_offender", "outlier_analysis", "anomaly_3f", "consistency_3f"],
+        "chart_ids": ["pareto", "spatial_heatmap", "lisa", "repeated_offender", "outlier_analysis", "anomaly_3f", "consistency_3f"],
     },
     {
         "stage_id": "variable_relationship",

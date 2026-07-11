@@ -372,3 +372,85 @@ RefDes
 - 首次載入：以工程報告建議圖表 ID 為預設勾選（依資料可視性啟用／停用 checkbox）。
 - 產生預覽：若某圖表已不可選，自動取消勾選；其餘手動勾選保留。
 - 預覽補充欄位：匯出範圍摘要（已選/可用/不相容 + 建議未選示例）。
+
+# 17. `hotelling_t2` Payload
+
+Hotelling T² 多變量管制圖 Payload。Chart type 固定為 `"hotelling_t2"`。
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| `chart_type` | str | `"hotelling_t2"` |
+| `payload_key` | str | `"hotelling_t2"` |
+| `data.indices` | List[int] | 樣本索引 |
+| `data.t2_values` | List[float] | 每樣本的 T² 統計量 |
+| `data.ooc_flags` | List[bool] | 是否超出 UCL（True=失控） |
+| `statistics.ucl_value` | float | 上管制界限值 |
+| `statistics.mean_t2` | float | 平均 T² |
+| `statistics.max_t2` | float | 最大 T² |
+| `statistics.ooc_count` | int | 失控樣本數 |
+| `statistics.ooc_pct` | float | 失控百分比 |
+| `metadata.is_valid` | bool | 計算是否成功 |
+| `metadata.n_samples` | int | 有效樣本數 |
+| `metadata.p_features` | int | 特徵維度 (固定 3) |
+| `metadata.cov_matrix` | List[float] | 共變異矩陣 (flatten) |
+| `metadata.mu0_vector` | List[float] | 目標均值向量 |
+| `metadata.error` | str | 計算失敗時的錯誤訊息 |
+
+
+# 18. `radar` Payload
+
+Radar 綜合比較圖 Payload。Chart type 固定為 `"radar"`。
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| `chart_type` | str | `"radar"` |
+| `payload_key` | str | `"radar"` |
+| `data.categories` | List[str] | 類別名稱（如 Volume, Area, Height） |
+| `data.series` | List[dict] | 每組資料的序列 |
+| `series[].name` | str | 序列名稱（如 Center, Left, Right） |
+| `series[].values` | List[float] | 該序列在各類別的值 |
+| `metadata.is_valid` | bool | 計算是否成功 |
+| `metadata.n_series` | int | 序列數 |
+| `metadata.n_categories` | int | 類別數 |
+| `metadata.category_label` | str | 類別標籤（預設 "features"） |
+| `metadata.error` | str | 錯誤訊息 |
+
+
+# 19. `lisa` Payload
+
+Moran's I LISA 空間自相關圖 Payload。Chart type 固定為 `"MoranI_LISA"`。
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| `chart_type` | str | `"MoranI_LISA"` |
+| `payload_key` | str | `"lisa"` |
+| `data.local_i` | List[float] | 每點的 Local Moran's I 值 |
+| `data.p_values` | List[float] | 每點的模擬 p-value |
+| `data.z_scores` | List[float] | 每點的 z-score |
+| `data.classifications` | List[str] | 每點分類 (HH/LL/HL/LH/NS) |
+| `data.quadrant_std_value` | List[float] | 標準化值 zᵢ |
+| `data.quadrant_lag` | List[float] | 空間滯後（鄰居均值） |
+| `statistics.n` | int | 樣本數 |
+| `statistics.k` | int | K 近鄰數 |
+| `statistics.permutations` | int | 置換次數 |
+| `statistics.n_significant` | int | 顯著點數 |
+| `statistics.pct_significant` | float | 顯著百分比 |
+| `statistics.class_counts` | dict | 各分類計數 (HH/LL/HL/LH/NS) |
+| `metadata.is_valid` | bool | 計算是否成功 |
+| `metadata.method` | str | 方法描述 (KNN 配置) |
+| `metadata.error` | str | 錯誤訊息 |
+
+**Global Moran's I 輸出（來自 `moran_i_engine.py` 的 `compute_global_moran_i`）：**
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| `chart_type` | str | `"MoranI"` |
+| `statistics.global_moran_i` | float | Global Moran's I 值 |
+| `statistics.expected_i` | float | 期望值 E[I] ≈ -1/(n-1) |
+| `statistics.p_value` | float | 模擬 p-value |
+| `statistics.z_score` | float | z-score |
+| `statistics.n` | int | 樣本數 |
+| `statistics.k` | int | K 近鄰數 |
+| `statistics.permutations` | int | 置換次數 |
+| `statistics.is_significant` | bool | p < 0.05 |
+| `metadata.method` | str | 方法描述 |

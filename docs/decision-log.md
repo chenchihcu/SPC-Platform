@@ -1269,3 +1269,12 @@
 - Impact: onboarding and agent-facing docs now point to the same shell, font, and DiagnosticPage contracts as `app/ui/main_window.py`, `app/ui/workflow_labels.py`, `app/bootstrap/font_runtime.py`, and `docs/specs/project_architecture.md`.
 - Risk: historical reports and archived materials may still contain superseded terminology by design; use root README, active specs, and this decision log for live contracts.
 - Rollback: revert the documentation-only files changed in this pass and remove `docs/reports/document_sync_full_audit_2026-05-25.md` if a later audit finds the source evidence was misread.
+
+## 2026-07-09 Chart Expansion (三項新圖表擴增)
+
+- Decision: 新增三項統計圖表擴增 — Hotelling T² 多變量管制圖、Radar 綜合比較圖、Moran's I LISA 空間自相關圖
+- Scope: 新增 multivariate_spc_engine.py, moran_i_engine.py, radar_payload_helper.py, hotelling_t2_chart.py, radar_chart.py, lisa_chart.py 及對應測試
+- Reason: 簡報需求暴露多變量/多維度/空間統計分析缺口
+- Impact: 新增 3 個 chart_id（hotelling_t2, radar, lisa），不影響既有 18 種圖表契約或 payload 結構
+- Risk: Moran's I 需 X/Y 座標；Hotelling T² 需多變量常態假設；Radar 需 3 特徵
+- Rollback: 回退新增檔案即可，無 schema migration
