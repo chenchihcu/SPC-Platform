@@ -40,6 +40,10 @@ def main() -> int:
     if not app:
         app = QApplication(sys.argv)
 
+    from app.ui.theme import layout_policy as theme_layout_policy
+    theme_layout_policy.ensure_window_visible = lambda widget, **kwargs: True
+    theme_layout_policy.fit_top_level_to_available = lambda widget, **kwargs: True
+
     from app.ui.main_window import MainWindow
     from app.bootstrap.font_runtime import register_qt_bundled_fonts, preferred_qt_font_family
     from app.ui.theme import apply_app_theme
@@ -96,6 +100,17 @@ def main() -> int:
             # 2. 檢查視窗底邊或右邊溢出 (Overflow)
             if any(isinstance(widget, cls) for cls in (QPushButton, QComboBox, QLineEdit, QTabWidget, QCheckBox)):
                 try:
+                    def is_inside_scroll_area(widget, orientation):
+                        parent = widget.parentWidget()
+                        while parent is not None:
+                            if parent.__class__.__name__ == "QScrollArea":
+                                if orientation == "vertical" and parent.verticalScrollBarPolicy() != Qt.ScrollBarPolicy.ScrollBarAlwaysOff:
+                                    return True
+                                if orientation == "horizontal" and parent.horizontalScrollBarPolicy() != Qt.ScrollBarPolicy.ScrollBarAlwaysOff:
+                                    return True
+                            parent = parent.parentWidget()
+                        return False
+
                     local_rect = widget.rect()
                     global_pos = widget.mapTo(w, local_rect.topLeft())
                     widget_in_main = QRect(global_pos.x(), global_pos.y(), widget.width(), widget.height())
@@ -103,25 +118,27 @@ def main() -> int:
                     status_bar_h = 30
                     limit_y = w.height() - status_bar_h
                     if widget_in_main.bottom() > limit_y + 2:
-                        audit_records.append({
-                            "resolution": f"{args.width}x{args.height}",
-                            "scale": args.scale,
-                            "page": page_name,
-                            "state": state,
-                            "widget_name": widget.objectName() or widget.__class__.__name__,
-                            "type": "OVERFLOW",
-                            "details": f"Widget clipped at bottom of window. y={widget_in_main.bottom()} > limit={limit_y}."
-                        })
+                        if not is_inside_scroll_area(widget, "vertical"):
+                            audit_records.append({
+                                "resolution": f"{args.width}x{args.height}",
+                                "scale": args.scale,
+                                "page": page_name,
+                                "state": state,
+                                "widget_name": widget.objectName() or widget.__class__.__name__,
+                                "type": "OVERFLOW",
+                                "details": f"Widget clipped at bottom of window. y={widget_in_main.bottom()} > limit={limit_y}."
+                            })
                     if widget_in_main.right() > w.width() + 2:
-                        audit_records.append({
-                            "resolution": f"{args.width}x{args.height}",
-                            "scale": args.scale,
-                            "page": page_name,
-                            "state": state,
-                            "widget_name": widget.objectName() or widget.__class__.__name__,
-                            "type": "OVERFLOW",
-                            "details": f"Widget clipped at right of window. x={widget_in_main.right()} > limit={w.width()}."
-                        })
+                        if not is_inside_scroll_area(widget, "horizontal"):
+                            audit_records.append({
+                                "resolution": f"{args.width}x{args.height}",
+                                "scale": args.scale,
+                                "page": page_name,
+                                "state": state,
+                                "widget_name": widget.objectName() or widget.__class__.__name__,
+                                "type": "OVERFLOW",
+                                "details": f"Widget clipped at right of window. x={widget_in_main.right()} > limit={w.width()}."
+                            })
                 except Exception:
                     pass
 

@@ -13,7 +13,7 @@ from PySide6 import QtWidgets
 from PySide6.QtWidgets import (
     QWidget, QLineEdit,
     QComboBox, QPushButton, QLabel, QCheckBox, QFrame, QSizePolicy,
-    QScrollArea, QBoxLayout,
+    QScrollArea, QBoxLayout, QMessageBox,
 )
 from PySide6.QtCore import Signal, Qt
 
@@ -136,10 +136,12 @@ class StencilSpecEditor(QWidget):
 
         if self._embedded:
             # ── 嵌入模式：水平標籤緊湊排版，厚度並排 ──
-            self.thickness_main.setMinimumWidth(FORM_COMBO_MIN_WIDTH)
-            self.thickness_main.setMaximumWidth(DATA_SETUP_FIELD_MAX_WIDTH)
-            self.thickness_precision.setMinimumWidth(FORM_COMBO_MIN_WIDTH)
-            self.thickness_precision.setMaximumWidth(DATA_SETUP_FIELD_MAX_WIDTH)
+            self.thickness_main.setMinimumWidth(80)
+            self.thickness_main.setMaximumWidth(DATA_SETUP_NUMERIC_FIELD_MAX_WIDTH)
+            self.thickness_precision.setMinimumWidth(80)
+            self.thickness_precision.setMaximumWidth(DATA_SETUP_NUMERIC_FIELD_MAX_WIDTH)
+            self.type_combo.setMinimumWidth(100)
+            self.precision_which.setMinimumWidth(120)
             
             # Control limits fields
             self.vol_target = QLineEdit()
@@ -617,6 +619,18 @@ class StencilSpecEditor(QWidget):
                 show_dark_warning(self, "無法儲存", "階梯鋼板時精密厚度必須為數字。")
                 return
         precision_is_main = self.precision_which.currentData()
+        # Spec Alteration Safety (AGENTS.md): saving writes a NEW version row
+        # into the stencil/paste spec libraries, so confirm before committing —
+        # same barrier as the combined-spec flows in measurement_library_page.
+        reply = QMessageBox.question(
+            self,
+            "確認儲存規格",
+            f"您即將為「{product_name}」建立新的規格版本並設為現用，是否確認？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
         # Control-limit fields only exist in embedded mode; fall back to
         # sensible defaults when running as a standalone (non-embedded) widget.
         spec = {

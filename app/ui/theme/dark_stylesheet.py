@@ -1016,6 +1016,7 @@ def get_app_stylesheet() -> str:
         border: 1px solid {BORDER_SUBTLE};
         border-radius: {RADIUS_SM}px;
         padding: 2px {SPACING_8}px;
+        min-height: 0px;
         font-family: {FONT_FAMILY};
         font-size: {FONT_SIZE_SMALL}pt;
         font-weight: {FONT_WEIGHT_BOLD};

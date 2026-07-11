@@ -628,8 +628,9 @@ class MainWindow(QMainWindow):
         """Handle window resize event and auto-collapse sidebar if too narrow."""
         super().resizeEvent(event)
         if self.width() < 860:
-            if hasattr(self, "_sidebar") and self._sidebar and not self._sidebar.is_collapsed():
-                self._sidebar.set_collapsed(True)
+            sidebar = getattr(self, "collapsible_sidebar", None)
+            if sidebar is not None and not sidebar.is_collapsed():
+                sidebar.set_collapsed(True)
 
     def closeEvent(self, event) -> None:
         """

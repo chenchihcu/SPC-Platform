@@ -6,6 +6,8 @@ import matplotlib
 matplotlib.use('QtAgg')
 from app.charts.mpl_font_config import setup_mpl_cjk_font
 setup_mpl_cjk_font()
+import contextlib
+
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
@@ -446,6 +448,21 @@ class BaseChart(QWidget):
         self.ax.set_title(self.title_str)
         self.ax.set_xlabel(self.xlabel_str)
         self.ax.set_ylabel(self.ylabel_str)
+
+    def _safe_remove_artist(self, attr_name: str) -> None:
+        """Detach a secondary matplotlib artist (colorbar / twin axis) stored on
+        this chart and reset the attribute to None.
+
+        The suppressed exceptions are deliberately narrow: the artist may
+        already be detached after repeated clear/draw cycles, but anything else
+        must surface rather than silently leave a stale artist on the figure.
+        """
+        artist = getattr(self, attr_name, None)
+        if artist is None:
+            return
+        with contextlib.suppress(AttributeError, RuntimeError, ValueError):
+            artist.remove()
+        setattr(self, attr_name, None)
 
     def draw_chart(self, engine_output: Dict[str, Any]) -> bool:
         """

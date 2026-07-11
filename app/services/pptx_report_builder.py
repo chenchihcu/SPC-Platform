@@ -1094,7 +1094,7 @@ def _build_slide_executive_summary(
 
     # ── Status Indicators Row ────────────────────────────────────────────────
     # 1. Capability
-    min_cpk = exec_data.get("min_cpk_value", 0.0)
+    min_cpk = exec_data.get("min_cpk_value")
     cpk_label = f"能力：{exec_data.get('min_cpk_str', '—')}"
     _add_status_indicator(
         slide, MARGIN_LEFT, content_top, indicator_w, indicator_h,
@@ -1388,7 +1388,7 @@ def _build_slide_core_diagnosis(
     cpk_box.fill.fore_color.rgb = CLR_WHITE
     cpk_box.line.color.rgb = CLR_BORDER
     _add_textbox(slide, MARGIN_LEFT + Mm(7), y + Mm(1), Mm(56), Mm(5), text="最弱 Cpk", size_pt=7, bold=True, color=CLR_SUBTITLE)
-    _add_textbox(slide, MARGIN_LEFT + Mm(7), y + Mm(6), Mm(56), Mm(8), text=min_cpk_str, size_pt=10, bold=True, color=_cpk_color(min_cpk_str))
+    _add_textbox(slide, MARGIN_LEFT + Mm(7), y + Mm(6), Mm(56), Mm(8), text=min_cpk_str, size_pt=10, bold=True, color=_cpk_color(exec_data.get("min_cpk_value")))
 
     # Box for stability
     stab_box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, MARGIN_LEFT + Mm(70), y, Mm(58), Mm(16))

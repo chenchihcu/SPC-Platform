@@ -9,6 +9,14 @@ class MultivariateSPCEngine:
     @staticmethod
     def compute_hotelling_t2(df: pd.DataFrame, feature_cols: list[str]) -> dict:
         """Compute Hotelling T² statistics for multivariate control charting."""
+        if df is None or df.empty or not feature_cols or any(c not in df.columns for c in feature_cols):
+            return {
+                "chart_type": "hotelling_t2",
+                "payload_key": "hotelling_t2",
+                "data": {"indices": [], "t2_values": [], "ooc_flags": []},
+                "statistics": {"ucl_value": 0.0, "mean_t2": 0.0, "max_t2": 0.0, "ooc_count": 0, "ooc_pct": 0.0},
+                "metadata": {"is_valid": False, "n_samples": 0, "p_features": len(feature_cols or []), "cov_matrix": [], "mu0_vector": [], "error": "無資料或缺少特徵欄位。"},
+            }
         X = df[feature_cols].to_numpy()
         mask = np.all(np.isfinite(X), axis=1)
         X = X[mask]

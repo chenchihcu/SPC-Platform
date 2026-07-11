@@ -55,22 +55,31 @@ class CapabilityEngine:
         # Sigma LT (total sample std dev — long-term, overall variation)
         sigma_lt = np.std(valid_data, ddof=1)
 
-        # Safely compute capability to avoid division by zero
-        cp, cpk, pp, ppk = 0.0, 0.0, 0.0, 0.0
+        # Degenerate input: zero variation makes Cp/Cpk undefined (division by
+        # zero); returning 0.0 here would misreport a perfect process as
+        # "High risk", so fail closed per the engine contract (SPC_RULES.md).
+        if sigma_st <= 0 or sigma_lt <= 0:
+            return {
+                "chart_type": "Capability",
+                "data": {},
+                "statistics": {},
+                "metadata": {
+                    "is_valid": False,
+                    "error": "製程變異為零（所有量測值相同），Cp/Cpk 無法定義。",
+                },
+            }
 
-        if sigma_st > 0:
-            cp  = (usl - lsl) / (_CP_SIGMA_SPAN * sigma_st)
-            cpk = min(
-                (usl - mean_val) / (_ONE_SIDED_SIGMA * sigma_st),
-                (mean_val - lsl) / (_ONE_SIDED_SIGMA * sigma_st),
-            )
+        cp = (usl - lsl) / (_CP_SIGMA_SPAN * sigma_st)
+        cpk = min(
+            (usl - mean_val) / (_ONE_SIDED_SIGMA * sigma_st),
+            (mean_val - lsl) / (_ONE_SIDED_SIGMA * sigma_st),
+        )
 
-        if sigma_lt > 0:
-            pp  = (usl - lsl) / (_CP_SIGMA_SPAN * sigma_lt)
-            ppk = min(
-                (usl - mean_val) / (_ONE_SIDED_SIGMA * sigma_lt),
-                (mean_val - lsl) / (_ONE_SIDED_SIGMA * sigma_lt),
-            )
+        pp = (usl - lsl) / (_CP_SIGMA_SPAN * sigma_lt)
+        ppk = min(
+            (usl - mean_val) / (_ONE_SIDED_SIGMA * sigma_lt),
+            (mean_val - lsl) / (_ONE_SIDED_SIGMA * sigma_lt),
+        )
 
         # Interpretation defined by docs/governance/SPC_RULES.md (Cpk < 1.0 unacceptable)
         defect_risk_level = "High risk" if cpk < 1.0 else "Acceptable" if cpk >= 1.33 else "Medium risk"

@@ -167,12 +167,11 @@ def _compute_defect_pattern(
     if not tags:
         if total_oos <= 0:
             return "unknown", "—"
-        if cluster_ratio is not None and float(cluster_ratio) <= THRESH_CLUSTER_RATIO:
-            primary = "random"
-            tags.append("隨機／分散")
-        else:
-            primary = "random"
-            tags.append("隨機／分散")
+        # Regardless of cluster_ratio availability, an untagged pattern with
+        # OOS points defaults to "random"; the former if/else branches here
+        # were byte-identical, so the conditional was collapsed.
+        primary = "random"
+        tags.append("隨機／分散")
 
     if len(tags) >= 2:
         primary = "mixed"

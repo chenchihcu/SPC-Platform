@@ -6,7 +6,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from app.data.master_data_db import db_conn, normalize_product_name
+from app.data.master_data_db import (
+    db_conn,
+    delete_version_row,
+    normalize_product_name,
+    set_active_version_row,
+)
 from app.data.sql_filters import append_joined_product_version_filters
 
 DEFAULT_HEIGHT_TARGET = 100.0
@@ -75,29 +80,12 @@ def list_paste_printing_spec_versions(
 
 
 def set_active_paste_printing_spec_version(version_id: int) -> bool:
-    with db_conn() as conn:
-        row = conn.execute(
-            "SELECT product_id FROM paste_printing_spec_versions WHERE id = ?",
-            (version_id,),
-        ).fetchone()
-        if not row:
-            return False
-        pid = int(row["product_id"])
-        conn.execute(
-            "UPDATE paste_printing_spec_versions SET is_active = 0 WHERE product_id = ?",
-            (pid,),
-        )
-        cur = conn.execute(
-            "UPDATE paste_printing_spec_versions SET is_active = 1 WHERE id = ?",
-            (version_id,),
-        )
-        return cur.rowcount > 0
+    return set_active_version_row("paste_printing_spec_versions", version_id)
 
 
 def delete_paste_printing_spec_version(version_id: int) -> bool:
-    with db_conn() as conn:
-        cur = conn.execute("DELETE FROM paste_printing_spec_versions WHERE id = ?", (version_id,))
-        return cur.rowcount > 0
+    """刪除指定版本；若刪到現行版本，自動遞補最新一版避免產品無現行規格。"""
+    return delete_version_row("paste_printing_spec_versions", version_id)
 
 
 def update_paste_printing_spec_metadata(

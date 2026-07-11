@@ -299,6 +299,7 @@ def build_executive_summary_pptx_data(
         "risk_sentence": risk_sentence,
         "check_directions": check_dirs,
         "min_cpk_str": min_cpk_str,
+        "min_cpk_value": min_cpk_raw,
         "normality_passed": normality_passed,
         "error_count": error_count,
         "warning_count": int(ra.get("warning_count", 0) or 0),

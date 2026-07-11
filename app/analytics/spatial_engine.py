@@ -67,7 +67,7 @@ class SpatialEngine:
         """
         Extracts X, Y and value/density for scatter map. Mode: value (raw), ucl_density, lcl_density, oos_density, volume_deviation.
         """
-        if joined_df is None or joined_df.empty or "X" not in joined_df.columns or "Y" not in joined_df.columns or target_col not in joined_df.columns:
+        if joined_df is None or joined_df.empty or "X" not in joined_df.columns or "Y" not in joined_df.columns or "RefDes" not in joined_df.columns or target_col not in joined_df.columns:
             return {
                 "chart_type": "Spatial",
                 "data": {},

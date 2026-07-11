@@ -88,7 +88,7 @@ class DensityEngine:
                 "statistics": {},
                 "metadata": {"is_valid": False, "error": "無資料或缺少雙特徵欄位。"},
             }
-        valid = df[[col_x, col_y]].dropna()
+        valid = df[[col_x, col_y]].replace([np.inf, -np.inf], np.nan).dropna()
         if len(valid) < 2:
             return {
                 "chart_type": "Density",

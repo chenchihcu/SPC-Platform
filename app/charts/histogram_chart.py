@@ -39,7 +39,9 @@ class HistogramChart(BaseChart):
         self._set_visual_contract_payload(engine_output or {})
         if engine_output.get("_multi_feature"):
             self._draw_multi_feature(engine_output)
-            return self.canvas.isVisible()
+            # Return draw success, not canvas.isVisible(): a chart rendered
+            # into a hidden tab is still a successful draw.
+            return True
 
         # Single-feature: reset to single axes before drawing
         self.figure.clear()

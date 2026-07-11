@@ -1314,7 +1314,9 @@ class ChartAnalysisPage(QWidget):
             except RuntimeError:
                 self._details_worker = None
 
-        self._details_worker = _DetailsHintWorker(payload, self)
+        # No page parent: worker may outlive page teardown; lifecycle is managed
+        # by the member reference + finished→deleteLater wiring below (P2).
+        self._details_worker = _DetailsHintWorker(payload)
         self._details_worker.result_ready.connect(self._details_label.setText)
         _w = self._details_worker
         self._details_worker.finished.connect(

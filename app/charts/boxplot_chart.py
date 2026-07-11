@@ -95,7 +95,9 @@ class BoxplotChart(BaseChart):
             self._draw_multi_feature(engine_output)
         else:
             self._draw_single_feature(engine_output)
-        return self.canvas.isVisible()
+        # Return draw success, not canvas.isVisible(): a chart rendered into a
+        # hidden tab is still a successful draw.
+        return True
 
     # ── Single-feature (original logic) ──────────────────────────────
 

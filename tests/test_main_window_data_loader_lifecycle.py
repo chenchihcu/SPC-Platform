@@ -35,7 +35,18 @@ def qapp():
     register_qt_bundled_fonts()
     apply_app_theme(app)
     app.setFont(QFont(preferred_qt_font_family()))
-    return app
+    
+    import app.ui.main_window as main_window
+    orig_ensure = main_window.ensure_window_visible
+    orig_fit = main_window.fit_top_level_to_available
+    
+    main_window.ensure_window_visible = lambda *args, **kwargs: True
+    main_window.fit_top_level_to_available = lambda *args, **kwargs: True
+    
+    yield app
+    
+    main_window.ensure_window_visible = orig_ensure
+    main_window.fit_top_level_to_available = orig_fit
 
 
 def test_current_data_loader_worker_none_when_unset(qapp: QApplication) -> None:

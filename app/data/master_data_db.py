@@ -785,7 +785,10 @@ def init_db() -> None:
         if _INITIALIZED:
             return
         _ensure_data_dir()
-        with sqlite3.connect(db_path()) as conn:
+        # sqlite3's context manager only commits/rolls back; it does NOT close
+        # the connection, so close explicitly to avoid leaking the handle.
+        conn = sqlite3.connect(db_path())
+        try:
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA foreign_keys = ON")
             _create_schema(conn)
@@ -797,6 +800,8 @@ def init_db() -> None:
             _run_spec_split_migration(conn)
             _clear_legacy_work_order_column(conn)
             conn.commit()
+        finally:
+            conn.close()
         _INITIALIZED = True
 
 
@@ -811,3 +816,61 @@ def db_conn() -> Iterator[sqlite3.Connection]:
         conn.commit()
     finally:
         conn.close()
+
+
+# Product-scoped version tables sharing the is_active single-selection pattern.
+# Allowlist keeps the table name out of caller control (no SQL injection).
+_VERSIONED_TABLES = frozenset({
+    "coordinate_versions",
+    "paste_printing_spec_versions",
+    "stencil_thickness_versions",
+})
+
+
+def set_active_version_row(table: str, version_id: int) -> bool:
+    """Mark version_id as the product's only active row in a versioned table."""
+    if table not in _VERSIONED_TABLES:
+        raise ValueError(f"unsupported version table: {table}")
+    with db_conn() as conn:
+        row = conn.execute(
+            f"SELECT product_id FROM {table} WHERE id = ?", (version_id,)
+        ).fetchone()
+        if not row:
+            return False
+        conn.execute(
+            f"UPDATE {table} SET is_active = 0 WHERE product_id = ?",
+            (row["product_id"],),
+        )
+        cur = conn.execute(
+            f"UPDATE {table} SET is_active = 1 WHERE id = ?", (version_id,)
+        )
+        return cur.rowcount > 0
+
+
+def delete_version_row(table: str, version_id: int) -> bool:
+    """Delete a version row; when it was the active one, promote the newest
+    remaining version of the same product so the product never silently ends
+    up with zero active versions while versions remain."""
+    if table not in _VERSIONED_TABLES:
+        raise ValueError(f"unsupported version table: {table}")
+    with db_conn() as conn:
+        row = conn.execute(
+            f"SELECT product_id, is_active FROM {table} WHERE id = ?",
+            (version_id,),
+        ).fetchone()
+        if not row:
+            return False
+        cur = conn.execute(f"DELETE FROM {table} WHERE id = ?", (version_id,))
+        if cur.rowcount <= 0:
+            return False
+        if row["is_active"]:
+            nxt = conn.execute(
+                f"SELECT id FROM {table} WHERE product_id = ? ORDER BY id DESC LIMIT 1",
+                (row["product_id"],),
+            ).fetchone()
+            if nxt:
+                conn.execute(
+                    f"UPDATE {table} SET is_active = 1 WHERE id = ?",
+                    (nxt["id"],),
+                )
+        return True

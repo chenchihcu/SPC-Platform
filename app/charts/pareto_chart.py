@@ -1,4 +1,3 @@
-import contextlib
 import logging
 
 from app.charts.base_chart import BaseChart, build_sparse_tick_labels
@@ -28,11 +27,7 @@ class ParetoChart(BaseChart):
 
     def clear(self) -> None:
         """Clear chart canvas and reset to empty state."""
-        if self._ax2 is not None:
-            with contextlib.suppress(AttributeError, RuntimeError, ValueError):
-                # Twin axis might already be detached during repeated clear/draw cycles.
-                self._ax2.remove()
-            self._ax2 = None
+        self._safe_remove_artist("_ax2")
         super().clear()
 
     _SPARSE_LABEL_THRESHOLD = 30
@@ -105,13 +100,14 @@ class ParetoChart(BaseChart):
                 self.canvas.mpl_disconnect(self._pick_cid)
             self._pick_cid = self.canvas.mpl_connect("pick_event", self._on_pick)
         
-        # 方案 1: 稀疏 X 軸標籤
-        display_labels = build_sparse_tick_labels(
+        # 方案 1: 稀疏 X 軸標籤（同一份結果供 tick 與 annotation 兩處使用）
+        sparse_labels = build_sparse_tick_labels(
             categories,
             self._SPARSE_LABEL_THRESHOLD,
             self._SPARSE_STEP_SMALL,
             self._SPARSE_STEP_LARGE,
         )
+        display_labels = sparse_labels
         rot, fs = (60, 7) if n > 12 else (15, 9)
         self.ax.set_xticks(indices)
         self.ax.set_xticklabels(display_labels, rotation=rot, ha="right", fontsize=fs)
@@ -147,12 +143,7 @@ class ParetoChart(BaseChart):
         )
 
         # Add labels for percentage
-        annotation_labels = build_sparse_tick_labels(
-            categories,
-            self._SPARSE_LABEL_THRESHOLD,
-            self._SPARSE_STEP_SMALL,
-            self._SPARSE_STEP_LARGE,
-        )
+        annotation_labels = sparse_labels
         for i, pct in enumerate(cum_pct):
             if annotation_labels[i] == "":
                 continue

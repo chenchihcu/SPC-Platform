@@ -23,8 +23,11 @@ def atomic_save_json(path: str, data: Any, indent: int = 4) -> bool:
     """
     tmp_path = f"{path}.tmp"
     try:
-        # Ensure parent directory exists
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        # Ensure parent directory exists; dirname is "" for bare filenames and
+        # os.makedirs("") raises, so only create when a directory part exists.
+        parent_dir = os.path.dirname(path)
+        if parent_dir:
+            os.makedirs(parent_dir, exist_ok=True)
 
         with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=indent, ensure_ascii=False)
@@ -43,7 +46,9 @@ def atomic_save_text(path: str, content: str) -> bool:
     """Atomic save for plain text."""
     tmp_path = f"{path}.tmp"
     try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        parent_dir = os.path.dirname(path)
+        if parent_dir:
+            os.makedirs(parent_dir, exist_ok=True)
         with open(tmp_path, "w", encoding="utf-8") as f:
             f.write(content)
             f.flush()

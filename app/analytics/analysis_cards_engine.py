@@ -22,6 +22,13 @@ def compute_ooc_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
     stats = spc.get("statistics") or {}
     ooc = list(data.get("out_of_control_indices") or [])
     n = int(stats.get("n") or len(data.get("values") or []) or 0)
+    if n <= 0:
+        return {
+            "chart_type": "OOCAnalysis",
+            "data": {},
+            "statistics": {},
+            "metadata": {"is_valid": False, "error": "無 SPC 資料，無法進行失控分析。"},
+        }
     ratio = _normalize_ooc_ratio(len(ooc), n)
     severity = "Normal"
     if ratio is not None:
@@ -139,6 +146,13 @@ def compute_outlier_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
         outlier_idx = list(spc_data.get("out_of_control_indices") or [])
         total = int(spc_stats.get("n") or len(spc_data.get("values") or []) or 0)
         outlier_count = len(outlier_idx)
+    if total <= 0:
+        return {
+            "chart_type": "OutlierAnalysis",
+            "data": {},
+            "statistics": {},
+            "metadata": {"is_valid": False, "error": "無資料，無法進行離群分析。"},
+        }
     ratio = _normalize_ooc_ratio(outlier_count, total)
     rank = "Normal"
     if ratio is not None:

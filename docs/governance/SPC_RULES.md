@@ -356,6 +356,17 @@ Cp ≥ 1.67  → high capability
 
 
 
+Degenerate input (zero variation):
+
+When sigma (short-term or long-term) equals 0 — all measurements identical —
+Cp/Cpk/Pp/Ppk are mathematically undefined (division by zero). The engine MUST
+return `is_valid = false` with reason 「製程變異為零（所有量測值相同），Cp/Cpk 無法定義。」
+instead of reporting any numeric capability value. Returning 0.0 is forbidden:
+it misclassifies a zero-variation process as "High risk" (Cpk < 1.0), the
+opposite of its actual state. (Adopted 2026-07-11, code-audit finding A2.)
+
+
+
 \---
 
 

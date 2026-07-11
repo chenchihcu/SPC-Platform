@@ -134,7 +134,11 @@ def save(spec: Dict[str, Any]) -> bool:
         "default_height_lsl": spec.get("default_height_lsl", DEFAULT_HEIGHT_LSL),
         "default_height_usl": spec.get("default_height_usl", DEFAULT_HEIGHT_USL),
     }
-    return bool(save_stencil_spec(stencil_payload) and save_paste_spec(paste_payload))
+    # Evaluate both saves (no short-circuit) so a stencil failure doesn't skip
+    # the paste write and leave the two libraries in a half-updated state.
+    saved_stencil = save_stencil_spec(stencil_payload)
+    saved_paste = save_paste_spec(paste_payload)
+    return bool(saved_stencil and saved_paste)
 
 
 def remove(product_name: str) -> bool:

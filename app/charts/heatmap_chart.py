@@ -11,11 +11,7 @@ class HeatmapChart(BaseChart):
 
     def clear(self) -> None:
         """Clear chart canvas and reset to empty state."""
-        if self.cbar is not None:
-            import contextlib
-            with contextlib.suppress(Exception):
-                self.cbar.remove()
-            self.cbar = None
+        self._safe_remove_artist("cbar")
         super().clear()
 
     _MODE_LABELS = {

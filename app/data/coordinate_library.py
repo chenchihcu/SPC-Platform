@@ -9,7 +9,9 @@ from typing import Any, Dict, List, Optional
 
 from app.data.master_data_db import (
     db_conn,
+    delete_version_row,
     normalize_product_name,
+    set_active_version_row,
 )
 from app.data.sql_filters import append_joined_product_version_filters
 
@@ -76,32 +78,13 @@ def list_coordinate_versions(
 
 def set_active_coordinate_version(version_id: int) -> bool:
     """將指定的座標版本設為該產品的現行版本。"""
-    with db_conn() as conn:
-        # 取得該版本的 product_id
-        row = conn.execute("SELECT product_id FROM coordinate_versions WHERE id = ?", (version_id,)).fetchone()
-        if not row:
-            return False
-        pid = row["product_id"]
-
-        # 將該產品的所有版本設為不啟用
-        conn.execute("UPDATE coordinate_versions SET is_active = 0 WHERE product_id = ?", (pid,))
-        # 將指定版本設為啟用
-        cur = conn.execute("UPDATE coordinate_versions SET is_active = 1 WHERE id = ?", (version_id,))
-        return cur.rowcount > 0
+    return set_active_version_row("coordinate_versions", version_id)
 
 
 def delete_coordinate_version(version_id: int) -> bool:
-    """刪除指定的座標版本（不刪除檔案）。"""
-    with db_conn() as conn:
-        # 檢查是否為啟用中版本，如果是則不允許直接刪除 (或需提醒)
-        row = conn.execute("SELECT is_active FROM coordinate_versions WHERE id = ?", (version_id,)).fetchone()
-        if row and row["is_active"]:
-            # 如果是 active，可能需要先切換到別的版本或者不允許刪除
-            # 這裡簡化處理：直接刪除，但如果有 CASCADE 可能會影響，不過目前 schema 是 product_id CASCADE
-            pass
+    """刪除指定的座標版本（不刪除檔案）；若刪到現行版本，自動遞補最新一版。"""
+    return delete_version_row("coordinate_versions", version_id)
 
-        cur = conn.execute("DELETE FROM coordinate_versions WHERE id = ?", (version_id,))
-        return cur.rowcount > 0
 
 def update_coordinate_metadata(
     version_id: int,

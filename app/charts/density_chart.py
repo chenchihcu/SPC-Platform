@@ -1,4 +1,3 @@
-import contextlib
 
 from app.charts.base_chart import BaseChart
 from typing import Dict, Any
@@ -20,11 +19,7 @@ class DensityChart(BaseChart):
 
     def clear(self) -> None:
         """Clear chart canvas and reset to empty state."""
-        if self.cbar is not None:
-            with contextlib.suppress(AttributeError, RuntimeError, ValueError):
-                # Colorbar may already be removed when canvas has been recreated.
-                self.cbar.remove()
-            self.cbar = None
+        self._safe_remove_artist("cbar")
         super().clear()
 
     def draw_chart(self, engine_output: Dict[str, Any]) -> bool:

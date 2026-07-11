@@ -846,6 +846,13 @@ def get_feature_payload_slice(payload: Dict[str, Any], chart_id: str, feature: s
         for key in ("spc", "cap", "dist"):
             if key in feat:
                 synth[key] = feat[key]
+        # Composite slice validity mirrors its spc sub-payload so the schema
+        # normalizer can stay fail-closed for dicts without explicit metadata.
+        spc_meta = (synth.get("spc") or {}).get("metadata")
+        synth["metadata"] = dict(spc_meta) if isinstance(spc_meta, dict) else {
+            "is_valid": False,
+            "error": "缺少 SPC 資料。",
+        }
         return synth
 
     if chart_id == "histogram_spec":
@@ -942,7 +949,9 @@ def _ensure_chart_payload_schema(chart_id: str, result: Any) -> Dict[str, Any]:
     if not isinstance(meta, dict):
         meta = {}
     if "is_valid" not in meta:
-        meta["is_valid"] = bool(base)
+        # Fail closed: a payload without explicit metadata must never present
+        # as valid just because the raw dict happens to be non-empty.
+        meta["is_valid"] = False
     meta.setdefault("error", "" if meta.get("is_valid") else "無資料。")
     normalized["metadata"] = meta
     return normalized

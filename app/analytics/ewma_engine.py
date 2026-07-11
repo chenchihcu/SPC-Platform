@@ -36,7 +36,7 @@ class EWMAEngine:
                 "statistics": {},
                 "metadata": {"is_valid": False, "target_col": target_col, "error": msg},
             }
-        valid_data = data.dropna()
+        valid_data = data.replace([np.inf, -np.inf], np.nan).dropna()
         n = len(valid_data)
         mu0 = float(valid_data.mean())
         sigma = float(valid_data.std(ddof=1))

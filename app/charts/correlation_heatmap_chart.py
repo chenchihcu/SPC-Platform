@@ -23,11 +23,7 @@ class CorrelationHeatmapChart(BaseChart):
 
     def clear(self) -> None:
         """Reset axes and remove any existing color bar."""
-        if self._cbar is not None:
-            import contextlib
-            with contextlib.suppress(Exception):
-                self._cbar.remove()
-            self._cbar = None
+        self._safe_remove_artist("_cbar")
         super().clear()
 
     def draw_chart(self, engine_output: Dict[str, Any]) -> bool:
