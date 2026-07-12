@@ -81,6 +81,36 @@ def register(product_name: str, file_path: str, product_part_no: str = "", row_c
                     datetime.now().isoformat(),
                 ),
             )
+        
+        # JSON 雙軌同步寫入
+        try:
+            import json
+            from app.data.master_data_db import data_dir
+            json_path = data_dir() / "coordinate_registry.json"
+            
+            payload: dict[str, Any] = {"entries": []}
+            if json_path.exists():
+                try:
+                    payload = json.loads(json_path.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+            if not isinstance(payload, dict):
+                payload = {"entries": []}
+            entries = payload.setdefault("entries", [])
+            if not isinstance(entries, list):
+                entries = []
+                payload["entries"] = entries
+                
+            entries.append({
+                "product_name": product_name,
+                "product_part_no": (product_part_no or "").strip(),
+                "file_path": file_path,
+                "created_at": datetime.now().isoformat()
+            })
+            json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        except Exception as e:
+            logger.error("Failed to sync coordinate registration to legacy JSON: %s", e)
+
         return True
     except (OSError, ValueError):
         return False
@@ -134,4 +164,29 @@ def remove_by_product_name(product_name: str) -> bool:
     except ImportError:
         logger.exception("coordinate cleanup dependency import failed for product=%s", key)
         return False
+
+    # JSON 雙軌同步刪除
+    try:
+        import json
+        from app.data.master_data_db import data_dir
+        json_path = data_dir() / "coordinate_registry.json"
+        if json_path.exists():
+            try:
+                payload = json.loads(json_path.read_text(encoding="utf-8"))
+            except Exception:
+                payload = {}
+            if isinstance(payload, dict) and "entries" in payload:
+                entries = payload["entries"]
+                if isinstance(entries, list):
+                    # 依據 case-insensitive 匹配 product_name
+                    target_key = key.lower()
+                    new_entries = [
+                        item for item in entries
+                        if str(item.get("product_name") or "").strip().lower() != target_key
+                    ]
+                    payload["entries"] = new_entries
+                    json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    except Exception as e:
+        logger.error("Failed to sync coordinate removal to legacy JSON: %s", e)
+
     return True

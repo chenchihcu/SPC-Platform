@@ -138,6 +138,49 @@ def save(spec: Dict[str, Any]) -> bool:
     # the paste write and leave the two libraries in a half-updated state.
     saved_stencil = save_stencil_spec(stencil_payload)
     saved_paste = save_paste_spec(paste_payload)
+    
+    # JSON 雙軌同步寫入
+    if saved_stencil and saved_paste:
+        try:
+            import json
+            from datetime import datetime
+            from app.data.master_data_db import data_dir
+            json_path = data_dir() / "product_spec_registry.json"
+            
+            payload: dict[str, Any] = {"specs": {}}
+            if json_path.exists():
+                try:
+                    payload = json.loads(json_path.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+            if not isinstance(payload, dict):
+                payload = {"specs": {}}
+            specs = payload.setdefault("specs", {})
+            if not isinstance(specs, dict):
+                specs = {}
+                payload["specs"] = specs
+            
+            specs[product_name] = {
+                "product_name": product_name,
+                "stencil_type": spec.get("stencil_type", STENCIL_NORMAL),
+                "thickness_main": thickness_main,
+                "thickness_precision": spec.get("thickness_precision"),
+                "precision_is_main": bool(spec.get("precision_is_main", False)),
+                "default_volume_target": spec.get("default_volume_target", DEFAULT_VOLUME_TARGET),
+                "default_volume_lsl": spec.get("default_volume_lsl", DEFAULT_VOLUME_LSL),
+                "default_volume_usl": spec.get("default_volume_usl", DEFAULT_VOLUME_USL),
+                "default_area_target": spec.get("default_area_target", DEFAULT_AREA_TARGET),
+                "default_area_lsl": spec.get("default_area_lsl", DEFAULT_AREA_LSL),
+                "default_area_usl": spec.get("default_area_usl", DEFAULT_AREA_USL),
+                "default_height_target": spec.get("default_height_target", DEFAULT_HEIGHT_TARGET),
+                "default_height_lsl": spec.get("default_height_lsl", DEFAULT_HEIGHT_LSL),
+                "default_height_usl": spec.get("default_height_usl", DEFAULT_HEIGHT_USL),
+                "updated_at": datetime.now().isoformat()
+            }
+            json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        except Exception:
+            pass
+
     return bool(saved_stencil and saved_paste)
 
 
@@ -145,6 +188,31 @@ def remove(product_name: str) -> bool:
     """移除指定產品的兩庫規格資料。"""
     removed_stencil = remove_stencil_spec(product_name)
     removed_paste = remove_paste_spec(product_name)
+
+    # JSON 雙軌同步刪除
+    try:
+        import json
+        from app.data.master_data_db import data_dir
+        json_path = data_dir() / "product_spec_registry.json"
+        if json_path.exists():
+            try:
+                payload = json.loads(json_path.read_text(encoding="utf-8"))
+            except Exception:
+                payload = {}
+            if isinstance(payload, dict) and "specs" in payload:
+                specs = payload["specs"]
+                if isinstance(specs, dict):
+                    target_key = product_name.strip().lower()
+                    keys_to_delete = [
+                        k for k in specs.keys()
+                        if k.strip().lower() == target_key
+                    ]
+                    for k in keys_to_delete:
+                        del specs[k]
+                    json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    except Exception:
+        pass
+
     return bool(removed_stencil or removed_paste)
 
 
