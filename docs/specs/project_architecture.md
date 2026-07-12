@@ -189,7 +189,6 @@ docs/
 - `report_actions.py`：建議措施映射
 - `report_formatters.py`：格式化工具
 - `report_exec_summary.py`：Executive summary builder
-- `report_intent_presets.py`：報告意圖預設值
 - `report_process_narrative.py`：製程敘事邏輯
 - `diagnostic_evidence_matrix.py`：製程診斷組合候選、證據矩陣、多圖表關聯判讀與 readable presenter
 - `pptx_report_builder.py`：PPTX 物理寫檔與橋接

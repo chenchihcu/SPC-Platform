@@ -145,21 +145,11 @@ def _add_textbox(slide, left, top, width, height, text="", size_pt=11,
 
 def _add_list_box(slide, left, top, width, height, lines: List[str], size_pt=9, color=None):
     """Add a multi-line text box, one bullet-style line per paragraph."""
-    txbox = slide.shapes.add_textbox(left, top, width, height)
-    tf = txbox.text_frame
-    tf.word_wrap = True
-    tf.clear()
-    normalized = [str(line).strip() for line in lines if str(line).strip()]
-    if not normalized:
-        normalized = ["—"]
-    for index, line in enumerate(normalized):
-        paragraph = tf.paragraphs[0] if index == 0 else tf.add_paragraph()
-        paragraph.alignment = PP_ALIGN.LEFT
-        paragraph.space_after = Pt(3)
-        run = paragraph.add_run()
-        run.text = f"- {line}"
-        _font(run, size_pt, False, color)
-    return txbox
+    return _add_colored_list_box(
+        slide, left, top, width, height, lines,
+        size_pt=size_pt,
+        default_color=color,
+    )
 
 
 def _add_colored_list_box(
@@ -577,22 +567,9 @@ def _dedupe_chart_ids(chart_ids: List[str]) -> List[str]:
 
 def _get_chart_required_feature_count(chart_id: str) -> int:
     """Resolve chart feature-count contract from chart registry."""
-    from app.analytics.chart_registry import CHART_CATALOG
+    from app.analytics.chart_registry import get_required_feature_count
 
-    for entry in CHART_CATALOG:
-        if str(entry.get("id", "")) == chart_id:
-            raw_count = entry.get("required_feature_count", 1)
-            if isinstance(raw_count, bool):
-                return 1
-            if isinstance(raw_count, (int, float)):
-                return int(raw_count)
-            if isinstance(raw_count, str):
-                try:
-                    return int(raw_count)
-                except ValueError:
-                    return 1
-            return 1
-    return 1
+    return get_required_feature_count(chart_id)
 
 
 def _resolve_chart_features_for_export(
@@ -602,16 +579,13 @@ def _resolve_chart_features_for_export(
     available_features: List[str],
 ) -> List[str]:
     """Pick feature list for a chart render according to its required feature count."""
-    ordered: List[str] = []
-    for feature in [*selected_features, *available_features]:
-        normalized = str(feature or "").strip()
-        if not normalized or normalized in ordered:
-            continue
-        ordered.append(normalized)
-    required = _get_chart_required_feature_count(chart_id)
-    if required <= 1:
-        return ordered[:1]
-    return ordered[:required]
+    from app.analytics.chart_registry import resolve_features_for_chart
+
+    return resolve_features_for_chart(
+        chart_id,
+        selected_features=selected_features,
+        available_features=available_features,
+    )
 
 
 def _render_chart_evidence_items(

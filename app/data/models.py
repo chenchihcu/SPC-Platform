@@ -2,12 +2,6 @@ from dataclasses import dataclass
 from typing import Optional
 
 @dataclass
-class MappingResult:
-    mapped_columns: dict
-    missing_required: list[str]
-    original_columns: list[str]
-
-@dataclass
 class RelationReport:
     matched_count: int
     unmatched_count: int

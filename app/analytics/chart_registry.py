@@ -638,6 +638,44 @@ def get_incompatible_short_reason(chart_id: str, selected_features: List[str]) -
     return f"需 {n} 特徵"
 
 
+def get_required_feature_count(chart_id: str) -> int:
+    """Return the chart's required feature count from CHART_CATALOG (default 1)."""
+    entry = _CATALOG_BY_ID.get(chart_id)
+    if not entry:
+        return 1
+    raw_count = entry.get("required_feature_count", 1)
+    if isinstance(raw_count, bool):
+        return 1
+    if isinstance(raw_count, (int, float)):
+        return int(raw_count)
+    if isinstance(raw_count, str):
+        try:
+            return int(raw_count)
+        except ValueError:
+            return 1
+    return 1
+
+
+def resolve_features_for_chart(
+    chart_id: str,
+    *,
+    selected_features: List[str],
+    available_features: List[str],
+) -> List[str]:
+    """Pick the ordered, deduplicated feature list for a chart according to its
+    required feature count. Shared by report coverage and PPTX export paths."""
+    ordered: List[str] = []
+    for feature in [*selected_features, *available_features]:
+        normalized = str(feature or "").strip()
+        if not normalized or normalized in ordered:
+            continue
+        ordered.append(normalized)
+    required = get_required_feature_count(chart_id)
+    if required <= 1:
+        return ordered[:1]
+    return ordered[:required]
+
+
 def get_charts_by_category(
     selected_features: Optional[List[str]] = None,
 ) -> Dict[str, List[Dict[str, Any]]]:

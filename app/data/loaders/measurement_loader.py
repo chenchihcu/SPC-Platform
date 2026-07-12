@@ -150,7 +150,6 @@ class MeasurementLoader:
         Detects wide-format machine exports (e.g. Component ID, Height(%)1, Volume(%)1...)
         and melts them into standard long format tracking Boards as 'BoardNo'.
         """
-        import re
         cols = df.columns.tolist()
 
         # Check if wide format: suffix like "1", "2" on typical metric names
@@ -160,7 +159,10 @@ class MeasurementLoader:
         if not is_wide:
             return df
 
-        id_vars = [c for c in cols if not any(c.startswith(m) or m in c for m in metrics if c[-1].isdigit())]
+        id_vars = [
+            c for c in cols
+            if not (c[-1].isdigit() and any(c.startswith(m) or m in c for m in metrics))
+        ]
 
         long_frames = []
         numbers = set()

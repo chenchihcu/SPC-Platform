@@ -5,7 +5,7 @@
 共 3 列 × 2 欄 = 6 個子圖。共用同一 X 軸，以便跨特徵比對失控位置。
 """
 import numpy as np
-from app.charts.base_chart import BaseChart, _apply_mpl_dark_style
+from app.charts.base_chart import feature_line_color as _color_for, BaseChart, _apply_mpl_app_style
 from app.ui.theme.tokens import (
     CHART_CENTERLINE,
     CHART_CONTROL_LIMITS,
@@ -13,10 +13,6 @@ from app.ui.theme.tokens import (
     CHART_OOC,
     CHART_OOC_MARKER_SIZE,
     CHART_SERIES_MARKER_SIZE,
-    FEATURE_COLORS,
-    FEATURE_COLOR_AREA,
-    FEATURE_COLOR_HEIGHT,
-    FEATURE_COLOR_VOLUME,
     CHART_FONT_ANNOTATION,
     CHART_FONT_LABEL,
     CHART_FONT_MICRO,
@@ -24,17 +20,6 @@ from app.ui.theme.tokens import (
 from typing import Dict, Any
 
 _MR_D4 = 3.267  # D4 constant for n=2
-
-_FEAT_COLOR = {
-    "Height": FEATURE_COLOR_HEIGHT,
-    "Area": FEATURE_COLOR_AREA,
-    "Volume": FEATURE_COLOR_VOLUME,
-}
-_DEFAULT_COLORS = FEATURE_COLORS
-
-
-def _color_for(feat: str, idx: int) -> str:
-    return _FEAT_COLOR.get(feat, _DEFAULT_COLORS[idx % len(_DEFAULT_COLORS)])
 
 
 class IMR3F(BaseChart):
@@ -74,7 +59,7 @@ class IMR3F(BaseChart):
 
         for row in axes:
             for fig_ax in (row if hasattr(row, '__iter__') else [row]):
-                _apply_mpl_dark_style(self.figure, fig_ax)
+                _apply_mpl_app_style(self.figure, fig_ax)
 
         for i, feat in enumerate(features):
             ax_i = axes[i][0]  # Individual chart
@@ -97,7 +82,7 @@ class IMR3F(BaseChart):
             y_values = data.get("values", [])
             indices = data.get("indices", list(range(len(y_values))))
             ooc = data.get("out_of_control_indices", [])
-            cl = stats.get("cl", float(np.mean(y_values)) if y_values else 0)
+            cl = stats["cl"] if "cl" in stats else (float(np.mean(y_values)) if y_values else 0)
             ucl = stats.get("ucl", 0)
             lcl = stats.get("lcl", 0)
 

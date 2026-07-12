@@ -70,7 +70,6 @@ python scripts/run_final_audit_suite.py --repo-root . --profile full
 - `report_actions.py`
 - `report_formatters.py`
 - `report_exec_summary.py`
-- `report_intent_presets.py`
 - `report_process_narrative.py`
 - `diagnostic_evidence_matrix.py`
 - `pptx_report_builder.py`

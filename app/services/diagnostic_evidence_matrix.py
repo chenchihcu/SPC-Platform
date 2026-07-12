@@ -653,11 +653,8 @@ def _family_label(chart_id: str) -> str:
     return CHART_UI_GROUP_BY_ID.get(chart_id, "其他")
 
 
-def _aggregate_cell(candidates: Sequence[Mapping[str, Any]], family: str, dimension: str) -> Dict[str, Any]:
-    matched = [
-        c for c in candidates
-        if c.get("chart_family") == family and dimension in (c.get("evidence_dimensions") or [])
-    ]
+def _aggregate_cell(matched: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
+    """Aggregate one (family, dimension) cell from its pre-grouped candidates."""
     if not matched:
         return {"state": STATE_NEUTRAL, "severity": SEVERITY_INFO, "count": 0, "top_sources": []}
     support = [c for c in matched if c.get("evidence_state") == STATE_SUPPORT]
@@ -678,7 +675,7 @@ def _aggregate_cell(candidates: Sequence[Mapping[str, Any]], family: str, dimens
         top = unavailable
     else:
         state = STATE_NEUTRAL
-        top = matched
+        top = list(matched)
     severity = max((str(c.get("severity") or SEVERITY_INFO) for c in top), key=lambda s: SEVERITY_SCORE.get(s, 0))
     return {
         "state": state,
@@ -699,26 +696,25 @@ def _aggregate_cell(candidates: Sequence[Mapping[str, Any]], family: str, dimens
 
 def _build_evidence_matrix(candidates: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
     families = ["製程監控", "製程能力", "異常根源", "變數關係", "比較分析", "其他"]
+    # Group once by (family, dimension) instead of rescanning the full
+    # candidate list for every one of the up-to len(families)×len(DIMENSION_ORDER) cells.
+    grouped: Dict[tuple, List[Mapping[str, Any]]] = {}
+    present_families = set()
+    for c in candidates:
+        family = c.get("chart_family")
+        present_families.add(family)
+        for dim in c.get("evidence_dimensions") or []:
+            grouped.setdefault((family, dim), []).append(c)
     rows: List[Dict[str, Any]] = []
     for family in families:
-        if not any(c.get("chart_family") == family for c in candidates):
+        if family not in present_families:
             continue
         cells = {
-            dim: _aggregate_cell(candidates, family, dim)
+            dim: _aggregate_cell(grouped.get((family, dim), []))
             for dim in DIMENSION_ORDER
         }
         rows.append({"chart_family": family, "cells": cells})
     return rows
-
-
-def _matrix_cell_state(rows: Sequence[Mapping[str, Any]], dimension: str) -> List[Dict[str, Any]]:
-    out: List[Dict[str, Any]] = []
-    for row in rows:
-        cells = _as_dict(row.get("cells"))
-        cell = _as_dict(cells.get(dimension))
-        if cell.get("state") == STATE_SUPPORT:
-            out.append({"family": row.get("chart_family"), **cell})
-    return out
 
 
 def _matrix_signals(candidates: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
@@ -1523,10 +1519,10 @@ def build_diagnostic_evidence_matrix(
     for chart_id in CHART_ORDER:
         applicable = _is_applicable(chart_id, features)
         feature_sets = _candidate_feature_sets(chart_id, features)
+        chart_name = get_chart_display_name(chart_id, "zh_only")
+        chart_family = _family_label(chart_id)
+        required = _chart_arity(chart_id)
         for feature_set in feature_sets:
-            chart_name = get_chart_display_name(chart_id, "zh_only")
-            chart_family = _family_label(chart_id)
-            required = _chart_arity(chart_id)
             if not applicable:
                 availability = STATUS_NOT_APPLICABLE
                 chart_payload: Any = None

@@ -16,7 +16,6 @@ from app.analytics.chart_registry import (
     is_text_summary_chart,
     resolve_chart_payload,
 )
-from app.services.report_intent_presets import INTENT_PRESETS
 from app.utils.constants import MSG_INCOMPATIBLE_AT_LEAST_ONE
 
 
@@ -178,10 +177,6 @@ def test_text_summary_chart_contract_is_stable():
     assert all(item["is_text_summary"] is True for item in summaries)
     assert all(is_text_summary_chart(chart_id) for chart_id in TEXT_SUMMARY_CHART_IDS)
     assert is_text_summary_chart("imr") is False
-
-
-def test_intent_presets_match_five_category_packages():
-    assert [preset["label"] for preset in INTENT_PRESETS] == CHART_UI_GROUPS_ORDER
 
 
 def test_chart_interpretation_sections_include_formula_and_status_context():

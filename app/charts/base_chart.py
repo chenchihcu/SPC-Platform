@@ -39,6 +39,10 @@ from app.ui.theme.tokens import (
     CHART_PALETTE_OFFSET_Y_FILL, CHART_PALETTE_OFFSET_Y_EDGE,
     CHART_PALETTE_OFFSET_R_FILL, CHART_PALETTE_OFFSET_R_EDGE,
     CHART_PALETTE_SOLDER_FILL, CHART_PALETTE_SOLDER_EDGE,
+    FEATURE_COLORS,
+    FEATURE_COLOR_AREA,
+    FEATURE_COLOR_HEIGHT,
+    FEATURE_COLOR_VOLUME,
     CHART_FONT_LABEL,
     CHART_FONT_LEGEND,
     CHART_FONT_ANNOTATION,
@@ -81,9 +85,6 @@ def _apply_mpl_app_style(fig, ax):
     ax.spines["bottom"].set_linewidth(0.7)
 
 
-_apply_mpl_dark_style = _apply_mpl_app_style
-
-
 def resolve_target_col(engine_output: Dict[str, Any]) -> str:
     """Resolve display target column from metadata first, then analysis_context."""
     output = engine_output or {}
@@ -118,6 +119,24 @@ def get_feature_color(feature_name: str, fallback_idx: int = 0) -> tuple[str, st
     if feature_name in _FEATURE_PALETTE:
         return _FEATURE_PALETTE[feature_name]
     return _GENERIC_PALETTE[fallback_idx % len(_GENERIC_PALETTE)]
+
+
+_FEATURE_LINE_COLOR = {
+    "Height": FEATURE_COLOR_HEIGHT,
+    "Area": FEATURE_COLOR_AREA,
+    "Volume": FEATURE_COLOR_VOLUME,
+}
+
+
+def feature_line_color(feature_name: str, fallback_idx: int = 0) -> str:
+    """Return the single semantic line color for a per-feature chart row.
+
+    Shared by the 3F-parallel charts (I-MR/Run/EWMA/CUSUM 3F) so the same
+    feature always renders in the same color across chart families.
+    """
+    if feature_name in _FEATURE_LINE_COLOR:
+        return _FEATURE_LINE_COLOR[feature_name]
+    return FEATURE_COLORS[fallback_idx % len(FEATURE_COLORS)]
 
 
 def build_sparse_tick_labels(labels: list[str], threshold: int = 30, step_small: int = 5, step_large: int = 10) -> list[str]:

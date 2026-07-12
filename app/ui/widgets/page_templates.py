@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QGridLayout,
     QLabel,
+    QMessageBox,
     QSizePolicy,
     QFrame,
     QPushButton,
@@ -265,6 +266,88 @@ def set_button_role(button: QPushButton, role: str) -> None:
     button.setMinimumHeight(BUTTON_MIN_HEIGHT)
     button.style().unpolish(button)
     button.style().polish(button)
+
+
+class CsvDropZoneMixin:
+    """Drag-and-drop acceptance for local .csv files with drop-zone highlight.
+
+    Host page must call `setAcceptDrops(True)` and implement:
+      - `_set_drop_zone_active(active: bool)` — highlight toggle
+      - `_on_csv_dropped(file_path: str)` — action for the accepted file
+    """
+
+    def _set_drop_zone_active(self, active: bool) -> None:
+        raise NotImplementedError("host page must implement _set_drop_zone_active")
+
+    def _on_csv_dropped(self, file_path: str) -> None:
+        raise NotImplementedError("host page must implement _on_csv_dropped")
+
+    def dragEnterEvent(self, event) -> None:
+        """Accept drag only for local CSV files and highlight the drop zone."""
+        mime = event.mimeData()
+        if mime and mime.hasUrls():
+            for url in mime.urls():
+                if url.isLocalFile() and url.toLocalFile().lower().endswith(".csv"):
+                    self._set_drop_zone_active(True)
+                    event.acceptProposedAction()
+                    return
+        self._set_drop_zone_active(False)
+        event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Dispatch the first dropped local CSV file to `_on_csv_dropped`."""
+        mime = event.mimeData()
+        if not mime or not mime.hasUrls():
+            self._set_drop_zone_active(False)
+            event.ignore()
+            return
+        for url in mime.urls():
+            if url.isLocalFile():
+                file_path = url.toLocalFile()
+                if file_path.lower().endswith(".csv"):
+                    self._set_drop_zone_active(False)
+                    self._on_csv_dropped(file_path)
+                    event.acceptProposedAction()
+                    return
+        self._set_drop_zone_active(False)
+        event.ignore()
+
+    def dragLeaveEvent(self, event) -> None:
+        """Reset drop-zone highlight when the drag cursor leaves."""
+        self._set_drop_zone_active(False)
+        # At runtime the MRO resolves to the host QWidget's implementation.
+        super().dragLeaveEvent(event)  # type: ignore[misc]
+
+
+def confirm_double_delete(
+    parent: QWidget,
+    first_message: str,
+    *,
+    first_title: str = "確認刪除",
+    second_message: str = "此動作無法復原，您真的確定要刪除嗎？",
+) -> bool:
+    """Data Deletion Safety (AGENTS.md): two sequential Yes/No confirmations.
+
+    Returns True only when the user answers Yes to BOTH prompts; the default
+    button is always No. Every persistent-record delete flow must gate on this.
+    """
+    reply = QMessageBox.question(
+        parent,
+        first_title,
+        first_message,
+        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        QMessageBox.StandardButton.No,
+    )
+    if reply != QMessageBox.StandardButton.Yes:
+        return False
+    reply2 = QMessageBox.question(
+        parent,
+        "二次確認",
+        second_message,
+        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        QMessageBox.StandardButton.No,
+    )
+    return reply2 == QMessageBox.StandardButton.Yes
 
 
 def set_drop_zone_active(frame: QFrame, active: bool) -> None:

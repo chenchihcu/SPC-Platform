@@ -58,7 +58,6 @@ main.py
 - `report_actions.py`
 - `report_formatters.py`
 - `report_exec_summary.py`
-- `report_intent_presets.py`
 - `report_process_narrative.py`
 - `diagnostic_evidence_matrix.py`（含組合候選、證據矩陣、多圖表關聯與 UI/Excel/PPTX readable presenter）
 - `pptx_report_builder.py`

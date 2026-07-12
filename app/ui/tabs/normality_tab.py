@@ -4,7 +4,7 @@ from app.charts.mpl_font_config import setup_mpl_cjk_font
 setup_mpl_cjk_font()
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from app.charts.base_chart import _apply_mpl_dark_style
+from app.charts.base_chart import _apply_mpl_app_style
 from app.analytics.chart_registry import format_chart_description, format_chart_description_compact
 from app.ui.theme.tokens import (
     ACCENT_PRIMARY,
@@ -59,7 +59,7 @@ class NormalityTab(QWidget):
 
         # ax is (re-)created in update_data; initialise with a single subplot
         self.ax = self.figure.add_subplot(111)
-        _apply_mpl_dark_style(self.figure, self.ax)
+        _apply_mpl_app_style(self.figure, self.ax)
 
         self._last_payload: dict = {}
 
@@ -85,7 +85,7 @@ class NormalityTab(QWidget):
         else:
             # Recreate single axes and draw
             self.ax = self.figure.add_subplot(111)
-            _apply_mpl_dark_style(self.figure, self.ax)
+            _apply_mpl_app_style(self.figure, self.ax)
 
             ctx = data.get("analysis_context", {})
             desc_ctx = {"target_col": ctx.get("target_col")}
@@ -99,7 +99,7 @@ class NormalityTab(QWidget):
     def _draw_normality_chart(self, data: dict) -> None:
         """Draw Q-Q normality chart on the current self.ax."""
         self.ax.clear()
-        _apply_mpl_dark_style(self.figure, self.ax)
+        _apply_mpl_app_style(self.figure, self.ax)
 
         meta = data.get("metadata", {})
         ctx = data.get("analysis_context", {})
@@ -171,7 +171,7 @@ class NormalityTab(QWidget):
 
         if n == 0:
             self.ax = self.figure.add_subplot(111)
-            _apply_mpl_dark_style(self.figure, self.ax)
+            _apply_mpl_app_style(self.figure, self.ax)
             self.ax.text(0.5, 0.5, "無多特徵資料", ha="center", va="center",
                          transform=self.ax.transAxes)
             self.canvas.draw()
@@ -188,7 +188,7 @@ class NormalityTab(QWidget):
         stats_parts: list[str] = []
         for i, feat in enumerate(features):
             ax = self.figure.add_subplot(1, n, i + 1)
-            _apply_mpl_dark_style(self.figure, ax)
+            _apply_mpl_app_style(self.figure, ax)
             color = _color_for(feat, i)
 
             fd = feature_data.get(feat, {})

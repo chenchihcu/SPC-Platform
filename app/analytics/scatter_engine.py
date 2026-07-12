@@ -6,19 +6,8 @@ import math
 import pandas as pd
 
 from app.analytics.pearson_utils import pearson_r_safe
-from typing import Dict, Any, Optional, Tuple
-
-
-def _parse_spec(spec: Optional[Dict[str, Any]]) -> Tuple[Optional[float], Optional[float]]:
-    """Return (usl, lsl) from workorder_spec entry (values may be strings)."""
-    if not spec or not isinstance(spec, dict):
-        return None, None
-    try:
-        usl = float(spec.get("usl", "")) if spec.get("usl") else None
-        lsl = float(spec.get("lsl", "")) if spec.get("lsl") else None
-        return usl, lsl
-    except (TypeError, ValueError):
-        return None, None
+from app.analytics.statistical_utils import parse_usl_lsl as _parse_spec
+from typing import Dict, Any, Optional
 
 
 class ScatterEngine:

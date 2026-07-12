@@ -582,10 +582,15 @@ class DataSetupPage(QWidget):
     def _reflow_workorder_items(self) -> None:
         if not hasattr(self, "_workorder_grid") or not hasattr(self, "_workorder_items"):
             return
+        units = self._max_workorder_units(self._available_content_width())
+        # Skip the full grid rebuild when the unit count is unchanged — with the
+        # fixed 12-unit layout this makes repeated resizeEvents a no-op.
+        if getattr(self, "_workorder_last_units", None) == units:
+            return
+        self._workorder_last_units = units
         grid = self._workorder_grid
         while grid.count():
             grid.takeAt(0)
-        units = self._max_workorder_units(self._available_content_width())
         row = 0
         col = 0
         for widget, span in self._workorder_items:

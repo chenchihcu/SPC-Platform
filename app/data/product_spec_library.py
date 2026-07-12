@@ -108,16 +108,12 @@ def update_spec_metadata(
     default_area_target: Optional[float] = None,
     default_area_lsl: Optional[float] = None,
     default_area_usl: Optional[float] = None,
-    default_height_target: Optional[float] = None,
     default_height_lsl: Optional[float] = None,
     default_height_usl: Optional[float] = None,
 ) -> bool:
     """
-    相容 API：
-    - Height target 已改為鋼板基準推導，不在錫膏庫儲存。
-    - `default_height_target` 參數保留但忽略。
+    相容 API：Height target 已改為鋼板基準推導，不在錫膏庫儲存。
     """
-    _ = default_height_target  # compatibility no-op
     return update_paste_printing_spec_metadata(
         version_id,
         product_name=product_name,

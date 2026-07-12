@@ -1,5 +1,5 @@
 """
-Integration test for RootCausePanel and root_cause_engine.
+Integration test for root_cause_engine.
 Verifies that the inference engine correctly identifies process issues
 from chart analysis payloads.
 """
@@ -105,13 +105,6 @@ def test_hint_structure():
         assert "rule_id" in hint, "Hint missing 'rule_id' field"
         assert "severity" in hint, "Hint missing 'severity' field"
         assert hint["severity"] in ["error", "warning", "info"]
-
-
-def test_root_cause_panel_integration():
-    """Test that RootCausePanel can be instantiated and updated."""
-    from app.ui.widgets.root_cause_panel import RootCausePanel
-
-    assert hasattr(RootCausePanel, "update_hints"), "Missing update_hints method"
 
 
 def test_cusum_extreme_drift_escalates_to_error():

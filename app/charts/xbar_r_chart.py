@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 from app.charts.base_chart import (
     BaseChart,
-    _apply_mpl_dark_style,
+    _apply_mpl_app_style,
     annotate_latest_point,
     draw_reference_line,
     scatter_state_points,
@@ -30,8 +30,8 @@ class XbarRChart(BaseChart):
         self.figure.clear()
         self.ax = self.figure.add_subplot(211)
         self.ax_r = self.figure.add_subplot(212, sharex=self.ax)
-        _apply_mpl_dark_style(self.figure, self.ax)
-        _apply_mpl_dark_style(self.figure, self.ax_r)
+        _apply_mpl_app_style(self.figure, self.ax)
+        _apply_mpl_app_style(self.figure, self.ax_r)
 
     def clear(self) -> None:
         """Clear both Xbar and R panels and restore baseline axis styling."""
@@ -41,7 +41,7 @@ class XbarRChart(BaseChart):
         self.ax.tick_params(labelbottom=False)
         
         self.ax_r.clear()
-        _apply_mpl_dark_style(self.figure, self.ax_r)
+        _apply_mpl_app_style(self.figure, self.ax_r)
         self.ax_r.set_xlabel("子群")
         self.ax_r.set_ylabel("R")
 

@@ -34,19 +34,6 @@ class ParetoChart(BaseChart):
     _SPARSE_STEP_SMALL = 5
     _SPARSE_STEP_LARGE = 10
 
-    @staticmethod
-    def _build_sparse_labels(
-        labels: list[str],
-        threshold: int = 30,
-        step_small: int = 5,
-        step_large: int = 10,
-    ) -> list[str]:
-        # Backward-compatible wrapper for unit tests and legacy chart code.
-        return build_sparse_tick_labels(
-            labels, threshold=threshold, step_small=step_small, step_large=step_large
-        )
-
-
     def _on_pick(self, event: Any) -> None:
         if not event.artist or not self._component_ids:
             return

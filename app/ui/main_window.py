@@ -952,13 +952,6 @@ class MainWindow(QMainWindow):
         master = store.workorder_master or {}
         data_page.sync_from_store(master)
 
-    def _sync_workorder_spec_to_page(self):
-        """Consolidated UI: DataSetupPage already contains StencilSpecEditor; 
-         MainWindow can directly call its sync logic if needed, but usually it
-         refreshes based on product change.
-        """
-        pass
-
     def _current_data_loader_worker(self) -> Any | None:
         """Return ``self.worker`` only if the Qt C++ object is still alive; else clear stale ref and return None."""
         w = self.worker
@@ -1078,7 +1071,6 @@ class MainWindow(QMainWindow):
                 workorder_spec, _ = resolve_workorder_spec(product_name)
                 if workorder_spec:
                     store.workorder_spec = workorder_spec
-                    self._sync_workorder_spec_to_page()
 
             if self._pending_workorder_save_after_load:
                 self._pending_workorder_save_after_load = False

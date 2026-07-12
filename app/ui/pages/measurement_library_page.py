@@ -122,6 +122,7 @@ from app.ui.theme.tokens import (
 from app.ui.theme.layout_policy import fit_top_level_to_available
 from app.ui.widgets.page_templates import (
     apply_status_accessibility,
+    confirm_double_delete,
     create_status_lamp,
     page_margins_and_spacing,
     setup_compact_title_header,
@@ -1440,7 +1441,6 @@ class MeasurementLibraryPage(QWidget):
                 int(session.get("id", 0)),
                 product_name=vals["product_name"],
                 supplier=vals["supplier"],
-                work_order_no="",
                 supplier_work_order_no=vals["supplier_work_order_no"],
                 outsource_work_order_no=vals["outsource_work_order_no"],
                 product_part_no=vals["product_part_no"],
@@ -1461,23 +1461,11 @@ class MeasurementLibraryPage(QWidget):
             show_dark_warning(self, "請選擇記錄", "請先在清單中選取一筆量測記錄。")
             return
         fname = os.path.basename(str(session.get("file_path") or "未知"))
-        reply = QMessageBox.question(
+        if not confirm_double_delete(
             self,
-            "確認刪除",
             f"確定要刪除記錄「{fname}」嗎？\n（本機量測檔案不會被刪除）",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-        reply2 = QMessageBox.question(
-            self,
-            "二次確認",
-            "此動作無法復原，您真的確定要刪除此記錄嗎？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply2 != QMessageBox.StandardButton.Yes:
+            second_message="此動作無法復原，您真的確定要刪除此記錄嗎？",
+        ):
             return
         session_id = session.get("id")
         if session_id is None:
@@ -1605,19 +1593,11 @@ class MeasurementLibraryPage(QWidget):
         if v.get("is_active"):
             show_dark_warning(self, "無法刪除", "現用版本無法刪除，請先將其他版本設為現用。")
             return
-        reply = QMessageBox.question(
-            self, "確認刪除", f"確定要刪除座標記錄「{os.path.basename(str(v['file_path']))}」嗎？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-        reply2 = QMessageBox.question(
-            self, "二次確認", "此動作無法復原，您真的確定要刪除此座標記錄嗎？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
-        if reply2 != QMessageBox.StandardButton.Yes:
+        if not confirm_double_delete(
+            self,
+            f"確定要刪除座標記錄「{os.path.basename(str(v['file_path']))}」嗎？",
+            second_message="此動作無法復原，您真的確定要刪除此座標記錄嗎？",
+        ):
             return
         if delete_coordinate_version(int(v["id"])):
             self.refresh_coordinates()
@@ -1983,23 +1963,11 @@ class MeasurementLibraryPage(QWidget):
                 "顯示的規格為現用版本，無法刪除。請先建立並切換至其他版本後再試。",
             )
             return
-        reply = QMessageBox.question(
+        if not confirm_double_delete(
             self,
-            "確認刪除",
             f"確定要刪除產品「{product_name}」的此筆規格記錄嗎？\n（同時移除錫膏與鋼板兩側）",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-        reply2 = QMessageBox.question(
-            self,
-            "二次確認",
-            "此動作無法復原，您真的確定要刪除此規格記錄嗎？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply2 != QMessageBox.StandardButton.Yes:
+            second_message="此動作無法復原，您真的確定要刪除此規格記錄嗎？",
+        ):
             return
         deleted_any = False
         if paste and paste.get("id") is not None:
@@ -2138,26 +2106,14 @@ class MeasurementLibraryPage(QWidget):
         if not record:
             show_dark_warning(self, "請選擇記錄", "請先在清單中選取一筆供應商資料。")
             return
-        reply = QMessageBox.question(
+        if not confirm_double_delete(
             self,
-            "確認刪除",
             (
                 f"確定要刪除供應商「{record.get('supplier_code')} / {record.get('supplier_name')}」"
                 f"的鋼板「{record.get('steel_plate_no')}」資料嗎？"
             ),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-        reply2 = QMessageBox.question(
-            self,
-            "二次確認",
-            "此動作無法復原，您真的確定要刪除此供應商資料嗎？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply2 != QMessageBox.StandardButton.Yes:
+            second_message="此動作無法復原，您真的確定要刪除此供應商資料嗎？",
+        ):
             return
         try:
             ok = delete_supplier_record(int(record.get("id", 0)))

@@ -493,10 +493,6 @@ def pptx_defect_structure_lines(layers: Dict[str, Any]) -> List[str]:
     )
 
 
-def pptx_product_context_lines(layers: Dict[str, Any]) -> List[str]:
-    return _report_section_lines(layers, "context")
-
-
 def pptx_stability_dashboard_lines(layers: Dict[str, Any]) -> List[str]:
     status_lines = _selected_report_lines(
         layers,

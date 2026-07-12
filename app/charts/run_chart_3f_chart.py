@@ -5,33 +5,18 @@
 支援標準化模式（Z-score）以消除不同量綱的影響。
 """
 import numpy as np
-from app.charts.base_chart import BaseChart, _apply_mpl_dark_style
+from app.charts.base_chart import feature_line_color as _color_for, BaseChart, _apply_mpl_app_style
 from typing import Dict, Any
 from app.ui.theme.tokens import (
     CHART_ANNOTATION,
     CHART_CENTERLINE,
     CHART_LINE_STYLE_SECONDARY,
-    FEATURE_COLORS,
-    FEATURE_COLOR_AREA,
-    FEATURE_COLOR_HEIGHT,
-    FEATURE_COLOR_VOLUME,
     CHART_FONT_LABEL,
     CHART_FONT_TICK,
     CHART_FONT_LEGEND,
     CHART_FONT_TITLE,
     CHART_FONT_MICRO,
 )
-
-_FEAT_COLOR = {
-    "Height": FEATURE_COLOR_HEIGHT,
-    "Area": FEATURE_COLOR_AREA,
-    "Volume": FEATURE_COLOR_VOLUME,
-}
-_DEFAULT_COLORS = FEATURE_COLORS
-
-
-def _color_for(feat: str, idx: int) -> str:
-    return _FEAT_COLOR.get(feat, _DEFAULT_COLORS[idx % len(_DEFAULT_COLORS)])
 
 
 class RunChart3F(BaseChart):
@@ -75,7 +60,7 @@ class RunChart3F(BaseChart):
         axes = [axes] if n == 1 else list(axes)
 
         for fig_ax in axes:
-            _apply_mpl_dark_style(self.figure, fig_ax)
+            _apply_mpl_app_style(self.figure, fig_ax)
 
         for i, feat in enumerate(features):
             ax = axes[i]
@@ -92,7 +77,7 @@ class RunChart3F(BaseChart):
             stats = fd.get("statistics", {})
             values = data.get("values", [])
             indices = data.get("indices", list(range(len(values))))
-            center = stats.get("center_line", float(np.mean(values)) if values else 0)
+            center = stats["center_line"] if "center_line" in stats else (float(np.mean(values)) if values else 0)
 
             color = _color_for(feat, i)
 

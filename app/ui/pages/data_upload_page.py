@@ -17,6 +17,7 @@ from typing import cast
 
 from app.ui.theme import stabilize_minimum_height
 from app.ui.widgets.page_templates import (
+    CsvDropZoneMixin,
     form_field_row,
     page_margins_and_spacing,
     set_drop_zone_active,
@@ -45,7 +46,7 @@ from app.ui.theme.tokens import (
 
 
 
-class DataUploadPage(QWidget):
+class DataUploadPage(CsvDropZoneMixin, QWidget):
     """上傳量測 CSV：僅路徑列與選檔按鈕；不內嵌表格預覽。"""
     meas_uploaded = Signal(str)
 
@@ -258,37 +259,6 @@ class DataUploadPage(QWidget):
         """Toggle the drop zone highlight state (drag-over feedback)."""
         set_drop_zone_active(self.drop_zone, active)
 
-    def dragEnterEvent(self, event) -> None:
-        """Accept drag only for local CSV files and highlight the drop zone."""
-        mime = event.mimeData()
-        if mime and mime.hasUrls():
-            for url in mime.urls():
-                if url.isLocalFile() and url.toLocalFile().lower().endswith(".csv"):
-                    self._set_drop_zone_active(True)
-                    event.acceptProposedAction()
-                    return
-        self._set_drop_zone_active(False)
-        event.ignore()
-
-    def dropEvent(self, event) -> None:
-        """Handle a dropped CSV file."""
-        mime = event.mimeData()
-        if not mime or not mime.hasUrls():
-            self._set_drop_zone_active(False)
-            event.ignore()
-            return
-        for url in mime.urls():
-            if url.isLocalFile():
-                file_path = url.toLocalFile()
-                if file_path.lower().endswith(".csv"):
-                    self._set_drop_zone_active(False)
-                    self._accept_measurement_file(file_path)
-                    event.acceptProposedAction()
-                    return
-        self._set_drop_zone_active(False)
-        event.ignore()
-
-    def dragLeaveEvent(self, event) -> None:
-        """Reset drop zone highlight when the drag cursor leaves."""
-        self._set_drop_zone_active(False)
-        super().dragLeaveEvent(event)
+    def _on_csv_dropped(self, file_path: str) -> None:
+        """CsvDropZoneMixin hook: accept the dropped measurement file."""
+        self._accept_measurement_file(file_path)

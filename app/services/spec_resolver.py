@@ -111,7 +111,6 @@ def resolve_workorder_spec(product_name: str) -> Tuple[Optional[Dict[str, Any]],
 
     stencil_type = str(stencil.get("stencil_type") or STENCIL_NORMAL).strip().lower()
     thickness_main = float(stencil.get("thickness_main") or 0.12)
-    _ = _coerce_precision_thickness_raw(stencil)  # reserved for stepped refinement
     unit_mode = str(stencil.get("unit_mode") or UNIT_MODE_PERCENT).strip().lower()
     denominator_mm = float(stencil.get("height_denominator_mm") or thickness_main or 0.12)
 

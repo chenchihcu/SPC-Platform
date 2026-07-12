@@ -19,6 +19,7 @@ from typing import Optional, cast
 
 from app.ui.theme import show_dark_warning, show_dark_information, stabilize_minimum_height
 from app.ui.widgets.page_templates import (
+    CsvDropZoneMixin,
     form_field_row,
     page_margins_and_spacing,
     set_drop_zone_active,
@@ -85,7 +86,7 @@ class CoordValidationWorker(QThread):
             self.validated.emit(self.file_path, False, ["檔案讀取錯誤"], 0)
 
 
-class CoordinateManagerPage(QWidget):
+class CoordinateManagerPage(CsvDropZoneMixin, QWidget):
     """
     UI Page providing mechanisms to upload and verify Map Coordinates.
     Supports binding coord file to product name so it can be auto-loaded by product later.
@@ -269,8 +270,6 @@ class CoordinateManagerPage(QWidget):
             bind_section_title.setProperty("class", "sectionTitle")
             bind_section_title.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
             content_lay.addWidget(bind_section_title)
-
-        self.bind_section_btn = getattr(self, "_btn_bind_section", None) # Expose for discovery
 
         self._bind_container = QWidget()
         bind_inner = QtWidgets.QVBoxLayout(self._bind_container)
@@ -541,40 +540,9 @@ class CoordinateManagerPage(QWidget):
             return
         self.product_name_edit.setFocus(Qt.FocusReason.OtherFocusReason)
 
-    def dragEnterEvent(self, event) -> None:
-        """Accept drag only for local CSV files and highlight drop zone."""
-        mime = event.mimeData()
-        if mime and mime.hasUrls():
-            for url in mime.urls():
-                if url.isLocalFile() and url.toLocalFile().lower().endswith(".csv"):
-                    self._set_drop_zone_active(True)
-                    event.acceptProposedAction()
-                    return
-        self._set_drop_zone_active(False)
-        event.ignore()
-
-    def dropEvent(self, event) -> None:
-        """Handle dropped CSV file and trigger coordinate validation."""
-        mime = event.mimeData()
-        if not mime or not mime.hasUrls():
-            self._set_drop_zone_active(False)
-            event.ignore()
-            return
-        for url in mime.urls():
-            if url.isLocalFile():
-                file_path = url.toLocalFile()
-                if file_path.lower().endswith(".csv"):
-                    self._set_drop_zone_active(False)
-                    self._start_validation(file_path)
-                    event.acceptProposedAction()
-                    return
-        self._set_drop_zone_active(False)
-        event.ignore()
-
-    def dragLeaveEvent(self, event) -> None:
-        """Reset drop-zone highlight when drag leaves the coordinate card."""
-        self._set_drop_zone_active(False)
-        super().dragLeaveEvent(event)
+    def _on_csv_dropped(self, file_path: str) -> None:
+        """CsvDropZoneMixin hook: trigger coordinate validation for the file."""
+        self._start_validation(file_path)
 
     def resizeEvent(self, event) -> None:
         """Adjust layout on widget resize."""

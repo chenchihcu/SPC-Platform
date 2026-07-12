@@ -1,4 +1,4 @@
-from app.charts.base_chart import BaseChart, _apply_mpl_dark_style, draw_reference_line, get_feature_color
+from app.charts.base_chart import BaseChart, _apply_mpl_app_style, draw_reference_line, get_feature_color
 from app.ui.theme.tokens import (
     CHART_FILL_EDGE,
     CHART_NORMAL_CURVE,
@@ -46,7 +46,7 @@ class HistogramChart(BaseChart):
         # Single-feature: reset to single axes before drawing
         self.figure.clear()
         self.ax = self.figure.add_subplot(111)
-        _apply_mpl_dark_style(self.figure, self.ax)
+        _apply_mpl_app_style(self.figure, self.ax)
 
         metadata = engine_output.get("metadata", {})
         if not metadata.get("is_valid", False):
@@ -122,7 +122,7 @@ class HistogramChart(BaseChart):
         if n == 0:
             self.figure.clear()
             self.ax = self.figure.add_subplot(111)
-            _apply_mpl_dark_style(self.figure, self.ax)
+            _apply_mpl_app_style(self.figure, self.ax)
             self.ax.text(0.5, 0.5, "無多特徵資料", ha="center", va="center",
                          transform=self.ax.transAxes)
             self._show_canvas()
@@ -134,7 +134,7 @@ class HistogramChart(BaseChart):
 
         for i, feat in enumerate(features):
             ax = self.figure.add_subplot(1, n, i + 1)
-            _apply_mpl_dark_style(self.figure, ax)
+            _apply_mpl_app_style(self.figure, ax)
 
             fd = feature_data.get(feat, {})
             meta = fd.get("metadata", {})

@@ -80,20 +80,8 @@ def _canvas_has_drawn_content(widget: Any) -> bool:
 
 
 def _render_imr(slice_data: dict) -> Optional[bytes]:
-    _ensure_qapplication()
     from app.charts.control_chart import ControlChart
-    w = ControlChart(parent=None)
-    w.draw_chart(slice_data or {})
-    if not (slice_data.get("metadata") or {}).get("is_valid", False):
-        return None
-    if not _canvas_has_drawn_content(w):
-        return None
-    buf = BytesIO()
-    w.figure.savefig(buf, format="png", dpi=100, bbox_inches="tight")
-    png_bytes = buf.getvalue()
-    if not _png_has_visual_content(png_bytes):
-        return None
-    return png_bytes
+    return _render_single_chart(ControlChart, slice_data)
 
 
 def _render_tab_widget(tab_class, slice_data: dict, *, self_figure: bool = False) -> Optional[bytes]:

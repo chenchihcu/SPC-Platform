@@ -5,7 +5,7 @@
 方便比較三個特徵的漂移起始點與方向是否同步。
 """
 import numpy as np
-from app.charts.base_chart import BaseChart, _apply_mpl_dark_style, sparse_tick_positions_labels
+from app.charts.base_chart import feature_line_color as _color_for, BaseChart, _apply_mpl_app_style, sparse_tick_positions_labels
 from typing import Dict, Any
 from app.ui.theme.tokens import (
     CHART_ANNOTATION,
@@ -14,26 +14,11 @@ from app.ui.theme.tokens import (
     CHART_NEUTRAL_LINE,
     CHART_OOC,
     CHART_SERIES_SECONDARY,
-    FEATURE_COLORS,
-    FEATURE_COLOR_AREA,
-    FEATURE_COLOR_HEIGHT,
-    FEATURE_COLOR_VOLUME,
     CHART_FONT_LABEL,
     CHART_FONT_LEGEND,
     CHART_FONT_MICRO,
     CHART_FONT_TICK,
     CHART_FONT_TITLE)
-
-_FEAT_COLOR = {
-    "Height": FEATURE_COLOR_HEIGHT,
-    "Area": FEATURE_COLOR_AREA,
-    "Volume": FEATURE_COLOR_VOLUME,
-}
-_DEFAULT_COLORS = FEATURE_COLORS
-
-
-def _color_for(feat: str, idx: int) -> str:
-    return _FEAT_COLOR.get(feat, _DEFAULT_COLORS[idx % len(_DEFAULT_COLORS)])
 
 
 def _zscore_pair(pos_vals: np.ndarray, neg_vals: np.ndarray) -> tuple[np.ndarray, np.ndarray, float, float, float]:
@@ -89,7 +74,7 @@ class CUSUM3F(BaseChart):
         axes = [axes] if n == 1 else list(axes)
 
         for fig_ax in axes:
-            _apply_mpl_dark_style(self.figure, fig_ax)
+            _apply_mpl_app_style(self.figure, fig_ax)
 
         for i, feat in enumerate(features):
             ax = axes[i]

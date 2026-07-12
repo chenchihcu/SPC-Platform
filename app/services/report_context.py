@@ -9,12 +9,12 @@ from app.data.session_store import SessionStore
 from app.services import report_risk
 from app.utils.constants import FEATURE_COLUMNS
 from app.analytics.chart_registry import (
-    CHART_CATALOG,
     CHART_ORDER,
     get_chart_display_name,
     get_incompatible_reason,
     get_incompatible_short_reason,
     is_chart_available_for_selection,
+    resolve_features_for_chart,
 )
 
 logger = logging.getLogger(__name__)
@@ -65,39 +65,17 @@ def _has_valid_coordinate_data(df: pd.DataFrame) -> bool:
     return not xy.empty
 
 
-def _chart_required_feature_count(chart_id: str) -> int:
-    for entry in CHART_CATALOG:
-        if str(entry.get("id", "")).strip() != chart_id:
-            continue
-        raw_count = entry.get("required_feature_count", 1)
-        if isinstance(raw_count, bool):
-            return 1
-        if isinstance(raw_count, (int, float)):
-            return int(raw_count)
-        if isinstance(raw_count, str):
-            try:
-                return int(raw_count)
-            except ValueError:
-                return 1
-    return 1
-
-
 def _resolve_chart_features_for_coverage(
     chart_id: str,
     *,
     selected_features: List[str],
     available_features: List[str],
 ) -> List[str]:
-    ordered: List[str] = []
-    for feature in [*selected_features, *available_features]:
-        normalized = str(feature or "").strip()
-        if not normalized or normalized in ordered:
-            continue
-        ordered.append(normalized)
-    required = _chart_required_feature_count(chart_id)
-    if required <= 1:
-        return ordered[:1]
-    return ordered[:required]
+    return resolve_features_for_chart(
+        chart_id,
+        selected_features=selected_features,
+        available_features=available_features,
+    )
 
 
 def build_data_scope(

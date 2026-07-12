@@ -45,16 +45,9 @@ from app.utils.dataframe_utils import detect_order_col
 logger = logging.getLogger(__name__)
 
 SPEC_KEY_BY_COL = {"Volume": "volume", "Area": "area", "Height": "height"}
-SINGLE_FEATURE_CHART_IDS = ["imr", "histogram_spec", "capability", "boxplot", "normality", "spatial_heatmap", "pareto"]
 SUMMARY_MODE_MANAGER = "manager"
 SUMMARY_MODE_ENGINEER = "engineer"
 SUMMARY_MODES = {SUMMARY_MODE_MANAGER, SUMMARY_MODE_ENGINEER}
-
-# 模式名稱映射 (Single source of truth for display labels)
-MODE_LABELS = {
-    SUMMARY_MODE_MANAGER: "管理版",
-    SUMMARY_MODE_ENGINEER: "工程版",
-}
 
 
 def _board_ids_for_cusum(df: pd.DataFrame) -> Optional[pd.Series]:
@@ -416,6 +409,50 @@ def _compute_lisa_payload(filtered_df: pd.DataFrame, col: str) -> Dict[str, Any]
         return {"chart_type": "LISA", "data": {}, "statistics": {}, "metadata": {"is_valid": False, "error": f"LISA 計算失敗: {str(e)}"}}
 
 
+def _compute_driver_bundle(
+    filtered_df: pd.DataFrame,
+    col: str,
+    spec: Optional[Dict[str, Any]],
+    *,
+    bivariate: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Shared single-driver engine bundle for the n==2 / n==3 payload branches.
+
+    Computes SPC/EWMA/CUSUM/Xbar-R/ANOVA/pattern/run-chart for the driver
+    feature plus the four card analyses (OOC/shift/drift/outlier) derived from
+    the same bridge payload.
+    """
+    series = filtered_df[col].dropna()
+    spc = SPCEngine.compute_imr(series, col)
+    ewma = EWMAEngine.compute_ewma(series, col)
+    cusum = CUSUMEngine.compute_cusum(
+        series,
+        col,
+        target=(spec.get("target") if spec else None),
+        usl=(spec.get("usl") if spec else None),
+        lsl=(spec.get("lsl") if spec else None),
+    )
+    bridge = {
+        "spc": spc,
+        "ewma": ewma,
+        "cusum": cusum,
+        "bivariate_outlier": bivariate or {},
+    }
+    return {
+        "spc": spc,
+        "ewma": ewma,
+        "cusum": cusum,
+        "xbar_r": XbarREngine.compute_xbar_r(filtered_df, col),
+        "anova": AnovaEngine.compute_one_way(filtered_df, col, group_col="PartType"),
+        "pattern": PatternRecognitionEngine.compute_nelson(series, col),
+        "run_chart": RunChartEngine.compute_run_chart(series, col),
+        "ooc_analysis": compute_ooc_analysis(bridge),
+        "shift_detection": compute_shift_detection(bridge),
+        "drift_detection": compute_drift_detection(bridge),
+        "outlier_analysis": compute_outlier_analysis(bridge),
+    }
+
+
 def compute_analysis_payload(
     filtered_df: pd.DataFrame,
     selected_features: List[str],
@@ -645,14 +682,9 @@ def compute_analysis_payload(
                             ScatterEngine.compute_scatter_spec,
                             filtered_df, _cx, _cy, _spec_x, _spec_y,
                         ),
+                        # correlation_heatmap shares the identical matrix result (filled below)
                         "correlation_matrix": _safe_compute_chart(
                             "CorrelationMatrix",
-                            CorrelationMatrixEngine.compute_matrix,
-                            filtered_df[[_cx, _cy]],
-                            [_cx, _cy],
-                        ),
-                        "correlation_heatmap": _safe_compute_chart(
-                            "CorrelationHeatmap",
                             CorrelationMatrixEngine.compute_matrix,
                             filtered_df[[_cx, _cy]],
                             [_cx, _cy],
@@ -673,6 +705,9 @@ def compute_analysis_payload(
                             filtered_df, _cx, _cy,
                         ),
                     }
+                    dual_parameters[_pair_key]["correlation_heatmap"] = (
+                        dual_parameters[_pair_key]["correlation_matrix"]
+                    )
             payload["dual_parameters"] = dual_parameters
 
             # Pre-compute triple-feature combination for when user selects all 3 display features.
@@ -722,35 +757,18 @@ def compute_analysis_payload(
             spec_y = _parse_workorder_spec_entry(workorder_spec.get(SPEC_KEY_BY_COL.get(col_y, col_y.lower())))
             scatter = ScatterEngine.compute_scatter_spec(filtered_df, col_x, col_y, spec_x, spec_y)
             corr_matrix = CorrelationMatrixEngine.compute_matrix(filtered_df, [col_x, col_y])
-            corr_heatmap = CorrelationMatrixEngine.compute_matrix(filtered_df, [col_x, col_y])
+            corr_heatmap = corr_matrix
             quadrant = QuadrantEngine.compute_quadrant(filtered_df, col_x, col_y, spec_x, spec_y)
             bivariate = BivariateOutlierEngine.compute_bivariate_outlier(filtered_df, col_x, col_y)
             density = DensityEngine.compute_density(filtered_df, col_x, col_y)
             # For charts that allow >=1 feature, use first selected feature as driver.
-            driver_series = filtered_df[col_x].dropna()
-            driver_spc = SPCEngine.compute_imr(driver_series, col_x)
-            driver_ewma = EWMAEngine.compute_ewma(driver_series, col_x)
-            driver_cusum = CUSUMEngine.compute_cusum(
-                driver_series,
-                col_x,
-                target=(spec_x.get("target") if spec_x else None),
-                usl=(spec_x.get("usl") if spec_x else None),
-                lsl=(spec_x.get("lsl") if spec_x else None),
-            )
-            driver_xbar_r = XbarREngine.compute_xbar_r(filtered_df, col_x)
-            driver_anova = AnovaEngine.compute_one_way(filtered_df, col_x, group_col="PartType")
-            driver_pattern = PatternRecognitionEngine.compute_nelson(driver_series, col_x)
-            driver_outlier_bridge = {"bivariate_outlier": bivariate, "spc": driver_spc, "cusum": driver_cusum, "ewma": driver_ewma}
-            ooc_analysis = compute_ooc_analysis(driver_outlier_bridge)
-            shift_detection = compute_shift_detection(driver_outlier_bridge)
-            drift_detection = compute_drift_detection(driver_outlier_bridge)
-            outlier_analysis = compute_outlier_analysis(driver_outlier_bridge)
+            bundle = _compute_driver_bundle(filtered_df, col_x, spec_x, bivariate=bivariate)
             _incompatible = _incompatible_chart_payload(
                 get_incompatible_reason("imr", selected_features)
                 or "此圖表僅支援單一特徵，請在元件/量測選定頁選擇一個特徵。",
             )
             payload["spc"] = _incompatible
-            payload["xbar_r"] = driver_xbar_r
+            payload["xbar_r"] = bundle["xbar_r"]
             payload["cap"] = _incompatible
             payload["dist"] = _incompatible
             payload["pareto"] = _incompatible
@@ -760,18 +778,18 @@ def compute_analysis_payload(
             payload["scatter_spec"] = scatter
             payload["correlation_matrix"] = corr_matrix
             payload["correlation_heatmap"] = corr_heatmap
-            payload["anova_parttype"] = driver_anova
+            payload["anova_parttype"] = bundle["anova"]
             payload["quadrant"] = quadrant
             payload["bivariate_outlier"] = bivariate
             payload["density"] = density
-            payload["ewma"] = driver_ewma
-            payload["cusum"] = driver_cusum
-            payload["run_chart"] = RunChartEngine.compute_run_chart(driver_series, col_x)
-            payload["pattern_recognition"] = driver_pattern
-            payload["ooc_analysis"] = ooc_analysis
-            payload["shift_detection"] = shift_detection
-            payload["drift_detection"] = drift_detection
-            payload["outlier_analysis"] = outlier_analysis
+            payload["ewma"] = bundle["ewma"]
+            payload["cusum"] = bundle["cusum"]
+            payload["run_chart"] = bundle["run_chart"]
+            payload["pattern_recognition"] = bundle["pattern"]
+            payload["ooc_analysis"] = bundle["ooc_analysis"]
+            payload["shift_detection"] = bundle["shift_detection"]
+            payload["drift_detection"] = bundle["drift_detection"]
+            payload["outlier_analysis"] = bundle["outlier_analysis"]
             payload["subgroup"] = _incompatible
             payload["repeated_offender"] = _incompatible
             payload["lisa"] = None
@@ -795,39 +813,17 @@ def compute_analysis_payload(
             spec_by_col = {col: workorder_spec.get(SPEC_KEY_BY_COL.get(col, col.lower()), {}) or {} for col in selected_features}
             pass_fail_matrix = PassFailEngine.compute_pass_fail(filtered_df, selected_features, spec_by_col)
             corr_matrix = CorrelationMatrixEngine.compute_matrix(filtered_df, selected_features)
-            corr_heatmap = CorrelationMatrixEngine.compute_matrix(filtered_df, selected_features)
+            corr_heatmap = corr_matrix
             primary_col = selected_features[0]
-            primary_series = filtered_df[primary_col].dropna()
             primary_spec = _parse_workorder_spec_entry(
                 workorder_spec.get(SPEC_KEY_BY_COL.get(primary_col, primary_col.lower()))
             )
-            primary_spc = SPCEngine.compute_imr(primary_series, primary_col)
-            primary_ewma = EWMAEngine.compute_ewma(primary_series, primary_col)
-            primary_cusum = CUSUMEngine.compute_cusum(
-                primary_series,
-                primary_col,
-                target=(primary_spec.get("target") if primary_spec else None),
-                usl=(primary_spec.get("usl") if primary_spec else None),
-                lsl=(primary_spec.get("lsl") if primary_spec else None),
-            )
-            primary_xbar_r = XbarREngine.compute_xbar_r(filtered_df, primary_col)
-            primary_anova = AnovaEngine.compute_one_way(filtered_df, primary_col, group_col="PartType")
-            primary_pattern = PatternRecognitionEngine.compute_nelson(primary_series, primary_col)
-            primary_bridge = {
-                "spc": primary_spc,
-                "ewma": primary_ewma,
-                "cusum": primary_cusum,
-                "bivariate_outlier": {},
-            }
-            ooc_analysis = compute_ooc_analysis(primary_bridge)
-            shift_detection = compute_shift_detection(primary_bridge)
-            drift_detection = compute_drift_detection(primary_bridge)
-            outlier_analysis = compute_outlier_analysis(primary_bridge)
+            bundle = _compute_driver_bundle(filtered_df, primary_col, primary_spec)
             _incompatible = _incompatible_chart_payload(
                 get_incompatible_reason("imr", selected_features) or "此圖表需單一或雙特徵。",
             )
             payload["spc"] = _incompatible
-            payload["xbar_r"] = primary_xbar_r
+            payload["xbar_r"] = bundle["xbar_r"]
             payload["cap"] = _incompatible
             payload["dist"] = _incompatible
             payload["pareto"] = _incompatible
@@ -837,18 +833,18 @@ def compute_analysis_payload(
             payload["scatter_spec"] = None
             payload["correlation_matrix"] = corr_matrix
             payload["correlation_heatmap"] = corr_heatmap
-            payload["anova_parttype"] = primary_anova
+            payload["anova_parttype"] = bundle["anova"]
             payload["quadrant"] = None
             payload["bivariate_outlier"] = None
             payload["density"] = _incompatible
-            payload["ewma"] = primary_ewma
-            payload["cusum"] = primary_cusum
-            payload["run_chart"] = RunChartEngine.compute_run_chart(primary_series, primary_col)
-            payload["pattern_recognition"] = primary_pattern
-            payload["ooc_analysis"] = ooc_analysis
-            payload["shift_detection"] = shift_detection
-            payload["drift_detection"] = drift_detection
-            payload["outlier_analysis"] = outlier_analysis
+            payload["ewma"] = bundle["ewma"]
+            payload["cusum"] = bundle["cusum"]
+            payload["run_chart"] = bundle["run_chart"]
+            payload["pattern_recognition"] = bundle["pattern"]
+            payload["ooc_analysis"] = bundle["ooc_analysis"]
+            payload["shift_detection"] = bundle["shift_detection"]
+            payload["drift_detection"] = bundle["drift_detection"]
+            payload["outlier_analysis"] = bundle["outlier_analysis"]
             payload["subgroup"] = _incompatible
             payload["repeated_offender"] = _incompatible
             payload["lisa"] = None

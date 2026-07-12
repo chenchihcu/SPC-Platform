@@ -37,6 +37,9 @@ from app.ui.theme.tokens import (
     STENCIL_NUMERIC_MAX_WIDTH,
     STENCIL_ACTION_BUTTON_WIDTH,
     STENCIL_LABEL_MIN_WIDTH,
+    STENCIL_EMBED_THICKNESS_MIN_WIDTH,
+    STENCIL_EMBED_TYPE_COMBO_MIN_WIDTH,
+    STENCIL_EMBED_PRECISION_WHICH_MIN_WIDTH,
     REFDES_SCROLL_COMPACT_MAX_H,
 )
 from app.data.coordinate_registry import list_registered
@@ -136,12 +139,12 @@ class StencilSpecEditor(QWidget):
 
         if self._embedded:
             # ── 嵌入模式：水平標籤緊湊排版，厚度並排 ──
-            self.thickness_main.setMinimumWidth(80)
+            self.thickness_main.setMinimumWidth(STENCIL_EMBED_THICKNESS_MIN_WIDTH)
             self.thickness_main.setMaximumWidth(DATA_SETUP_NUMERIC_FIELD_MAX_WIDTH)
-            self.thickness_precision.setMinimumWidth(80)
+            self.thickness_precision.setMinimumWidth(STENCIL_EMBED_THICKNESS_MIN_WIDTH)
             self.thickness_precision.setMaximumWidth(DATA_SETUP_NUMERIC_FIELD_MAX_WIDTH)
-            self.type_combo.setMinimumWidth(100)
-            self.precision_which.setMinimumWidth(120)
+            self.type_combo.setMinimumWidth(STENCIL_EMBED_TYPE_COMBO_MIN_WIDTH)
+            self.precision_which.setMinimumWidth(STENCIL_EMBED_PRECISION_WHICH_MIN_WIDTH)
             
             # Control limits fields
             self.vol_target = QLineEdit()

@@ -57,8 +57,6 @@ class ParallelCoordEngine:
             "statistics": {
                 "n": n,
                 "displayed_n": n,
-                "n_points": n,      # legacy alias (migration window)
-                "n_displayed": n,  # legacy alias (migration window)
                 "sampled_for_display": False,
                 "sampling_method": "full_data",
                 "sampling_seed": None,

@@ -205,7 +205,6 @@ def update_measurement_session(
     *,
     product_name: Optional[str] = None,
     supplier: Optional[str] = None,
-    work_order_no: Optional[str] = None,
     supplier_work_order_no: Optional[str] = None,
     outsource_work_order_no: Optional[str] = None,
     batch_no: Optional[str] = None,
@@ -214,6 +213,10 @@ def update_measurement_session(
 ) -> bool:
     """
     更新量測記錄的中繼資料（不更改檔案路徑與雜湊）。
+
+    legacy 欄位凍結：`work_order_no` 一律寫空字串（見 master_data_db 的
+    WORK_ORDER_CLEAR_MIGRATION_KEY），不接受呼叫端傳值——雙工單制以
+    supplier_work_order_no / outsource_work_order_no 為準。
 
     Returns:
         True 若有更新，False 若 id 不存在。
@@ -228,10 +231,6 @@ def update_measurement_session(
         # 同步 product_id
         updates.append("product_id = (SELECT id FROM products WHERE product_name_ci = ? LIMIT 1)")
         params.append(p_name.lower())
-
-    if work_order_no is not None:
-        updates.append("work_order_no = ?")
-        params.append("")
 
     if supplier is not None:
         updates.append("supplier = ?")
@@ -257,7 +256,8 @@ def update_measurement_session(
         updates.append("notes = ?")
         params.append((notes or "").strip())
 
-    if updates and work_order_no is None:
+    if updates:
+        # Frozen legacy column: always cleared on any metadata update.
         updates.append("work_order_no = ?")
         params.append("")
 

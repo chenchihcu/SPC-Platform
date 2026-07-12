@@ -1,7 +1,5 @@
 from app.analytics.optimization_suggestions import get_optimization_suggestions
 from app.analytics.root_cause_engine import infer_root_cause_hints
-from app.data.session_store import SessionStore
-from app.services.report_service import _build_report_html
 
 
 def _decline_payload():
@@ -37,14 +35,3 @@ def test_optimization_suggestions_propagates_ipc_and_evidence():
     assert "evidence" in first and isinstance(first["evidence"], dict)
 
 
-def test_report_html_contains_ipc_note_and_disclaimer():
-    store = SessionStore()
-    store.clear()
-    store.meas_meta = {"is_valid": True}
-    store.coord_meta = {"is_valid": True}
-    store.relation_meta = {"match_rate": 95.0}
-    store.selected_features = ["Volume"]
-    store.last_analysis_payload = _decline_payload()
-    html = _build_report_html(store, [])
-    assert "IPC 註解" in html
-    assert "IPC 引用僅提供工程摘要與條文代碼" in html

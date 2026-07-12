@@ -44,29 +44,6 @@ def list_precision_refdes(product_name: str) -> List[str]:
     return [str(r["refdes"] or "").strip() for r in rows if str(r["refdes"] or "").strip()]
 
 
-def get_assignment_coord_path(product_name: str) -> Optional[str]:
-    """回傳該產品建立指派時記錄的座標檔路徑；若無則 None。"""
-    key = normalize_product_name(product_name)
-    if not key:
-        return None
-    with db_conn() as conn:
-        pid = get_product_id(conn, key)
-        if pid is None:
-            return None
-        row = conn.execute(
-            """
-            SELECT coord_file_path
-            FROM stencil_assignment_meta
-            WHERE product_id = ?
-            """,
-            (pid,),
-        ).fetchone()
-    if row is None:
-        return None
-    path = str(row["coord_file_path"] or "").strip()
-    return path if path else None
-
-
 def is_coord_path_changed(product_name: str, current_coord_path: Optional[str]) -> bool:
     """
     若該產品有階梯指派，且 current_coord_path 與記錄路徑不同（或記錄空白），

@@ -52,7 +52,7 @@ def test_no_display_sampling_even_when_max_points_is_small():
         _df(n=200), cols=["Volume", "Area", "Height"], max_points=50
     )
     if result["metadata"]["is_valid"]:
-        assert result["statistics"]["n_displayed"] == 200
+        assert result["statistics"]["displayed_n"] == 200
         assert result["statistics"]["sampled_for_display"] is False
 
 
@@ -61,8 +61,6 @@ def test_statistics_keys():
         _df(), cols=["Volume", "Area", "Height"]
     )
     if result["metadata"]["is_valid"]:
-        assert "n_points" in result["statistics"]
-        assert "n_displayed" in result["statistics"]
         assert "n" in result["statistics"]
         assert "displayed_n" in result["statistics"]
         assert "normalization_basis" in result["statistics"]

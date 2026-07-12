@@ -195,7 +195,14 @@ def _pick_existing_supplier_code(conn: sqlite3.Connection, supplier_name: str) -
 
 
 def _next_supplier_code(conn: sqlite3.Connection) -> str:
-    rows = conn.execute("SELECT supplier_code FROM supplier_records").fetchall()
+    # Only generated codes (fixed prefix + numeric suffix) participate in the
+    # sequence; scan those in SQL instead of the whole table in Python.
+    rows = conn.execute(
+        # LIKE is case-insensitive for ASCII in SQLite, matching the parser's
+        # case-insensitive acceptance of manually entered codes.
+        "SELECT supplier_code FROM supplier_records WHERE supplier_code LIKE ?",
+        (f"{_SUPPLIER_CODE_PREFIX}%",),
+    ).fetchall()
     max_seq = 0
     for row in rows:
         seq = _parse_generated_supplier_code(str(row["supplier_code"] or ""))

@@ -1,6 +1,6 @@
 from app.charts.base_chart import (
     BaseChart,
-    _apply_mpl_dark_style,
+    _apply_mpl_app_style,
     annotate_latest_point,
     draw_reference_line,
     resolve_target_col,
@@ -37,8 +37,8 @@ class ControlChart(BaseChart):
         self.figure.clear()
         self.ax = self.figure.add_subplot(211)
         self.ax_mr = self.figure.add_subplot(212, sharex=self.ax)
-        _apply_mpl_dark_style(self.figure, self.ax)
-        _apply_mpl_dark_style(self.figure, self.ax_mr)
+        _apply_mpl_app_style(self.figure, self.ax)
+        _apply_mpl_app_style(self.figure, self.ax_mr)
 
     def clear(self) -> None:
         """Clear chart canvas and reset to empty state."""
@@ -48,7 +48,7 @@ class ControlChart(BaseChart):
         self.ax.tick_params(labelbottom=False)
         
         self.ax_mr.clear()
-        _apply_mpl_dark_style(self.figure, self.ax_mr)
+        _apply_mpl_app_style(self.figure, self.ax_mr)
         self.ax_mr.set_xlabel("樣本序 (PCB Run Order)")
         self.ax_mr.set_ylabel("移動極差 (MR)")
 

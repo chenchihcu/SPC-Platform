@@ -1278,3 +1278,13 @@
 - Impact: 新增 3 個 chart_id（hotelling_t2, radar, lisa），不影響既有 18 種圖表契約或 payload 結構
 - Risk: Moran's I 需 X/Y 座標；Hotelling T² 需多變量常態假設；Radar 需 3 特徵
 - Rollback: 回退新增檔案即可，無 schema migration
+
+## 2026-07-12 Production-Release Code Audit Fix Pass（84 findings，fix all）
+
+- Decision: 依 `Outputs/code_audit_report_production_release_2026-07-11.md`（A27/B23/C10/D14/E10 共 84 筆）執行全面修復；另一工具（commit 6bf41f5）已先修 A1（CHART_ORDER 補 hotelling_t2/radar）與 E1（Moran's I 向量化），本輪修復其餘項目並補上其遺漏（radar triple_parameters stub、main_window `_sidebar` 屬性名、stencil_spec_editor 寫死像素）。
+- Scope: 59 檔工作區變更。重點：Cpk sigma=0 fail-closed（SPC_RULES.md 同步新增退化輸入條款）、PPTX Cpk 風險色修正、EWMA/Density inf 消毒、Hotelling T² 缺欄 guard、spatial RefDes guard、QThread parent 修正、規格版本建立前確認對話框、product spec save 短路修正、版本刪除 active 自動遞補（共用 `delete_version_row`/`set_active_version_row`）、HTML 報告死鏈與 5 個死檔移除（root_cause_panel、report_intent_presets、field_aliases、2 個死測試檔）、`work_order_no`/`default_height_target` 相容參數移除、`_apply_mpl_dark_style` 別名收斂、共用 helper 抽取（parse_usl_lsl、confirm_double_delete、CsvDropZoneMixin、_compute_driver_bundle、feature_line_color、_safe_remove_artist、resolve_features_for_chart）、E 類效能修正（重複相關矩陣、evidence matrix 預分組、supplier code SQL 過濾等）。
+- Reason: production release 前的健康度稽核；`fix all` 指令授權全類別修復（檔案刪除經逐項核准）。
+- Impact: 引擎 payload 契約形狀不變（chart_type/data/statistics/metadata）；兩個相容參數自簽章移除（呼叫端已同步）；parallel_coord 統計移除 legacy 別名鍵 `n_points`/`n_displayed`（測試同步改用 `n`/`displayed_n`）。
+- Verification: ruff ✅、mypy ✅（196 檔 0 錯）、pytest 861 passed ✅、qt_audit ALL CLEAR ✅、check_launch [PASS] ✅、spc-validation-matrix --quick 105/105 PASS ✅、harness_check ✅。
+- Risk: 深度重構（D3 四個 3F draw_chart 樣板抽取、D14 40+ 處 invalid-payload 樣板遷移、D6 驗證器整併）刻意延後（見 open-questions）；C6 隱藏錨點與 C8 template_type 契約保留待 owner 決定。
+- Rollback: 依本 decision 範圍 `git checkout -- <files>` 或整批 revert 本次 commit；資料庫 schema 無變更。

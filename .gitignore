@@ -59,3 +59,7 @@ tmp/*
 
 # OpenCode (omo) session state — drafts/plans/run-continuation, machine-local
 .omo/
+
+# Tool output dumps — never commit verification stdout captures
+pytest_out.txt
+ruff_out.txt

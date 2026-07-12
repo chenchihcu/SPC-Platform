@@ -5,32 +5,17 @@
 EWMA 相對偏移（以均值正規化），方便跨特徵比較漂移速度與方向。
 """
 import numpy as np
-from app.charts.base_chart import BaseChart, _apply_mpl_dark_style
+from app.charts.base_chart import feature_line_color as _color_for, BaseChart, _apply_mpl_app_style
 from typing import Dict, Any
 from app.ui.theme.tokens import (
     CHART_CENTERLINE,
     CHART_CONTROL_LIMITS,
     CHART_LINE_STYLE_SECONDARY,
     CHART_OOC,
-    FEATURE_COLORS,
-    FEATURE_COLOR_AREA,
-    FEATURE_COLOR_HEIGHT,
-    FEATURE_COLOR_VOLUME,
     CHART_FONT_LABEL,
     CHART_FONT_LEGEND,
     CHART_FONT_TICK,
     CHART_FONT_TITLE)
-
-_FEAT_COLOR = {
-    "Height": FEATURE_COLOR_HEIGHT,
-    "Area": FEATURE_COLOR_AREA,
-    "Volume": FEATURE_COLOR_VOLUME,
-}
-_DEFAULT_COLORS = FEATURE_COLORS
-
-
-def _color_for(feat: str, idx: int) -> str:
-    return _FEAT_COLOR.get(feat, _DEFAULT_COLORS[idx % len(_DEFAULT_COLORS)])
 
 
 def _zscore_with_limits(values: list[float], cl: float, ucl: float, lcl: float) -> tuple[list[float], float, float, float]:
@@ -86,7 +71,7 @@ class EWMA3F(BaseChart):
         axes = [axes] if n == 1 else list(axes)
 
         for fig_ax in axes:
-            _apply_mpl_dark_style(self.figure, fig_ax)
+            _apply_mpl_app_style(self.figure, fig_ax)
 
         for i, feat in enumerate(features):
             ax = axes[i]
@@ -105,7 +90,7 @@ class EWMA3F(BaseChart):
             values = data.get("values", [])
             indices = data.get("indices", list(range(len(values))))
             ooc = data.get("out_of_control_indices", [])
-            cl = stats.get("cl", float(np.mean(values)) if values else 0)
+            cl = stats["cl"] if "cl" in stats else (float(np.mean(values)) if values else 0)
             ucl = stats.get("ucl", 0)
             lcl = stats.get("lcl", 0)
 

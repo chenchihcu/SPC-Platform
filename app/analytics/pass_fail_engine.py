@@ -5,16 +5,7 @@ Phase 4 P1: triple-feature with USL/LSL per column.
 import pandas as pd
 from typing import Dict, Any, List, Optional
 
-
-def _get_spec_bounds(spec: Optional[Dict]) -> tuple:
-    if not spec or not isinstance(spec, dict):
-        return None, None
-    try:
-        usl = float(spec.get("usl", "")) if spec.get("usl") else None
-        lsl = float(spec.get("lsl", "")) if spec.get("lsl") else None
-        return usl, lsl
-    except (TypeError, ValueError):
-        return None, None
+from app.analytics.statistical_utils import parse_usl_lsl as _get_spec_bounds
 
 
 def _invalid_pass_fail(error: str) -> Dict[str, Any]:

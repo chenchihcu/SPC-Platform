@@ -5,9 +5,7 @@ from pptx.util import Mm
 from app.data.session_store import SessionStore, _analysis_cache_key
 from app.services.report_service import (
     ReportService,
-    _build_executive_summary_html,
     _build_pptx_diagnostics,
-    _build_report_html,
     _collect_pptx_actions,
     _compute_risk_level,
     _display_name_to_chart_id,
@@ -375,65 +373,6 @@ def test_compute_risk_level_uses_diagnostics_signal_when_provided() -> None:
         diagnostics=[{"severity": "warning"}],
     )
     assert level == "MEDIUM"
-
-
-def test_executive_summary_risk_badge_uses_diagnostics_signals() -> None:
-    html = _build_executive_summary_html(
-        hints=[],
-        ro_payload={},
-        summary_data={"process": {"verdict": "可接受"}},
-        total_n=120,
-        batch_qty=20,
-        diagnostics=[{"severity": "warning"}],
-    )
-    assert "MEDIUM 中風險" in html
-
-
-def test_build_report_html_includes_shared_risk_snapshot() -> None:
-    store = SessionStore()
-    store.clear()
-    store.meas_meta = {"is_valid": True}
-    store.coord_meta = {"is_valid": True}
-    store.relation_meta = {"match_rate": 95.0}
-    store.selected_features = ["Volume"]
-    store.last_analysis_payload = {
-        "selected_features": ["Volume"],
-        "summary": {
-            "process": {
-                "verdict": "不可接受",
-            }
-        },
-        "run_chart": {
-            "data": {"values": [111, 110, 109, 108, 107, 106, 105, 104, 103, 102, 101, 100]},
-        },
-    }
-
-    html = _build_report_html(store, chart_ids_to_export=[], selected_features=["Volume"])
-
-    assert "[0] 風險摘要 (Shared Decision)" in html
-    assert "Risk Level: 高風險 (High)" in html
-    assert "HighPriority=" in html
-
-
-def test_build_report_html_tolerates_non_numeric_rate_fields() -> None:
-    store = SessionStore()
-    store.clear()
-    store.meas_meta = {"is_valid": True}
-    store.coord_meta = {"is_valid": True}
-    store.relation_meta = {"match_rate": "N/A"}
-    store.selected_features = ["Volume"]
-    store.last_analysis_payload = {
-        "pareto": {
-            "components": [
-                {"component_id": "U1", "abnormal_rate": "bad-value", "total": 12},
-            ]
-        }
-    }
-
-    html = _build_report_html(store, chart_ids_to_export=[], selected_features=["Volume"])
-
-    assert "空間映射成功率: 0.0%" in html
-    assert "U1: abnormal_rate=0.00%, n=12" in html
 
 
 def test_build_pptx_diagnostics_skips_non_list_hint_payload(monkeypatch) -> None:

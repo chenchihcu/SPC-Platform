@@ -1,6 +1,28 @@
 import numpy as np
 import pandas as pd
-from typing import Tuple
+from typing import Any, Dict, Optional, Tuple
+
+
+def parse_usl_lsl(spec: Optional[Dict[str, Any]]) -> Tuple[Optional[float], Optional[float]]:
+    """Return (usl, lsl) floats from a workorder_spec entry; values may be strings.
+
+    Shared by engines that read spec bounds (scatter, pass/fail). A field that
+    is missing or non-numeric yields None for that side only.
+    """
+    if not spec or not isinstance(spec, dict):
+        return None, None
+
+    def _one(key: str) -> Optional[float]:
+        raw = spec.get(key)
+        if not raw:
+            return None
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return None
+
+    return _one("usl"), _one("lsl")
+
 
 class StatisticalUtils:
     """

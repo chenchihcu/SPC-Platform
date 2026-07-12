@@ -32,36 +32,6 @@ def _feature_label(feature_set: Sequence[str]) -> str:
     return " + ".join(parts) if parts else "（全特徵）"
 
 
-def _best_status(candidates: Sequence[Mapping[str, Any]], chart_id: str) -> str:
-    """Return the highest-priority badge status for chart_id across all feature sets."""
-    best = STATUS_NOT_APPLICABLE
-    priority = {
-        STATUS_RECOMMENDED: 0,
-        STATUS_AVAILABLE_WEAK: 1,
-        STATUS_INSUFFICIENT: 2,
-        STATUS_NOT_APPLICABLE: 3,
-    }
-    for c in candidates:
-        if str(c.get("chart_id") or "") != chart_id:
-            continue
-        avail = str(c.get("availability") or "")
-        state = str(c.get("evidence_state") or "")
-        sev = str(c.get("severity") or "")
-
-        if state == "support" and sev in {"warning", "error"}:
-            cand_status = STATUS_RECOMMENDED
-        elif avail == "analyzed" and state in {"refute", "neutral"}:
-            cand_status = STATUS_AVAILABLE_WEAK
-        elif avail in {"missing-data", "unavailable"}:
-            cand_status = STATUS_INSUFFICIENT
-        else:
-            cand_status = STATUS_NOT_APPLICABLE
-
-        if priority.get(cand_status, 9) < priority.get(best, 9):
-            best = cand_status
-    return best
-
-
 def _is_feature_set_relevant(feature_set: Sequence[str], display_features: Sequence[str]) -> bool:
     """Return True if all members of feature_set are present in display_features."""
     if not feature_set:
