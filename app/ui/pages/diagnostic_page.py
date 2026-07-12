@@ -506,13 +506,16 @@ class DiagnosticPage(QWidget):
         """Sync global status model changes to the page's local status lamp and text."""
         if state in ("loading", "analyzing"):
             self._lamp.setProperty("state", "loading")
-            self._status_lbl.setText(message)
+            self._status_lbl.setText("正在分析…" if state == "analyzing" else "載入中…")
+            self._status_lbl.setToolTip(message)
         elif state == "error":
             self._lamp.setProperty("state", "error")
-            self._status_lbl.setText(message)
+            self._status_lbl.setText("分析錯誤")
+            self._status_lbl.setToolTip(message)
         elif state in ("success", "idle"):
             self._lamp.setProperty("state", "success" if self._last_payload else "idle")
             self._status_lbl.setText("分析完成" if self._last_payload else "就緒")
+            self._status_lbl.setToolTip("")
         
         self._lamp.style().unpolish(self._lamp)
         self._lamp.style().polish(self._lamp)

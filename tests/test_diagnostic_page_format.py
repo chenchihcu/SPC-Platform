@@ -172,7 +172,7 @@ def test_diagnostic_page_update_table_sets_status(qapp) -> None:
     assert "分析完成" in page._status_lbl.text()
 
 
-def test_diagnostic_page_uses_report_layout_and_source_labels(qapp) -> None:
+def test_diagnostic_page_uses_report_layout_without_internal_source_labels(qapp) -> None:
     page = DiagnosticPage()
     page.update_table(_minimal_dashboard_payload())
     qapp.processEvents()
@@ -201,6 +201,9 @@ def test_diagnostic_page_uses_report_layout_and_source_labels(qapp) -> None:
         "背景 → 工單與鋼網資訊",
     ]
     assert page._fields["alarm"]["oos_rate"].property("sourceLayer") == "layer_5_spec_analysis"
+    visible_text = [label.text() for label in page.findChildren(QLabel) if label.isVisible()]
+    assert not any("layer_" in text for text in visible_text)
+    assert "規格與製程能力分析" in page._fields["alarm"]["oos_rate"].parentWidget().toolTip()
     assert page._fields["alarm"]["oos_rate"].property("valueState") == "good"
     assert page._fields["kpi"]["yield"].property("valueState") == "warning"
     assert page._fields["kpi"]["cpk"].property("valueState") == "warning"

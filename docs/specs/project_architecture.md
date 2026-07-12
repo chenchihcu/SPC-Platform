@@ -249,6 +249,8 @@ CI 與本地 baseline 一致：
 6. `scripts/harness_check.ps1`（本地 harness 結構檢查）
 7. `python scripts/release_check.py --skip-ruff --skip-mypy --with-release-ext`（演練發行腳本與 `Outputs/release/release_report.json`；不重複 lint／型別閘）
 
+圖表統計語意變更需額外執行 DB-backed semantic gate：`python scripts/validate_db_chart_semantics.py --db data/spc_master.db --latest-session --output Outputs/db_chart_semantics_current --quiet`。此 gate 使用真實 session、量測檔、active 座標與 active spec 建立 joined dataframe，並獨立重算 selected statistics；它補足 contract/renderability/matrix sweep 無法證明統計內容正確的缺口。
+
 工作流程檔：`.github/workflows/pytest.yml`
 
 品質工具設定（2026-04-04）：Python 的 ruff、mypy、pytest 預設值集中於**根目錄 `pyproject.toml`**（不使用獨立 `ruff.toml`）；跨編輯器換行見 `.editorconfig`、Git 換行見 `.gitattributes`。詳見 `docs/decision-log.md` 條目「2026-04-04 Tooling & Rules Baseline」。

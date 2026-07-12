@@ -13,6 +13,7 @@ This folder is the repo-local system of record for closed-loop Codex work. It ke
 - Verification gate: `scripts/verify.ps1`
 - Harness structure check: `scripts/harness_check.ps1`
 - Release-focused gate: `scripts/run_release_gate.py`
+- DB-backed chart semantic gate: `scripts/validate_db_chart_semantics.py`
 - Command policy: `.codex/rules/project.rules`
 
 ## Operating Model
@@ -20,8 +21,18 @@ This folder is the repo-local system of record for closed-loop Codex work. It ke
 1. Use `AGENTS.md` as the map.
 2. Read the narrow source-of-truth doc for the task.
 3. Preserve SPC/SPI statistics, payload contracts, report parity, and UI state semantics unless the user explicitly approves a contract change.
-4. Run the relevant verification gate.
+4. Run the relevant verification gate. For chart statistics, resolver, density, pair, or triple-feature semantic changes, run `scripts/validate_db_chart_semantics.py` against real DB/session data when available.
 5. Deliver with `Changes`, `Impact`, `Verification`, `Residual risk`, and `Next action`; after debugging or Investigation Path work, record reusable Debug/RCA learning in `closed-loop-log.md`.
+
+## Chart Statistics Semantic Gate
+
+Use this gate when contract/renderability checks are insufficient:
+
+```powershell
+.venv\Scripts\python.exe scripts\validate_db_chart_semantics.py --db data\spc_master.db --latest-session --output Outputs\db_chart_semantics_current --quiet
+```
+
+Use `--session-id <id>` for exact replay. Passing means chart availability/resolver consistency, pair expansion, density mode, and selected statistics recomputed from joined measurement+coordinate data match the active spec.
 
 ## Non-goals
 

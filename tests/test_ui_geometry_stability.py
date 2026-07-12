@@ -47,10 +47,14 @@ def _assert_data_setup_table_layout(page: DataSetupPage) -> None:
     spec = page._spec_region.geometry()
     upload = page._upload_region.geometry()
     assert workorder.top() < coord.top()
-    assert coord.right() < spec.left()
-    assert spec.bottom() < upload.top()
-    assert coord.top() == spec.top()
-    assert coord.bottom() == upload.bottom()
+    if page._current_tier == 2:
+        assert coord.bottom() < spec.top()
+        assert spec.bottom() < upload.top()
+    else:
+        assert coord.right() < spec.left()
+        assert spec.bottom() < upload.top()
+        assert coord.top() == spec.top()
+        assert coord.bottom() == upload.bottom()
 
     budget = page.latest_layout_budget()
     assert budget.content_width > 0
@@ -58,7 +62,8 @@ def _assert_data_setup_table_layout(page: DataSetupPage) -> None:
     assert budget.left_width > 0
     assert budget.right_width > 0
     assert budget.main_height >= DATA_SETUP_TABLE_MAIN_MIN_HEIGHT
-    assert budget.left_width + budget.right_width + DATA_SETUP_TABLE_GAP <= budget.content_width
+    if page._current_tier == 1:
+        assert budget.left_width + budget.right_width + DATA_SETUP_TABLE_GAP <= budget.content_width
 
 
 def test_data_setup_cards_do_not_overlap_at_common_sizes() -> None:
@@ -127,8 +132,24 @@ def test_main_window_data_setup_keeps_quantitative_table_layout() -> None:
     page = window.pages["資料"]
     page._sync_layout_from_width()
     QApplication.processEvents()
-    assert page._current_tier == 1
     _assert_data_setup_table_layout(page)
+    window.close()
+
+
+def test_data_setup_stacks_when_main_window_cannot_fit_two_columns() -> None:
+    _ensure_app()
+    window = MainWindow()
+    window.resize(1024, 768)
+    window.show()
+    QApplication.processEvents()
+    page = window.pages["資料"]
+    page._sync_layout_from_width()
+    QApplication.processEvents()
+
+    assert page._current_tier == 2
+    assert page._coord_region.geometry().bottom() < page._spec_region.geometry().top()
+    assert page._spec_region.geometry().bottom() < page._upload_region.geometry().top()
+    assert not page.scroll_area.horizontalScrollBar().isVisible()
     window.close()
 
 

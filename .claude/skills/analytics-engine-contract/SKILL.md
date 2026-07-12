@@ -64,9 +64,12 @@ def compute_xxx(data: pd.Series, ...) -> Dict[str, Any]:
         return _invalid("ChartType", "USL 與 LSL 相同，製程能力無法定義。")
 
     # --- safe to compute below ---
-    valid_data = data.dropna()
+    valid_data = data.replace([np.inf, -np.inf], np.nan).dropna()
     ...
 ```
+
+Finite-value sanitization is part of the compute path, not only a validation guard.
+Import `numpy as np` whenever an engine performs numeric aggregation, and sanitize immediately before computing statistics.
 
 ### Helper (not yet extracted — inline the dict for now)
 
@@ -118,12 +121,14 @@ def compute_xxx(df: pd.DataFrame, cols: List[str], ...) -> Dict[str, Any]:
     if missing:
         return _invalid("ChartType", f"缺少欄位: {missing}.")
 
-    valid = df[cols].dropna()
+    valid = df[cols].replace([np.inf, -np.inf], np.nan).dropna()
     if valid.empty:
         return _invalid("ChartType", "無有效資料。")
 
     # --- safe to compute ---
 ```
+
+For DataFrame engines, apply any engine-specific denominator rules after finite sanitization. Example: `Consistency3FEngine` then excludes non-positive Volume/Area before counting valid rows.
 
 ---
 
@@ -243,6 +248,7 @@ def test_missing_column_returns_invalid():
 - `calculate_moving_range` returns length N (not N-1); use `.dropna()` for value checks
 - `is_normal` from NormalityEngine is `np.bool_`, not Python `bool` — use `isinstance(x, (bool, np.bool_))`
 - Statistical tests (normality, outlier detection) are probabilistic — avoid asserting specific outcomes on random seeds; assert structure and types only
+- Semantic tests must recompute expected values from the source dataframe, not from another engine payload. For DB-backed chart checks, use `scripts/validate_db_chart_semantics.py`.
 
 ---
 
@@ -254,9 +260,10 @@ def test_missing_column_returns_invalid():
 - Assume `calculate_moving_range` returns N-1 values
 - Assert `pass_rates <= 1.0` (they're percentages)
 - Assert `is_normal is True` for randomly generated data
+- Use plain `dropna()` before aggregation; it leaves `np.inf` and `-np.inf` in the sample
 
 ✅ **DO**:
 - Call `StatisticalUtils.is_valid_for_spc()` as the first guard in every SPC engine
-- Use `data.dropna()` before any computation
+- Use `data.replace([np.inf, -np.inf], np.nan).dropna()` before any aggregation
 - Use `mr.mean()` directly (NaN-safe); only call `mr.dropna()` when building lists
 - Store `target_col` in metadata for all single-feature engines

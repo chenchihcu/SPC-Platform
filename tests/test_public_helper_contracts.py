@@ -74,4 +74,4 @@ def test_shared_lightweight_data_contract_helpers() -> None:
     assert SampleMode.FIRST.value == "首件"
     assert safe_columns(pd.DataFrame({1: [1], "BoardNo": ["B1"]})) == ["1", "BoardNo"]
     assert workflow_label_for_stack(2) == WORKFLOW_LABEL_CHARTS
-    assert workflow_label_for_stack(8) == WORKFLOW_LABEL_STATISTICS_DATA
+    assert workflow_label_for_stack(7) == WORKFLOW_LABEL_STATISTICS_DATA

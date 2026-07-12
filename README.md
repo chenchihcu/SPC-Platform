@@ -123,6 +123,14 @@ scripts/harness_check.ps1
 
 圖表 PNG baseline 回歸（`matplotlib.testing.compare`）：`tests/test_chart_baseline_png.py`；更新方式見 **`tests/baseline_images/README.md`**（建議與 CI 相同 **Python 3.12** 環境產生 baseline）。
 
+真實 DB 圖表統計語意驗證（payload contract / renderability 之外的獨立重算 gate）：
+
+```bash
+python scripts/validate_db_chart_semantics.py --db data/spc_master.db --latest-session --output Outputs/db_chart_semantics_current --quiet
+```
+
+已知 session 可改用 `--session-id <id>` 精準重放；輸出為 `Outputs/db_chart_semantics_current/summary.json`。
+
 發行前精簡檢查（同上 ruff／mypy，外加 `tests/release_validation`，含效能回歸 P gate），並寫入 **`Outputs/release/release_report.json`**（schema v3：含 `release_ext_enabled`／`release_ext_paths`、v2 之 `performance_*` 與可選 `final_audit_summary_path`，以及 `git_commit`、`dataset_version`、`golden_scenarios`、`release_validation_plan_modules` 等）。P gate 目前採「**首次 fail 才補 2 次**」策略：若僅 time metrics 在 near-boundary（ratio `(1.2, 1.3]`）超限，會以 3 次量測中位數作最終判定；`analysis_total_sec`／`chart_payload_sec`／`report_export_sec` 為阻擋指標，`spc_sec` 與 `nelson_sec` 只作觀測；`ratio > 1.3`、memory fail 或 scenario mismatch 仍直接 fail。效能 baseline 更新：`python scripts/record_performance_baseline.py`。可選 **`--with-release-ext`** 再跑三個全庫 traceability 測試；其餘可選後續見 **`docs/open-questions.md` Watchlist #7**。**GitHub Actions** 目前 gate 順序為 `ruff -> mypy app -> pytest -q -> scripts/qt_audit.py app/ -> scripts/check_launch.py -> release_check --with-release-ext`，以強制 UI token/QSS 稽核與啟動可用性檢查。
 
 ```bash

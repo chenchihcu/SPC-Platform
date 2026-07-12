@@ -38,7 +38,7 @@ compatibility:
 | `fixture` | `golden_dataset/` 下任一目錄,預設 `normal_baseline` |
 | `arity` | 1 / 2 / 3(從 `chart_registry.CHART_CATALOG[*].required_feature_count` 推得) |
 | `features` | `Volume / Area / Height` 的 C(3,arity) 組合 |
-| `chart_id` | `chart_registry.CHART_CATALOG` 全部 33 個 id;可用 `--engines` 子集 |
+| `chart_id` | `chart_registry.CHART_CATALOG` 全部 id;可用 `--engines` 子集 |
 | `filter` | `full / top10pct / by_part_type / by_board` |
 
 ## 執行流程(每個 cell)
@@ -52,6 +52,16 @@ compatibility:
 5. **圖表可渲染性** — 將 slice 餵 matplotlib `Figure.canvas.draw()` 一次(不存檔),確保 `data` 結構不致觸發 plot exception
 6. **效能護欄** — `perf_monitor.run(fn, args, timeout=THRESHOLD_PER_ENGINE_S, peak_mb=THRESHOLD_PEAK_MB)`;timeout → `STALL`,memory → `OVERLOAD`
 7. **記錄一列** → `matrix.csv`
+
+## DB-backed Semantic Gate
+
+Matrix PASS is not proof that chart statistics are correct against real production-shaped data. When a change touches `app/analytics/*`, `chart_registry.py`, payload slicing, pair/triple feature semantics, density semantics, or report chart resolution, also run:
+
+```powershell
+.venv\Scripts\python.exe scripts\validate_db_chart_semantics.py --db data\spc_master.db --latest-session --output Outputs\db_chart_semantics_current --quiet
+```
+
+Use `--session-id <id>` when the investigation has a known real session. This gate recomputes selected statistics from the joined measurement+coordinate dataframe and active spec; it catches semantic drift that contract/renderability checks cannot see.
 
 匯出驗證(每個 fixture × 每個 arity 各跑一次,不每 cell 跑):
 - `build_pptx_report(...)` → 確認檔案存在且 slide ≥ 1
@@ -73,7 +83,7 @@ python .claude/skills/spc-validation-matrix/scripts/run_matrix.py \
 
 預設不傳任何旗標時:
 - `fixture = normal_baseline`
-- 全部 35 engines
+- 全部 chart_id(以 `chart_registry.CHART_CATALOG` 為準,勿在此另計數)
 - `features = Volume,Area,Height`
 - `filters = full,top10pct,by_part_type`
 - `arities = 1,2,3`
@@ -127,6 +137,7 @@ python .claude/skills/spc-validation-matrix/scripts/run_matrix.py \
 | `STALL` 集中在 `parallel_coord` / `correlation_heatmap` | Triple-feature 引擎在大資料量下退化,確認是否有 sampling |
 | `OVERLOAD` 集中在 `spatial_heatmap` | 高解析度 heatmap 沒做 downsample |
 | 匯出驗證 FAIL 但 cell 全 PASS | `build_pptx_report` 在 `analysis_payload=None` fallback 出錯,或 `chart_ids_to_export` 包含未計算的 id |
+| Matrix PASS 但真實 session 圖表數字錯 | 跑 `scripts/validate_db_chart_semantics.py`;檢查 joined dataframe、active spec、resolver slice 與 engine 有效樣本定義 |
 
 ## 重用的既有元件
 
@@ -144,9 +155,10 @@ python .claude/skills/spc-validation-matrix/scripts/run_matrix.py \
 
 ## 引擎清單
 
-完整 33 個 chart_id 與 required_feature_count 對照,見 [references/engine_inventory.md](references/engine_inventory.md)。
+完整 chart_id 與 required_feature_count 對照,見 [references/engine_inventory.md](references/engine_inventory.md)；若清單漂移,以 `chart_registry.CHART_CATALOG` 為準。
 
 ## 延伸閱讀
 
 - 契約細節:`.claude/skills/analytics-engine-contract/SKILL.md`
+- 真實 DB 圖表統計語意:`.claude/skills/spc-db-chart-semantics-validator/SKILL.md`
 - UI 層 E2E:`.claude/skills/qa-auto-engineer/SKILL.md`

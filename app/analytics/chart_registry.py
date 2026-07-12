@@ -591,7 +591,9 @@ def is_chart_available_for_selection(chart_id: str, selected_features: List[str]
         "pattern_recognition",
     }:
         return len(selected_features) >= 1
-    if chart_id in {"scatter_spec", "correlation_matrix", "correlation_heatmap"}:
+    if chart_id == "scatter_spec":
+        return len(selected_features) == 2
+    if chart_id in {"correlation_matrix", "correlation_heatmap"}:
         return len(selected_features) >= 2
     return entry["required_feature_count"] == len(selected_features)
 

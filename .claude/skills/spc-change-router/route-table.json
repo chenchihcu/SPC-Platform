@@ -16,14 +16,15 @@
     {
       "key": "analytics",
       "label": "Analytics/statistics/chart registry",
-      "pathRegex": "(?i)(^|\\\\)app\\\\analytics\\\\|chart_registry\\.py|docs\\\\governance\\\\SPC_RULES\\.md$",
-      "docs": ["docs/governance/SPC_RULES.md", ".claude/skills/analytics-engine-contract/SKILL.md"],
+      "pathRegex": "(?i)(^|\\\\)app\\\\analytics\\\\|chart_registry\\.py|chart_analysis_viewmodel\\.py|validate_db_chart_semantics\\.py|docs\\\\governance\\\\SPC_RULES\\.md$",
+      "docs": ["docs/governance/SPC_RULES.md", ".claude/skills/analytics-engine-contract/SKILL.md", ".claude/skills/spc-db-chart-semantics-validator/SKILL.md"],
       "reviewer": "spc-stat-contract-reviewer",
       "gates": [
         { "cmd": "python -m pytest -q", "when": "" },
-        { "cmd": "python .claude/skills/spc-validation-matrix/scripts/run_matrix.py --quick", "when": "when chart routing changes" }
+        { "cmd": "python .claude/skills/spc-validation-matrix/scripts/run_matrix.py --quick", "when": "when chart routing changes" },
+        { "cmd": ".venv\\Scripts\\python.exe scripts\\validate_db_chart_semantics.py --db data\\spc_master.db --latest-session --output Outputs\\db_chart_semantics_current --quiet", "when": "when chart statistics, payload slicing, density, pair, or triple-feature semantics change and real DB data is available" }
       ],
-      "notes": ["Preserve engine payload shape: chart_type, data, statistics, metadata."]
+      "notes": ["Preserve engine payload shape: chart_type, data, statistics, metadata.", "Contract/renderability PASS is not proof of statistical correctness; independently recompute against joined DB-backed data when semantics change."]
     },
     {
       "key": "report-export",

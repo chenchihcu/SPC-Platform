@@ -26,3 +26,19 @@ prefix_rule(
         "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/harness_check.ps1",
     ],
 )
+
+prefix_rule(
+    pattern = [["python", "py", ".venv\\Scripts\\python.exe"], "scripts\\validate_db_chart_semantics.py"],
+    decision = "allow",
+    justification = "SPC Platform DB-backed chart semantic validation opens SQLite read-only and writes only Outputs summary artifacts.",
+    match = [
+        ".venv\\Scripts\\python.exe scripts\\validate_db_chart_semantics.py --db data\\spc_master.db --latest-session --output Outputs\\db_chart_semantics_current --quiet",
+        ".venv\\Scripts\\python.exe scripts/validate_db_chart_semantics.py --db data/spc_master.db --latest-session --output Outputs/db_chart_semantics_current --quiet",
+        "python scripts\\validate_db_chart_semantics.py --db data\\spc_master.db --latest-session --output Outputs\\db_chart_semantics_current --quiet",
+        "python scripts/validate_db_chart_semantics.py --db data/spc_master.db --latest-session --output Outputs/db_chart_semantics_current --quiet",
+    ],
+    not_match = [
+        "python scripts\\backfill_workorder_dual_fields.py",
+        "python scripts\\run_release_gate.py",
+    ],
+)

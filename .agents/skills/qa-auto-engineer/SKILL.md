@@ -29,6 +29,14 @@ Phase 4: 彙整所有發現
 Phase 5: 輸出缺失報告
 ```
 
+## 不可省略的稽核完整性規則
+
+1. **隔離資料**：任何會載入／儲存樣本資料的 QA 子程序，必須設定 `SPC_MASTER_DB_PATH` 至本次 `Outputs/qa_report_*/` 下的 SQLite。開始與結束時記錄實際資料庫路徑；不得寫入 `data/` 的工作資料庫。
+2. **動態工作流程**：巡迴頁面必須從 `app.ui.workflow_labels.VISIBLE_WORKFLOW_TABS` 取得 label 與 stack index。技能文字中的頁面名稱僅為檢查語意，不能作為硬編碼索引。
+3. **證據分級**：幾何檢查只產生 `CANDIDATE`；只有截圖可見、或以真實互動重現的問題才可列為 `CONFIRMED` 缺失。報告不得把未確認候選計入缺失總數。
+4. **真實互動**：導頁可使用程式 API；每個核心動作（上傳、儲存／開始分析、重新分析、下一步、匯出）必須至少一次以 `QTest.mouseClick` 驗證，並用 `QSignalSpy` 或可觀察的狀態／畫面變化證明有動作。
+5. **完整性失敗**：任一解析度、資料狀態或必要互動逾時／失敗，結果必須為 `INCOMPLETE` 或 `NOT PASS`，不可因其餘情境未發現問題而宣告通過。
+
 ---
 
 ## Phase 0 — 準備環境
@@ -78,7 +86,7 @@ w.grab().save("Outputs/qa_report_YYYYMMDD_HHMM/00_startup.png", "PNG")
 
 ## Phase 2 — 頁面巡迴
 
-對每一頁執行以下固定流程（程式內導頁，非滑鼠模擬）：
+對每一頁執行以下固定流程（頁面矩陣從 `VISIBLE_WORKFLOW_TABS` 建立，程式內導頁）：
 1. `w._go_to_page(stack_idx)` 切換至該頁
 2. `app.processEvents()` + `QTest.qWait(~350ms)`（等渲染穩定，非固定 sleep）
 3. `w.grab().save(path, "PNG")` 截圖
@@ -171,8 +179,8 @@ w.grab().save("Outputs/qa_report_YYYYMMDD_HHMM/00_startup.png", "PNG")
 
 ### 3-1 上傳量測資料
 
-1. 切換至「資料」頁。
-2. 點擊量測資料上傳按鈕，選擇 `sample_data/measurement/test_meas.csv`。
+1. 切換至「資料」頁，確認 QA 資料庫路徑位於本次輸出目錄。
+2. 以 `QTest.mouseClick` 點擊量測資料上傳按鈕；檔案對話框以受控測試替身提供 `sample_data/measurement/test_meas.csv`。
 3. 等待 **3 秒**。
 4. 截圖 `10_after_meas_upload.png`。
 5. **檢查**：
@@ -210,9 +218,10 @@ w.grab().save("Outputs/qa_report_YYYYMMDD_HHMM/00_startup.png", "PNG")
 
 ### 3-4 觸發分析
 
-1. 切換至「圖表」頁（或點擊「重新整理分析」按鈕）。
-2. 等待 **5 秒**（分析耗時）。
-3. 截圖 `14_after_analysis.png`。
+1. 先建立完整的隔離產品／座標／規格／量測 fixture，確認「開始分析」可用。
+2. 以 `QTest.mouseClick` 點擊「開始分析」或「重新分析」按鈕，並觀察 `status_model` 進入分析再完成。
+3. 等待 **5 秒**（分析耗時）。
+4. 截圖 `14_after_analysis.png`。
 4. **檢查**：
    - [ ] 狀態列是否顯示「分析完成」？
    - [ ] 圖表是否從空狀態變為有資料的圖表？
@@ -314,7 +323,7 @@ w.grab().save("Outputs/qa_report_YYYYMMDD_HHMM/00_startup.png", "PNG")
 | MEDIUM | N |
 | LOW | N |
 
-**整體評估**：[Pass / Fail / Conditional Pass] — [一句話總結]
+**整體評估**：[Pass / Fail / Conditional Pass / INCOMPLETE] — [一句話總結]
 
 ---
 
@@ -323,6 +332,17 @@ w.grab().save("Outputs/qa_report_YYYYMMDD_HHMM/00_startup.png", "PNG")
 | ID | 頁面 | 類型 | 嚴重度 | 描述 |
 |---|---|---|---|---|
 | QA-001 | ... | ... | ... | ... |
+
+## 稽核完整性
+
+| 項目 | 結果 |
+|---|---|
+| QA SQLite 路徑 | ... |
+| 工作資料庫未被修改 | pass / fail |
+| 頁面覆蓋 | completed / expected |
+| 核心按鈕互動 | completed / expected |
+| 幾何候選待截圖確認 | N |
+| 未完成情境 | 無 / 清單 |
 
 ---
 
@@ -425,4 +445,3 @@ python scripts/run_resolution_audit.py
 ```
 
 稽核結果將自動生成並彙整於 `Outputs/resolution_audit_report.md`，包含 `TRUNCATION` (文字截斷)、`OVERLAP` (元件重疊) 與 `OVERFLOW` (視窗溢出) 的詳細缺陷清單。
-

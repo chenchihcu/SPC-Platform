@@ -31,7 +31,7 @@ Right: Workspace (QTabWidget#workflowTabs pages, tab bar hidden)
 
 - 採「一頁式垂直區塊」語意（embedded mode）。
 - 頁首為單列緊湊工具列：頁名、產品選擇、新增產品、座標/規格/量測狀態同列顯示。
-- 不使用整頁垂直捲動作為預設解法。
+- 正常寬度採座標／規格／量測雙欄配置；可用內容寬度不足以容納三個嵌入區域時，改為垂直堆疊，僅以垂直捲動保護後續區域可達性，禁止水平捲動裁切核心欄位。
 - 若高度壓力發生，遵循 `docs/specs/table_layout_quantitative_spec.md` 的壓縮順序。
 
 ## 4. Chart Analysis 版面目標

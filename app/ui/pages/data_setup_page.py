@@ -59,8 +59,13 @@ from app.ui.widgets.stencil_spec_editor import StencilSpecEditor
 
 
 def layout_tier_from_width(w: int) -> int:
-    """回傳響應式布局層級：固定回傳 1 以採行高密度列排版模式。"""
-    return 1
+    """Choose the two-column or stacked layout from the usable content width."""
+    two_column_minimum = (
+        DATA_SETUP_TABLE_LEFT_MIN_WIDTH
+        + DATA_SETUP_TABLE_RIGHT_MIN_WIDTH
+        + DATA_SETUP_TABLE_GAP
+    )
+    return 1 if w >= two_column_minimum else 2
 
 
 @dataclass(frozen=True)
@@ -165,12 +170,6 @@ class DataSetupPage(QWidget):
         self.product_combo.setMinimumWidth(DATA_SETUP_PRODUCT_COMBO_MIN_WIDTH)
         self.product_combo.currentIndexChanged.connect(self._on_product_changed)
         header_lay.addWidget(self.product_combo, 1)
-        
-        self.btn_new_product = QPushButton("新增產品")
-        self.btn_new_product.setProperty("class", "secondary")
-        self.btn_new_product.setToolTip("新增產品並綁定座標檔")
-        self.btn_new_product.clicked.connect(self._on_new_product_clicked)
-        header_lay.addWidget(self.btn_new_product, 0)
         header_lay.addStretch(1)
 
         def _status_pair(label_text: str) -> tuple[QFrame, QLabel]:
@@ -410,11 +409,45 @@ class DataSetupPage(QWidget):
         """Apply computed geometry constraints without allowing the footer to scroll away."""
         if self._grid_layout is None:
             return
-        self._grid_layout.setColumnMinimumWidth(0, DATA_SETUP_TABLE_LEFT_MIN_WIDTH)
-        self._grid_layout.setColumnMinimumWidth(1, DATA_SETUP_TABLE_RIGHT_MIN_WIDTH)
+        grid = self._grid_layout
+        for region in (
+            self._workorder_wrap,
+            self._coord_region,
+            self._spec_region,
+            self._upload_region,
+        ):
+            grid.removeWidget(region)
+
+        grid.addWidget(self._workorder_wrap, 0, 0, 1, 2)
+        if self._current_tier == 2:
+            # The workspace is narrower than the three regions' combined
+            # minimum width. Stack the regions so the vertical scroll area,
+            # rather than a hidden horizontal edge, protects access.
+            grid.addWidget(self._coord_region, 1, 0, 1, 2)
+            grid.addWidget(self._spec_region, 2, 0, 1, 2)
+            grid.addWidget(self._upload_region, 3, 0, 1, 2)
+            grid.setColumnMinimumWidth(0, DATA_SETUP_TABLE_RIGHT_MIN_WIDTH)
+            grid.setColumnMinimumWidth(1, 0)
+            grid.setColumnStretch(0, 1)
+            grid.setColumnStretch(1, 0)
+            grid.setRowStretch(1, 1)
+            grid.setRowStretch(2, 0)
+            grid.setRowStretch(3, 0)
+        else:
+            grid.addWidget(self._coord_region, 1, 0, 2, 1)
+            grid.addWidget(self._spec_region, 1, 1)
+            grid.addWidget(self._upload_region, 2, 1)
+            grid.setColumnMinimumWidth(0, DATA_SETUP_TABLE_LEFT_MIN_WIDTH)
+            grid.setColumnMinimumWidth(1, DATA_SETUP_TABLE_RIGHT_MIN_WIDTH)
+            grid.setColumnStretch(0, 5)
+            grid.setColumnStretch(1, 6)
+            grid.setRowStretch(1, 1)
+            grid.setRowStretch(2, 1)
+            grid.setRowStretch(3, 0)
         self._grid_layout.setRowMinimumHeight(0, DATA_SETUP_TABLE_WORKORDER_MIN_HEIGHT)
         self._grid_layout.setRowMinimumHeight(1, DATA_SETUP_TABLE_SECTION_MIN_HEIGHT)
         self._grid_layout.setRowMinimumHeight(2, DATA_SETUP_TABLE_SECTION_MIN_HEIGHT)
+        self._grid_layout.setRowMinimumHeight(3, DATA_SETUP_TABLE_SECTION_MIN_HEIGHT if self._current_tier == 2 else 0)
         self._coord_region.setMinimumHeight(DATA_SETUP_TABLE_MAIN_MIN_HEIGHT)
         self._spec_region.setMinimumHeight(DATA_SETUP_TABLE_SECTION_MIN_HEIGHT)
         self._upload_region.setMinimumHeight(DATA_SETUP_TABLE_SECTION_MIN_HEIGHT)
@@ -517,13 +550,7 @@ class DataSetupPage(QWidget):
         self.product_name_selected.emit(product)
         self._refresh_readiness()
 
-    def _on_new_product_clicked(self) -> None:
-        """Trigger 'New Product' mode by expanding registration section."""
-        self._coord_content.show_registration(True)
-        self._stencil_content.set_summary_mode(False) # 開放編輯規格
-        # Ensure focus is on name edit
-        self._coord_content.product_name_edit.setFocus()
-        self.statusBar().showMessage("請先選擇座標檔，驗證成功後輸入產品名稱並儲存綁定。", 4000)
+
 
     def statusBar(self) -> QtWidgets.QStatusBar:
         """Helper to find the main window's status bar."""
@@ -556,10 +583,23 @@ class DataSetupPage(QWidget):
 
     def _update_layout_tier(self, tier: int) -> None:
         """Refresh the one-page table layout budget."""
-        self._current_tier = tier
+        required_width = self._two_column_minimum_width()
+        self._current_tier = 1 if self._available_content_width() >= required_width else 2
         self._reflow_workorder_items()
         self._latest_layout_budget = self._compute_layout_budget()
         self._apply_layout_budget(self._latest_layout_budget)
+
+    def _two_column_minimum_width(self) -> int:
+        """Return the actual width required by the embedded two-column regions."""
+        if self._grid_layout is None:
+            return DATA_SETUP_TABLE_LEFT_MIN_WIDTH + DATA_SETUP_TABLE_RIGHT_MIN_WIDTH + DATA_SETUP_TABLE_GAP
+        margins = self._grid_layout.contentsMargins()
+        left_width = self._coord_region.minimumSizeHint().width()
+        right_width = max(
+            self._spec_region.minimumSizeHint().width(),
+            self._upload_region.minimumSizeHint().width(),
+        )
+        return left_width + right_width + DATA_SETUP_TABLE_GAP + margins.left() + margins.right()
 
     @staticmethod
     def _make_inline_field(label_text: str, field: QWidget) -> QWidget:

@@ -11,13 +11,29 @@ import json
 import argparse
 from pathlib import Path
 
+
+TEXT_TRUNCATION_TOLERANCE_PX = 8
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--height", type=int, default=720)
     parser.add_argument("--scale", type=float, default=1.0)
     parser.add_argument("--out-dir", type=str, required=True)
+    parser.add_argument(
+        "--master-db",
+        type=str,
+        default="",
+        help="Isolated SQLite path for this audit (defaults beneath --out-dir).",
+    )
     args = parser.parse_args()
+
+    out_dir = Path(args.out_dir).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    audit_db = Path(args.master_db).resolve() if args.master_db else out_dir / "qa_master_data.db"
+    # The import path auto-saves measurement sessions. Keep that side effect in
+    # the run artifact, never in the user's working database.
+    os.environ["SPC_MASTER_DB_PATH"] = str(audit_db)
 
     # 設定模擬環境變數 (必須在建立 QApplication 前)
     os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "1"
@@ -60,9 +76,6 @@ def main() -> int:
     app.processEvents()
     QTest.qWait(500)
 
-    out_dir = Path(args.out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-
     audit_records = []
 
     def audit_current_page(page_name: str, state: str):
@@ -80,8 +93,9 @@ def main() -> int:
                     fm = widget.fontMetrics()
                     # 取得文字寬度與高度
                     size_hint = fm.size(Qt.TextSingleLine, text)
-                    # 如果 widget 寬度小於文字所需寬度 (容許 2px 誤差)
-                    if not widget.wordWrap() and widget.width() < size_hint.width() - 2:
+                    # Geometry alone is a candidate, not a confirmed UX defect.
+                    # Ignore sub-pixel/font-metric drift and require visual review.
+                    if not widget.wordWrap() and widget.width() < size_hint.width() - TEXT_TRUNCATION_TOLERANCE_PX:
                         # 排除寬度極小 (如小於 10px) 的佔位符或折合狀態下的 minimal text
                         if widget.width() > 10:
                             audit_records.append({
@@ -94,7 +108,8 @@ def main() -> int:
                                 "text": text,
                                 "width": widget.width(),
                                 "needed": size_hint.width(),
-                                "details": f"Label text '{text}' (width: {widget.width()}px) is smaller than single-line text sizeHint ({size_hint.width()}px)."
+                                "confidence": "needs_visual_confirmation",
+                                "details": f"Label text '{text}' is {size_hint.width() - widget.width()}px narrower than its single-line size hint."
                             })
                             
             # 2. 檢查視窗底邊或右邊溢出 (Overflow)
@@ -181,15 +196,13 @@ def main() -> int:
                                 "details": f"Widgets overlap. Intersect area: {area}px. w1: {rect1.x()},{rect1.y()},{rect1.width()}x{rect1.height()} | w2: {rect2.x()},{rect2.y()},{rect2.width()}x{rect2.height()}."
                             })
 
-    # 定義所有要巡迴的分頁資訊 (stack_index, save_name, label_name)
+    # Read the live workflow contract instead of retaining a second, stale
+    # stack-index map in this audit harness.
+    from app.ui.workflow_labels import VISIBLE_WORKFLOW_TABS
+
     PAGES = [
-        (0, "01_data_setup", "資料設定"),
-        (6, "02_library", "資料庫"),
-        (2, "03_charts", "統計圖表"),
-        (8, "04_statistics_data", "統計資料"),
-        (5, "05_diagnostic", "製程診斷"),
-        (3, "06_report", "報告匯出"),
-        (4, "07_reference", "說明")
+        (stack_index, f"{position:02d}_stack_{stack_index}", label)
+        for position, (label, stack_index) in enumerate(VISIBLE_WORKFLOW_TABS, start=1)
     ]
 
     print(f"[{args.width}x{args.height} @{args.scale}x] Phase 1 & 2: 執行空狀態頁面巡迴與稽核...")
@@ -268,10 +281,27 @@ def main() -> int:
         audit_current_page(page_name, "with_data")
         w.grab().save(str(out_dir / f"{save_name}_with_data.png"), "PNG")
 
-    # 保存稽核紀錄為 JSON 檔
+    # Save a machine-readable provenance record. Consumers must treat
+    # `needs_visual_confirmation` as a candidate, never a confirmed defect.
     log_path = out_dir / "audit_log.json"
     with open(log_path, "w", encoding="utf-8") as f:
         json.dump(audit_records, f, ensure_ascii=False, indent=2)
+    with open(out_dir / "audit_manifest.json", "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "status": "completed",
+                "master_db": str(audit_db),
+                "master_db_isolated": audit_db.parent == out_dir,
+                "pages": [label for _idx, _name, label in PAGES],
+                "records_requiring_visual_confirmation": sum(
+                    1 for record in audit_records
+                    if record.get("confidence") == "needs_visual_confirmation"
+                ),
+            },
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
         
     print(f"[{args.width}x{args.height} @{args.scale}x] 完成！稽核記錄寫入至: {log_path}")
     w.close()

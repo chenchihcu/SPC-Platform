@@ -1,5 +1,15 @@
 # Decision Log
 
+## 2026-07-12 DB-backed Chart Semantic Validation Gate
+
+- Decision: 新增 `scripts/validate_db_chart_semantics.py` 與 `spc-db-chart-semantics-validator` 技能，並將 DB-backed chart semantic gate 接入 analytics/chart registry 路由、harness README、治理規則與 Codex command policy。
+- Scope: `scripts/validate_db_chart_semantics.py`、`app/analytics/chart_registry.py` availability 語意、`.agents/.claude` skills、`.claude/skills/spc-change-router/route-table.json`、`.codex/rules/project.rules`、README、`docs/governance/AGENTS.md`、`docs/harness/README.md`、`docs/specs/project_architecture.md`。
+- Reason: 既有 contract/renderability/matrix sweep 能確認 payload shape 與可渲染性，但無法證明圖表統計值與真實 session、量測檔、座標檔、active spec 的 joined dataframe 一致。
+- Impact: analytics/chart registry 變更可用真實 DB session 進行獨立重算對帳；`scatter_spec` availability 修正為只支援雙特徵，避免 3F 顯示可用但 resolver 回 invalid。
+- Verification: `scripts/validate_db_chart_semantics.py --session-id 5` PASS（0 failures）；後續 baseline gate 仍需依任務執行 ruff/mypy/pytest/check_launch。
+- Risk: 此 gate 依賴本機 DB 中存在可用 session 且原始量測/座標檔仍可讀；不可用時需用 `--session-id` 指向可重放資料，或標記 `not verified` 並列出缺少的檔案。
+- Rollback: 回退新增腳本/技能/路由文件與 `chart_registry.py` availability 修正；不涉及資料庫 schema migration。
+
 ## 2026-06-30 統計圖表與統計資料分流
 
 - Decision: 新增左側並列選單 `統計資料`，將 `ooc_analysis`、`shift_detection`、`drift_detection`、`outlier_analysis` 四個純文字摘要從 `統計圖表` selector 分流到一頁式資料瀏覽表；`統計圖表` 保留五組真正圖表視覺輸出。

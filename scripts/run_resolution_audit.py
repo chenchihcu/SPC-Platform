@@ -11,6 +11,9 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+
+AUDIT_SUBPROCESS_TIMEOUT_SECONDS = 90
+
 def main() -> int:
     # 建立輸出目錄
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -30,6 +33,7 @@ def main() -> int:
 
     auditor_script = repo_root / "scripts" / "layout_auditor.py"
     all_records = []
+    run_results = []
 
     print("=== 開始執行多解析度與 DPI 適用性視覺稽核 ===")
     print(f"報告輸出目錄: {out_dir}\n")
@@ -51,9 +55,21 @@ def main() -> int:
         
         # 執行子進程，不輸出 GUI 視窗且捕獲輸出
         try:
-            subprocess.run(cmd, capture_output=True, text=True, check=True)
+            completed = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=AUDIT_SUBPROCESS_TIMEOUT_SECONDS,
+            )
+            run_results.append({"environment": name, "status": "completed", "stdout": completed.stdout})
             print(f"    [成功] {name} 執行完成。")
+        except subprocess.TimeoutExpired as exc:
+            run_results.append({"environment": name, "status": "timeout", "stdout": exc.stdout or ""})
+            print(f"    [逾時] {name} 超過 {AUDIT_SUBPROCESS_TIMEOUT_SECONDS} 秒，結果不完整。")
+            continue
         except subprocess.CalledProcessError as e:
+            run_results.append({"environment": name, "status": "failed", "stderr": e.stderr})
             print(f"    [失敗] {name} 執行異常退出，錯誤碼: {e.returncode}")
             print(f"    標準錯誤輸出:\n{e.stderr}")
             continue
@@ -72,7 +88,9 @@ def main() -> int:
 
     # 產出最終稽核報告
     report_path = out_dir / "RESOLUTION_AUDIT_REPORT.md"
-    generate_markdown_report(report_path, all_records, matrix, timestamp)
+    generate_markdown_report(report_path, all_records, matrix, timestamp, run_results)
+    with open(out_dir / "audit_run_manifest.json", "w", encoding="utf-8") as f:
+        json.dump(run_results, f, ensure_ascii=False, indent=2)
     
     print("\n=== 稽核流程結束 ===")
     print(f"報告已產生: {report_path}")
@@ -86,9 +104,15 @@ def main() -> int:
     except Exception as ex:
         print(f"拷貝報告失敗: {ex}")
         
-    return 0
+    return 0 if all(result["status"] == "completed" for result in run_results) else 1
 
-def generate_markdown_report(filepath: Path, records: list[dict], matrix: list[tuple], timestamp: str):
+def generate_markdown_report(
+    filepath: Path,
+    records: list[dict],
+    matrix: list[tuple],
+    timestamp: str,
+    run_results: list[dict],
+):
     """產生統整的 Markdown 報告。"""
     
     # 統計分類
@@ -97,8 +121,13 @@ def generate_markdown_report(filepath: Path, records: list[dict], matrix: list[t
     overflow_cnt = sum(1 for r in records if r["type"] == "OVERFLOW")
     total_cnt = len(records)
     
+    completed_count = sum(1 for result in run_results if result["status"] == "completed")
+    incomplete = completed_count != len(matrix)
     # 整體評估
-    if total_cnt == 0:
+    if incomplete:
+        evaluation = "INCOMPLETE (不可作為通過結論)"
+        eval_desc = "至少一個解析度未完成；未執行環境不可以視為無缺陷。"
+    elif total_cnt == 0:
         evaluation = "PASS (優異)"
         eval_desc = "在所有測試的解析度與縮放比例下，皆未發現任何嚴重的文字裁切、重疊或溢出。介面自適應能力極佳。"
     elif overflow_cnt > 0:
@@ -113,6 +142,12 @@ def generate_markdown_report(filepath: Path, records: list[dict], matrix: list[t
         f.write(f"**測試日期**：{datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
         f.write("**測試核心**：Layout Auditor (DPI-aware Auto Tester)\n")
         f.write(f"**整體評估**：`{evaluation}` — {eval_desc}\n\n")
+
+        f.write("## 執行完整性\n\n")
+        f.write(f"完成環境：{completed_count}/{len(matrix)}\n\n")
+        for result in run_results:
+            f.write(f"- `{result['environment']}`：{result['status']}\n")
+        f.write("\n")
         
         f.write("## 1. 執行摘要\n\n")
         f.write("| 稽核項目 | 測試環境數 | 發現異常總數 | 文字截斷 (Truncation) | 元件重疊 (Overlap) | 視窗溢出 (Overflow) |\n")

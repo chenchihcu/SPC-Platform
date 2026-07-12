@@ -18,6 +18,25 @@ from app.analytics.dashboard_layers_display import feature_label_zh
 
 KpiTier = Literal["large", "medium", "small"]
 
+_SOURCE_LAYER_DISPLAY = {
+    "layer_1_alarm": "製程警報",
+    "layer_2_kpi": "良率與缺陷指標",
+    "layer_3_info": "量測資料摘要",
+    "layer_4_defect_structure": "缺陷結構分析",
+    "layer_5_spec_analysis": "規格與製程能力分析",
+    "layer_6_product_context": "產品與工單資料",
+    "layer_7_engineering_info": "工程統計資料",
+    "layer_8_diagnosis": "診斷結論",
+}
+
+
+def _source_description_zh(source_layer: str) -> str:
+    """Translate internal dashboard-layer keys for user-facing help text."""
+    return " + ".join(
+        _SOURCE_LAYER_DISPLAY.get(part.strip(), "分析資料")
+        for part in source_layer.split("+")
+    )
+
 __all__ = [
     "KpiTier",
     "feature_label_zh",
@@ -121,7 +140,7 @@ def add_report_metric(
     colspan: int = 1,
     tier: KpiTier = "small",
 ) -> QLabel:
-    """Add a table-like report metric with a visible data-source label."""
+    """Add a table-like report metric without exposing internal layer keys."""
     cell = QFrame()
     cell.setProperty("class", "processReportMetric")
     cell.setProperty("sourceLayer", source_layer)
@@ -147,22 +166,13 @@ def add_report_metric(
     val.setProperty("valueState", "neutral")
     val.setProperty("sourceLayer", source_layer)
 
-    src = QLabel(source_layer)
-    src.setTextFormat(Qt.TextFormat.PlainText)
-    src.setWordWrap(True)
-    src.setProperty("class", "processReportSource")
-    src.setMinimumWidth(0)
-    src.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-
-    tooltip = f"{label_zh}｜資料來源：{source_layer}"
+    tooltip = f"{label_zh}｜分析依據：{_source_description_zh(source_layer)}"
     cell.setToolTip(tooltip)
     lab.setToolTip(tooltip)
     val.setToolTip(tooltip)
-    src.setToolTip(tooltip)
 
     lay.addWidget(lab)
     lay.addWidget(val)
-    lay.addWidget(src)
     grid.addWidget(cell, row, col, 1, colspan)
     return val
 
