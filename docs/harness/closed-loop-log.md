@@ -51,3 +51,19 @@ Root cause: `/data/` is fully git-ignored (`.gitignore:35`). `git worktree add` 
 Fix: Copy `data/ipc_jstd_pillar_seed.json` and `data/spi_process_kb/v1/*` from an existing populated checkout (e.g. main repo root) into the new worktree before running the full test suite. No generation script currently exists for `ipc_jstd_pillar_seed.json`; `data/spi_process_kb/v1/*` can alternatively be regenerated via `scripts/import_spi_process_kb_xlsx.py <workbook.xlsx> --out data/spi_process_kb/v1`, but the source `.xlsx` is also git-ignored, so copying the already-generated JSON is simpler.
 Harness update needed: yes (this entry)
 Destination: `docs/harness/closed-loop-log.md`
+
+## Entry: SQLite vs legacy JSON registries data parity mismatch
+
+Date: 2026-07-12
+Task: Fix SQLite active records and legacy JSON registries data parity mismatch.
+Changes: Added double-write sync logic to coordinate_registry register/remove and product_spec_registry save/remove functions. Created a one-time sync script to align SQLite with JSON registries.
+Impact: Prevented data registries drift in future sessions and resolved 4 existing mismatch findings in master_data_parity_audit.
+Verification: run master_data_parity_audit.py and verify total_mismatch_count is 0. verify.ps1 passed successfully.
+Residual risk: none.
+Next action: None.
+Debug/RCA (when applicable):
+Observed: master_data_parity_audit.py failed with mismatch count > 0.
+Root cause: During migration to SQLite backend in 2026-04, write/save paths in coordinate_registry.py and product_spec_registry.py were updated to only write to SQLite, while leaving legacy JSON registries untouched, leading to synchronization drift.
+Fix: Added JSON double-write serialization sync and cascaded delete logic back to coordinate_registry.py and product_spec_registry.py.
+Harness update needed: yes (this entry)
+Destination: docs/harness/closed-loop-log.md
