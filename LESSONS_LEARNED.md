@@ -431,3 +431,35 @@ for s, c in Counter(s.strip() for s in selectors).items():
 | 其他佈局/命名問題 | ~9 | — |
 
 **核心教訓一句話：在 Qt 深色主題專案中，正確性不是「看起來像」，而是「token 來源可追溯、狀態矩陣完整、QPalette 與 QSS 雙設定、zero raw hex/magic number」。**
+
+---
+
+## 十一、UI 隱性計算 (無輸出) 與狀態燈非同步教訓
+
+### 發生了什麼
+
+1. **隱性計算缺陷 (QA-ERR-001)**：`ChartAnalysisPage` 背景調用 `_DetailsHintWorker` 計算根因、異常與優化建議，但在主佈局中漏寫了 `layout.addWidget(self._details_label)`。這導致背景計算邏輯完全正確，但 UI 卻沒有輸出，使用者看不到分析明細，成了「壞死無動作」的缺陷。
+2. **狀態指示不一致 (QA-ERR-003)**：診斷頁 (`DiagnosticPage` 與 `DiagnosticMatrixPage`) 內建了狀態燈，但並未訂閱全域 `status_model`。當系統進行非同步分析或載入資料時，全域狀態顯示「載入中/分析中…」，但診斷頁的燈依舊維持「就緒」，造成狀態指示不一致。
+
+### 根本原因
+
+1. 重構或搬移佈局時，宣告了 Label 元件但遺漏了佈局加載。
+2. 在跨多個 Page 的大型 PySide 應用中，狀態指示如果由各頁面自行維護，容易因缺乏單一來源 (Single Source of Truth) 而與全域 `status_model` 脫節。
+
+### 修正
+
+1. 將 `self._details_label` 正確加入版面佈局。
+2. 傳入 `status_model` 給診斷頁，訂閱其 `state_changed` 信號以同步狀態指示燈。
+
+### 預防規則
+
+```
+規則 U-1：佈局元件宣告必排版
+每次在 QWidget 中宣告新的子 widget (例如 QLabel, QPushButton)，
+必須在 init 的排版區 (layout.addWidget 或 layout.addLayout) 確認其定位；
+未被加入排版之 widget 將無法顯示，屬於隱性 Bug。
+
+規則 U-2：全域狀態燈單一來源
+在 PySide 多分頁系統中，若分頁包含狀態指示，
+必須統一由全域 `AppStatusModel` 進行驅動，禁止分頁自行維護孤立的狀態判定。
+```
