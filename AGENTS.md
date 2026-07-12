@@ -140,3 +140,13 @@ A task is complete only when all are true:
 - **Command Policy & Codex Sync Rule:** Any modifications or additions to verification and development commands must be synchronized with the Python-like rules in `.codex/rules/project.rules` to prevent Codex sandbox blocks.
 - **AI Rules Compatibility:** Read `docs/harness/ai-rules-compatibility.md` before cross-tool handoff or governance edits. Official claims, local observations, audit inferences, assumptions, and `not verified` items must remain labeled.
 - **Source-Control Boundary:** If `git status --short` is noisy, the source baseline is absent, or the repo was just initialized, use one writer per worktree. Do not run parallel writing AI tools in the same checkout. Prefer Antigravity New Worktree Mode for complex or parallel tasks; Local Mode is for small interactive work only.
+
+## UI/UX & Navigation Refactoring Learnings (Session Update)
+- **QScrollArea Footer Placement**: When wrapping an interactive form inside a `QScrollArea` to handle low height constraints, ensure that the footer/readiness bars are added inside the `scroll_content` layout instead of the outer page layout. This guarantees that the button scrolls up to be clickable on smaller displays, avoiding layout overflow.
+- **QComboBox Width Constraints**: In `app/ui/theme/tokens.py`, avoid assigning large minimum widths (e.g. >180px) to ComboBox elements like `DATA_SETUP_PRODUCT_COMBO_MIN_WIDTH`. High minimum widths prevent the layouts from contracting horizontally on 1024px projector screens, causing geometric overlap (overlap defect). Recommend `160px` as the default safety width limit.
+- **Index-Safe Tab Refactoring**: When removing/merging tabs or modifying `STACK_ORDER` / `VISIBLE_WORKFLOW_TABS` in `main_window.py` and `workflow_labels.py`:
+  1. Clean up all dead signal connections to the removed pages.
+  2. Update any hard-coded page routing indices (e.g. `_on_navigate_to_chart(self, ...)` using `self._go_to_page(idx)`).
+  3. Ensure that navigation tooltips (`NAV_STEP_TOOLTIPS`) in `navigation_panel.py` match the new button length.
+  4. Update assertions in unit tests (e.g. `tests/test_main_window_data_loader_lifecycle.py` checking tab counts or index positions).
+
