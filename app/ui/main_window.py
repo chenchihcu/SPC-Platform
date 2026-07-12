@@ -25,7 +25,6 @@ from app.ui.workflow_labels import (
     WORKFLOW_LABEL_CHARTS,
     WORKFLOW_LABEL_DATA_SETUP,
     WORKFLOW_LABEL_DIAGNOSTIC_1,
-    WORKFLOW_LABEL_DIAGNOSTIC_2,
     WORKFLOW_LABEL_LIBRARY,
     WORKFLOW_LABEL_REFERENCE,
     WORKFLOW_LABEL_REPORT,
@@ -52,9 +51,8 @@ from app.ui.pages.component_select_page import ComponentSelectPage
 from app.ui.pages.chart_analysis_page import ChartAnalysisPage
 from app.ui.pages.statistics_data_page import StatisticsDataPage
 from app.ui.pages.report_export_page import ReportExportPage
-from app.ui.pages.data_management_page import DataManagementPage
+from app.ui.pages.reference_page import ReferencePage
 from app.ui.pages.diagnostic_page import DiagnosticPage
-from app.ui.pages.diagnostic_matrix_page import DiagnosticMatrixPage
 from app.ui.pages.measurement_library_page import MeasurementLibraryPage
 from app.services.analysis_orchestrator import (
     AnalysisOrchestrator,
@@ -79,26 +77,25 @@ STACK_ORDER = [
     "參考",   # 4
     "診斷",   # 5
     "量測庫", # 6  量測資料庫管理頁
-    "診斷二", # 7
-    "統計資料", # 8
+    "統計資料", # 7
 ]
-# 左側導覽顯示 8 項 (統計圖表/統計資料、診斷一/診斷二各自並排)
+# 左側導覽顯示 7 項
 NAV_PHASES: list[tuple[str, list[str | list[str]]]] = [
     ("", [WORKFLOW_LABEL_DATA_SETUP, WORKFLOW_LABEL_LIBRARY]),
     (
         "",
         [
             [WORKFLOW_LABEL_CHARTS, WORKFLOW_LABEL_STATISTICS_DATA],
-            [WORKFLOW_LABEL_DIAGNOSTIC_1, WORKFLOW_LABEL_DIAGNOSTIC_2],
+            WORKFLOW_LABEL_DIAGNOSTIC_1,
         ],
     ),
     ("", [WORKFLOW_LABEL_REPORT, WORKFLOW_LABEL_REFERENCE]),
 ]
-# 導覽索引 (0..7) -> 堆疊索引 (0..8)
-# nav: 0=資料, 1=量測庫, 2=圖表, 3=統計資料, 4=診斷一, 5=診斷二, 6=報告, 7=參考
-NAV_TO_STACK = [0, 6, 2, 8, 5, 7, 3, 4]
+# 導覽索引 (0..6) -> 堆疊索引 (0..7)
+# nav: 0=資料, 1=量測庫, 2=圖表, 3=統計資料, 4=診斷, 5=報告, 6=參考
+NAV_TO_STACK = [0, 6, 2, 7, 5, 3, 4]
 # 堆疊索引 -> 導覽索引
-STACK_TO_NAV = {0: 0, 1: 2, 2: 2, 3: 6, 4: 7, 5: 4, 6: 1, 7: 5, 8: 3}
+STACK_TO_NAV = {0: 0, 1: 2, 2: 2, 3: 5, 4: 6, 5: 4, 6: 1, 7: 3}
 TAB_TO_STACK = [stack_index for _, stack_index in VISIBLE_WORKFLOW_TABS]
 STACK_TO_TAB = {stack_index: tab_index for tab_index, stack_index in enumerate(TAB_TO_STACK)}
 # 相容：部分程式仍用 PAGE_NAMES 當頁名列表
@@ -206,9 +203,8 @@ class MainWindow(QMainWindow):
             "圖表": ChartAnalysisPage(status_model=self.status_model),
             "統計資料": StatisticsDataPage(),
             "報告": ReportExportPage(status_model=self.status_model),
-            "參考": DataManagementPage(),
-            "診斷": DiagnosticPage(status_model=self.status_model, show_matrix_tabs=False),
-            "診斷二": DiagnosticMatrixPage(status_model=self.status_model),
+            "參考": ReferencePage(),
+            "診斷": DiagnosticPage(status_model=self.status_model, show_matrix_tabs=True),
             "量測庫": MeasurementLibraryPage(),
         }
         # Wire references for cross-page refreshes
@@ -259,7 +255,6 @@ class MainWindow(QMainWindow):
         self.chart_vm.data_ready.connect(self.pages["圖表"].update_all_charts)
         self.chart_vm.data_ready.connect(self.pages["統計資料"].update_all_statistics)
         self.chart_vm.data_ready.connect(self.pages["診斷"].update_hints)
-        self.chart_vm.data_ready.connect(self.pages["診斷二"].update_hints)
         self.chart_vm.error_occurred.connect(self._on_analysis_error)
         self.chart_vm.summary_mode_changed.connect(self.pages["圖表"].set_summary_mode)
         self.pages["圖表"].summary_mode_changed.connect(self.chart_vm.set_summary_mode)
@@ -304,7 +299,6 @@ class MainWindow(QMainWindow):
         self.pages["圖表"].pareto_component_selected.connect(self._on_pareto_component_selected)
         # 診斷頁「前往圖表頁」→ 切換至圖表頁並選取圖表
         self.pages["診斷"].navigate_to_chart.connect(self._on_navigate_to_chart)
-        self.pages["診斷二"].navigate_to_chart.connect(self._on_navigate_to_chart)
 
         # Debounce: Optional filters
         # Keyboard shortcuts（Ctrl+1..8 對應左側可見 workflow 導覽）
@@ -346,7 +340,7 @@ class MainWindow(QMainWindow):
     def _on_navigate_to_chart(self, chart_id: str, feature_set: list) -> None:
         """Route DiagnosticPage linkage clicks to chart visuals or text-summary data."""
         if is_text_summary_chart(chart_id):
-            self._go_to_page(8)  # stack index 8 = 統計資料
+            self._go_to_page(7)  # stack index 7 = 統計資料
             self.pages["統計資料"].select_summary(chart_id, feature_set)
             return
         self._go_to_page(2)  # stack index 2 = 圖表

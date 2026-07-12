@@ -2,7 +2,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QTableWidget
 
 from app.analytics.chart_registry import CHART_ORDER
-from app.ui.pages.data_management_page import DataManagementPage
+from app.ui.pages.reference_page import ReferencePage
 
 
 def _ensure_app() -> QApplication:
@@ -12,9 +12,9 @@ def _ensure_app() -> QApplication:
     return app
 
 
-def test_data_management_page_has_chart_reference_tab_rightmost() -> None:
+def test_reference_page_has_chart_reference_tab_rightmost() -> None:
     _ensure_app()
-    page = DataManagementPage()
+    page = ReferencePage()
     tabs = page._tabs
     assert tabs.count() == 6
     assert tabs.tabText(tabs.count() - 2) == "SPC心智圖"
@@ -23,7 +23,7 @@ def test_data_management_page_has_chart_reference_tab_rightmost() -> None:
 
 def test_chart_reference_row_count_matches_chart_order() -> None:
     _ensure_app()
-    page = DataManagementPage()
+    page = ReferencePage()
     tabs = page._tabs
     chart_ref_table = tabs.widget(tabs.count() - 1)
     assert isinstance(chart_ref_table, QTableWidget)
@@ -32,7 +32,7 @@ def test_chart_reference_row_count_matches_chart_order() -> None:
 
 def test_master_table_uses_compact_columns() -> None:
     _ensure_app()
-    page = DataManagementPage()
+    page = ReferencePage()
     table = page._tables["dfm"]
     assert table.columnCount() == 4
     headers = [table.horizontalHeaderItem(i).text() for i in range(table.columnCount())]
@@ -41,7 +41,7 @@ def test_master_table_uses_compact_columns() -> None:
 
 def test_master_selection_updates_detail_panel() -> None:
     _ensure_app()
-    page = DataManagementPage()
+    page = ReferencePage()
     table = page._tables["dfm"]
     detail_map = page._detail_views[table]
 

@@ -856,13 +856,13 @@ class MeasurementLibraryPage(QWidget):
         row1.addWidget(QLabel("料號"), 0)
         row1.addWidget(self._part_no_edit, 1)
 
-        self._search_btn = QPushButton("搜尋")
+        self._search_btn = QPushButton("搜尋量測")
         self._search_btn.setProperty("class", "secondary")
         self._search_btn.setToolTip("執行搜尋")
         self._search_btn.clicked.connect(self.refresh)
         row1.addWidget(self._search_btn)
 
-        self._clear_btn = QPushButton("清除")
+        self._clear_btn = QPushButton("清除量測")
         self._clear_btn.setProperty("class", "secondary")
         self._clear_btn.setToolTip("清除所有篩選條件")
         self._clear_btn.clicked.connect(self._clear_filters)
@@ -891,7 +891,7 @@ class MeasurementLibraryPage(QWidget):
         self._load_btn.setToolTip("載入選取的量測檔進行分析")
         self._load_btn.clicked.connect(self._on_load_clicked)
 
-        self._edit_btn = QPushButton("編輯資料")
+        self._edit_btn = QPushButton("編輯量測")
         self._edit_btn.setProperty("class", "secondary")
         self._edit_btn.setToolTip("編輯選取記錄的中繼資料")
         self._edit_btn.clicked.connect(self._on_edit_clicked)
@@ -937,12 +937,12 @@ class MeasurementLibraryPage(QWidget):
         c_row1.addWidget(QLabel("料號"), 0)
         c_row1.addWidget(self._c_part_no_edit, 1)
 
-        self._c_search_btn = QPushButton("搜尋")
+        self._c_search_btn = QPushButton("搜尋座標")
         self._c_search_btn.setProperty("class", "secondary")
         self._c_search_btn.clicked.connect(self.refresh_coordinates)
         c_row1.addWidget(self._c_search_btn)
 
-        self._c_clear_btn = QPushButton("清除")
+        self._c_clear_btn = QPushButton("清除座標")
         self._c_clear_btn.setProperty("class", "secondary")
         self._c_clear_btn.clicked.connect(self._clear_coord_filters)
         c_row1.addWidget(self._c_clear_btn)
@@ -971,7 +971,7 @@ class MeasurementLibraryPage(QWidget):
         self._c_active_btn.setProperty("class", "secondary")
         self._c_active_btn.clicked.connect(self._on_coord_active_clicked)
 
-        self._c_edit_btn = QPushButton("編輯資料")
+        self._c_edit_btn = QPushButton("編輯座標")
         self._c_edit_btn.setProperty("class", "secondary")
         self._c_edit_btn.clicked.connect(self._on_coord_edit_clicked)
 
@@ -1015,12 +1015,12 @@ class MeasurementLibraryPage(QWidget):
         sp_row1.addWidget(QLabel("料號"), 0)
         sp_row1.addWidget(self._sp_part_no_edit, 1)
 
-        self._sp_search_btn = QPushButton("搜尋")
+        self._sp_search_btn = QPushButton("搜尋規格")
         self._sp_search_btn.setProperty("class", "secondary")
         self._sp_search_btn.clicked.connect(self.refresh_combined_specs)
         sp_row1.addWidget(self._sp_search_btn)
 
-        self._sp_clear_btn = QPushButton("清除")
+        self._sp_clear_btn = QPushButton("清除規格")
         self._sp_clear_btn.setProperty("class", "secondary")
         self._sp_clear_btn.clicked.connect(self._clear_combined_spec_filters)
         sp_row1.addWidget(self._sp_clear_btn)
@@ -1053,7 +1053,7 @@ class MeasurementLibraryPage(QWidget):
         self._sp_add_btn.setProperty("class", "secondary")
         self._sp_add_btn.clicked.connect(self._on_combined_spec_add_clicked)
 
-        self._sp_edit_btn = QPushButton("編輯資料")
+        self._sp_edit_btn = QPushButton("編輯規格")
         self._sp_edit_btn.setProperty("class", "secondary")
         self._sp_edit_btn.clicked.connect(self._on_combined_spec_edit_clicked)
 
@@ -1105,12 +1105,12 @@ class MeasurementLibraryPage(QWidget):
         sup_row1.addWidget(QLabel("鋼板編號"), 0)
         sup_row1.addWidget(self._sup_plate_no_edit, 1)
 
-        self._sup_search_btn = QPushButton("搜尋")
+        self._sup_search_btn = QPushButton("搜尋供應商")
         self._sup_search_btn.setProperty("class", "secondary")
         self._sup_search_btn.clicked.connect(self.refresh_suppliers)
         sup_row1.addWidget(self._sup_search_btn)
 
-        self._sup_clear_btn = QPushButton("清除")
+        self._sup_clear_btn = QPushButton("清除供應商")
         self._sup_clear_btn.setProperty("class", "secondary")
         self._sup_clear_btn.clicked.connect(self._clear_supplier_filters)
         sup_row1.addWidget(self._sup_clear_btn)
@@ -1133,7 +1133,7 @@ class MeasurementLibraryPage(QWidget):
         self._sup_add_btn.setProperty("class", "primary")
         self._sup_add_btn.clicked.connect(self._on_supplier_add_clicked)
 
-        self._sup_edit_btn = QPushButton("編輯資料")
+        self._sup_edit_btn = QPushButton("編輯供應商")
         self._sup_edit_btn.setProperty("class", "secondary")
         self._sup_edit_btn.clicked.connect(self._on_supplier_edit_clicked)
 

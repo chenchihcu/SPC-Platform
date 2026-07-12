@@ -326,6 +326,7 @@ class DataSetupPage(QWidget):
         self._reload_supplier_options()
         self._on_spec_validity_changed(self._stencil_content.has_valid_main_thickness())
         self._refresh_readiness()
+        outer.addWidget(footer)
         
         self.scroll_area.setWidget(self.scroll_content)
         main_lay = QtWidgets.QVBoxLayout(self)
@@ -338,7 +339,6 @@ class DataSetupPage(QWidget):
         main_lay.setSpacing(SPACING_8)
         main_lay.addWidget(header_card, 0)
         main_lay.addWidget(self.scroll_area, 1)
-        main_lay.addWidget(footer, 0)
 
         self._update_layout_tier(layout_tier_from_width(self.width()))
 

@@ -1,5 +1,5 @@
 from app.analytics.chart_registry import CHART_CATALOG, CHART_ORDER
-from app.ui.pages.data_management_page import _build_chart_ref_rows
+from app.ui.pages.reference_page import _build_chart_ref_rows
 
 
 def test_chart_reference_rows_follow_chart_order():

@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QAbstractItemView, QFrame, QTableWidget
 
 from app.ui.pages.coordinate_manager_page import CoordinateManagerPage
-from app.ui.pages.data_management_page import DataManagementPage
+from app.ui.pages.reference_page import ReferencePage
 from app.ui.pages.data_setup_page import DataSetupPage
 from app.ui.pages.data_upload_page import DataUploadPage
 from app.ui.pages.diagnostic_page import DiagnosticPage
@@ -149,7 +149,7 @@ def test_header_roles_are_explicit_for_workflow_and_utility_headers() -> None:
     _ensure_app()
     setup_page = DataSetupPage()
     library_page = MeasurementLibraryPage()
-    reference_page = DataManagementPage()
+    reference_page = ReferencePage()
 
     assert setup_page._header_card.property("headerRole") == "workflowHeader"
     assert setup_page._footer_card.property("headerRole") == "utilityHeader"
@@ -168,7 +168,7 @@ def test_header_roles_are_explicit_for_workflow_and_utility_headers() -> None:
 def test_secondary_tab_contract_is_shared_by_library_reference_and_diagnostic() -> None:
     _ensure_app()
     library_page = MeasurementLibraryPage()
-    reference_page = DataManagementPage()
+    reference_page = ReferencePage()
     diagnostic_page = DiagnosticPage()
     stylesheet = get_app_stylesheet()
 

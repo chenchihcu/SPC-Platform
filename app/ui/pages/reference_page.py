@@ -185,7 +185,7 @@ def _item(text: str) -> QTableWidgetItem:
     return it
 
 
-class DataManagementPage(QWidget):
+class ReferencePage(QWidget):
     """
     IPC/J-STD 四主軸查詢頁。
     """
@@ -264,7 +264,7 @@ class DataManagementPage(QWidget):
         sections = [
             ("A 內容主體", [("主題", "topic"), ("失效模式", "failure_mode"), ("關聯標準", "ipc_refs"), ("關鍵字", "keywords")]),
             ("B 製程觀測", [("關鍵參數", "key_params"), ("偵測訊號", "signals"), ("證據鏈", "fa_evidence")]),
-            ("C 風險與決策", [("風險", "risk"), ("控制措施", "actions")]),
+            ("C 風氣決策", [("風險", "risk"), ("控制措施", "actions")]),
             ("D 治理與版本", [("狀態", "status"), ("識別", "entry_id"), ("主軸", "pillar"), ("版本", "revision"), ("更新日", "updated_at")]),
         ]
         for section_name, fields in sections:
