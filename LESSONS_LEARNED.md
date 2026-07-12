@@ -493,4 +493,31 @@ for s, c in Counter(s.strip() for s in selectors).items():
 在高度受限的 Toolbar/Header 等單行元件中，Label 只應顯示簡潔狀態（如：分析完成、就緒、分析錯誤）。
 任何可能變長、包含多欄位詳細說明的訊息，一律導流至 ToolTip 或 Dialog/StatusBar 中，預防文字截斷。
 ```
+
+---
+
+## 十三、分析引擎無效 Payload 回傳結構重複邏輯重構 (D14 / Watchlist #12)
+
+### 發生了什麼
+
+在多特徵分析系統的 19 個 analytics engine（如 CUSUM, EWMA, Pareto 等）中，當輸入資料不足（N 小於門檻）或參數異常時，每個引擎都各自手動組裝並回傳一個包含 `{"chart_type": ..., "data": {}, "statistics": {}, "metadata": {"is_valid": False, "error": msg}}` 結構的字典。這導致了高達 40+ 處的程式碼重複（違反 DRY 原則）。
+
+### 根本原因
+
+引擎回傳契約（Standard Return Structure）定義了 `is_valid` / `error` 的回傳形狀，但早期開發時，各引擎是獨立撰寫與封裝的，沒有建立通用的無效回傳輔助函式（helper function）。
+
+### 修正
+
+1. 在 `app/analytics/statistical_utils.py` 中建立共用的 `invalid_chart_payload()` 輔助函數，支援 root_keys 覆寫 (例如 `payload_key`, `data`, `statistics`) 與 metadata 額外欄位。
+2. 將所有 19 個分析引擎（如 `cusum_engine.py`, `ewma_engine.py`, `pareto_engine.py` 等）手動回傳的無效字典結構替換為此 helper 的呼叫，大幅簡化代碼並消除了 400+ 行冗餘程式碼。
+3. 通過全庫 862 項測試與 check_launch 啟動驗證。
+
+### 預防規則
+
+```
+規則 E-1：無效回傳統一 Helper 驅動
+所有分析引擎 (Analytics Engines) 若需回傳 is_valid=False 的異常 payload，
+必須統一調用 statistical_utils.invalid_chart_payload() helper，
+禁止在引擎內手動組裝包含空 data/statistics 與 error metadata 的原始 dict，以防契約漂移與重複邏輯。
+```
 ```
