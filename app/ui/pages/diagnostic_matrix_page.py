@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from PySide6.QtWidgets import (
     QFrame,
@@ -125,8 +125,9 @@ class DiagnosticMatrixPage(QWidget):
 
     navigate_to_chart = Signal(str, list)
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent=None, *, status_model: Optional[Any] = None) -> None:
         super().__init__(parent)
+        self._status_model = status_model
         self._last_payload: dict[str, Any] = {}
         self._matrix_tab_layouts: dict[str, QVBoxLayout] = {}
 
@@ -180,6 +181,9 @@ class DiagnosticMatrixPage(QWidget):
 
         self._init_matrix_tabs()
         self._body_lay.addStretch(1)
+
+        if self._status_model is not None:
+            self._status_model.state_changed.connect(self._on_status_changed)
 
     def _init_matrix_tabs(self) -> None:
         """Tabs for the combination/evidence diagnosis matrix."""
@@ -1180,3 +1184,20 @@ class DiagnosticMatrixPage(QWidget):
         self._matrix_tabs.updateGeometry()
         self._sync_matrix_tabs_height()
         QTimer.singleShot(0, self._sync_matrix_tabs_height)
+
+    def _on_status_changed(self, state: str, message: str) -> None:
+        """Sync global status model changes to the page's local status lamp and text."""
+        if state in ("loading", "analyzing"):
+            self._lamp.setProperty("state", "loading")
+            self._status_lbl.setText(message)
+        elif state == "error":
+            self._lamp.setProperty("state", "error")
+            self._status_lbl.setText(message)
+        elif state in ("success", "idle"):
+            self._lamp.setProperty("state", "success" if self._last_payload else "idle")
+            self._status_lbl.setText("分析完成" if self._last_payload else "就緒")
+        
+        self._lamp.style().unpolish(self._lamp)
+        self._lamp.style().polish(self._lamp)
+        self._status_lbl.style().unpolish(self._status_lbl)
+        self._status_lbl.style().polish(self._status_lbl)

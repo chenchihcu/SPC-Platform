@@ -437,6 +437,9 @@ class ChartAnalysisPage(QWidget):
         self._chart_context_strip.setVisible(True)
         layout.addWidget(self._chart_context_strip)
 
+        layout.addWidget(self._details_label)
+        self._details_label.setVisible(True)
+
 
         # ── Dashboard scroll area ─────────────────────────────────────
         self.scroll_area = QScrollArea()
@@ -854,7 +857,8 @@ class ChartAnalysisPage(QWidget):
     # the display-only optimization when the feature is already in the payload.
 
     def _on_feature_shortcut_clicked(self, logical_name: str) -> None:
-        """Toggle feature in/out of _display_features without re-analysis.
+        """[Legacy / Unused in V2]
+        Toggle feature in/out of _display_features without re-analysis.
         Only acts when the feature is already computed in the current payload.
         Sidebar buttons handle the analysis-level toggle via MainWindow."""
         col = self._LOGICAL_TO_COL.get(logical_name)

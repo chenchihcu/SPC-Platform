@@ -207,8 +207,8 @@ class MainWindow(QMainWindow):
             "統計資料": StatisticsDataPage(),
             "報告": ReportExportPage(status_model=self.status_model),
             "參考": DataManagementPage(),
-            "診斷": DiagnosticPage(show_matrix_tabs=False),
-            "診斷二": DiagnosticMatrixPage(),
+            "診斷": DiagnosticPage(status_model=self.status_model, show_matrix_tabs=False),
+            "診斷二": DiagnosticMatrixPage(status_model=self.status_model),
             "量測庫": MeasurementLibraryPage(),
         }
         # Wire references for cross-page refreshes

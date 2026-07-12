@@ -6,7 +6,7 @@ Follows specs for layers, tokens, and UI state semantics.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -75,12 +75,13 @@ class DiagnosticPage(QWidget):
 
     navigate_to_chart = Signal(str, list)
 
-    def __init__(self, parent=None, *, show_matrix_tabs: bool = True) -> None:
+    def __init__(self, parent=None, *, status_model: Optional[Any] = None, show_matrix_tabs: bool = True) -> None:
         super().__init__(parent)
+        self._status_model = status_model
         self._last_payload: dict[str, Any] = {}
         self._interpretation_dialog = InterpretationDialog(self)
         
-        self._matrix_page = DiagnosticMatrixPage(self)
+        self._matrix_page = DiagnosticMatrixPage(self, status_model=self._status_model)
         self._matrix_tabs = self._matrix_page._matrix_tabs
         self._matrix_page.navigate_to_chart.connect(self.navigate_to_chart.emit)
         
@@ -154,6 +155,9 @@ class DiagnosticPage(QWidget):
         if show_matrix_tabs:
             self._body_lay.addWidget(self._matrix_tabs)
         self._body_lay.addStretch(1)
+
+        if self._status_model is not None:
+            self._status_model.state_changed.connect(self._on_status_changed)
 
     def _init_dashboard_sections(self):
         """Construct a report-style process statistics page."""
@@ -435,7 +439,7 @@ class DiagnosticPage(QWidget):
         self._matrix_page.update_hints(payload)
 
     def _copy_full_summary(self):
-        """Build text summary including all critical dashboard facts."""
+        """[Legacy / Unused in V2 but kept for unit tests] Build text summary including all critical dashboard facts."""
         summary = self._last_payload.get("summary", {})
         layers = summary.get("process", {}).get("dashboard_layers", {})
         parts = [f"【SMT SPI 製程統計分析報告 - {datetime.now().strftime('%Y-%m-%d')}】"]
@@ -497,3 +501,20 @@ class DiagnosticPage(QWidget):
     def update_hints(self, payload: dict[str, Any]) -> None:
         """Compatibility wrapper that forwards analysis payload to dashboard rendering."""
         self.update_table(payload)
+
+    def _on_status_changed(self, state: str, message: str) -> None:
+        """Sync global status model changes to the page's local status lamp and text."""
+        if state in ("loading", "analyzing"):
+            self._lamp.setProperty("state", "loading")
+            self._status_lbl.setText(message)
+        elif state == "error":
+            self._lamp.setProperty("state", "error")
+            self._status_lbl.setText(message)
+        elif state in ("success", "idle"):
+            self._lamp.setProperty("state", "success" if self._last_payload else "idle")
+            self._status_lbl.setText("分析完成" if self._last_payload else "就緒")
+        
+        self._lamp.style().unpolish(self._lamp)
+        self._lamp.style().polish(self._lamp)
+        self._status_lbl.style().unpolish(self._status_lbl)
+        self._status_lbl.style().polish(self._status_lbl)
