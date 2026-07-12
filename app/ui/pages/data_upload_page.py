@@ -113,7 +113,7 @@ class DataUploadPage(CsvDropZoneMixin, QWidget):
             self.btn_browse = QPushButton("選量測檔")
             self.btn_browse.setProperty("class", "secondary")
             self.btn_browse.setMinimumWidth(DATA_SETUP_PATH_ACTION_MIN_WIDTH)
-            self.btn_browse.setToolTip("選擇 SPI 量測 CSV")
+            self.btn_browse.setToolTip("選擇並載入 SPI 量測 CSV 至目前分析會話")
             self.btn_browse.setAccessibleName("選量測檔")
             self.btn_browse.clicked.connect(self._open_file_dialog)
             row_file.addWidget(self.btn_browse, 0)

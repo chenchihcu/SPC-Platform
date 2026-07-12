@@ -166,9 +166,18 @@ def test_data_setup_chrome_regions_do_not_overlap() -> None:
     QApplication.processEvents()
     page._sync_layout_from_width()
     QApplication.processEvents()
-    assert not page._header_card.geometry().intersects(page._content_host.geometry())
-    assert not page._content_host.geometry().intersects(page._footer_card.geometry())
-    assert not page._header_card.geometry().intersects(page._footer_card.geometry())
+    
+    from PySide6.QtCore import QRect, QPoint
+    def relative_geom(w):
+        return QRect(w.mapTo(page, QPoint(0, 0)), w.size())
+        
+    header_geom = relative_geom(page._header_card)
+    content_geom = relative_geom(page._content_host)
+    footer_geom = relative_geom(page._footer_card)
+    
+    assert not header_geom.intersects(content_geom)
+    assert not content_geom.intersects(footer_geom)
+    assert not header_geom.intersects(footer_geom)
     page.close()
 
 

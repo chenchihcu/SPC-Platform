@@ -128,13 +128,8 @@ class DataSetupPage(QWidget):
         self.scroll_content.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         outer = QtWidgets.QVBoxLayout(self.scroll_content)
-        outer.setContentsMargins(
-            DATA_SETUP_PAGE_MARGIN_H,
-            DATA_SETUP_PAGE_MARGIN_V,
-            DATA_SETUP_PAGE_MARGIN_H,
-            SPACING_4, # Bottom margin tighter
-        )
-        outer.setSpacing(SPACING_8)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
 
         # ── Step cards initialization (must be before layout) ──
         self._coord_content = CoordinateManagerPage(self, embedded=True)
@@ -195,7 +190,7 @@ class DataSetupPage(QWidget):
             self.spec_lamp: self.spec_status_lbl,
             self.meas_lamp: self.meas_status_lbl,
         }
-        outer.addWidget(header_card)
+        # header_card will be added to the top-level page layout main_lay directly
 
         # ── 核心內容區：一頁式量化表格布局 ───────────────────────────
         self.main_content_card = QFrame()
@@ -297,7 +292,7 @@ class DataSetupPage(QWidget):
         self._content_host = self.main_content_card
         self._content_host.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._latest_layout_budget = self._compute_layout_budget()
-        outer.addWidget(self._content_host, 1)
+        outer.addWidget(self._content_host)
 
         # ── Footer summary ────────────────────────────────────────────
         footer = QFrame()
@@ -317,7 +312,7 @@ class DataSetupPage(QWidget):
         self.btn_start_analysis.clicked.connect(self.start_analysis_requested.emit)
         footer_lay.addWidget(self.readiness_lbl, 1)
         footer_lay.addWidget(self.btn_start_analysis, 0)
-        outer.addWidget(footer, 0)
+        # footer will be added to the top-level page layout main_lay directly
 
         # ── 訊號轉發 + readiness 同步 ─────────────────────────────────
         self._upload_content.meas_uploaded.connect(self._on_meas_uploaded)
@@ -334,8 +329,16 @@ class DataSetupPage(QWidget):
         
         self.scroll_area.setWidget(self.scroll_content)
         main_lay = QtWidgets.QVBoxLayout(self)
-        main_lay.setContentsMargins(0, 0, 0, 0)
-        main_lay.addWidget(self.scroll_area)
+        main_lay.setContentsMargins(
+            DATA_SETUP_PAGE_MARGIN_H,
+            DATA_SETUP_PAGE_MARGIN_V,
+            DATA_SETUP_PAGE_MARGIN_H,
+            SPACING_4, # Bottom margin tighter
+        )
+        main_lay.setSpacing(SPACING_8)
+        main_lay.addWidget(header_card, 0)
+        main_lay.addWidget(self.scroll_area, 1)
+        main_lay.addWidget(footer, 0)
 
         self._update_layout_tier(layout_tier_from_width(self.width()))
 

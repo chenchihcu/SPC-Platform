@@ -127,7 +127,7 @@ class CoordinateManagerPage(CsvDropZoneMixin, QWidget):
             self.btn_browse.setProperty("class", "secondary")
             self.btn_browse.setMinimumWidth(DATA_SETUP_PATH_ACTION_MIN_WIDTH)
             row_file.addWidget(self.btn_browse, 0)
-            self.btn_browse.setToolTip("選擇座標 CSV")
+            self.btn_browse.setToolTip("選擇並載入座標 CSV 至目前分析會話")
             self.btn_browse.setAccessibleName("選座標檔")
 
             # Metadata info
