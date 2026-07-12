@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
+from app.analytics.statistical_utils import invalid_chart_payload
 
 import numpy as np
 import pandas as pd
@@ -88,16 +89,7 @@ class XbarREngine:
         subgroup_size: int = _DEFAULT_SUBGROUP_SIZE,
     ) -> Dict[str, Any]:
         if df is None or df.empty or target_col not in df.columns:
-            return {
-                "chart_type": "Xbar-R",
-                "data": {},
-                "statistics": {},
-                "metadata": {
-                    "is_valid": False,
-                    "target_col": target_col,
-                    "error": "無資料或缺少欄位。",
-                },
-            }
+            return invalid_chart_payload("Xbar-R", "無資料或缺少欄位。", target_col)
 
         effective_board_col = board_col
         if effective_board_col is None:
@@ -117,16 +109,7 @@ class XbarREngine:
             labels, groups, n_effective = _build_subgroups_by_chunk(df[target_col], subgroup_size)
 
         if not groups or n_effective < 2:
-            return {
-                "chart_type": "Xbar-R",
-                "data": {},
-                "statistics": {},
-                "metadata": {
-                    "is_valid": False,
-                    "target_col": target_col,
-                    "error": "有效子群不足（每群至少 2 筆）。",
-                },
-            }
+            return invalid_chart_payload("Xbar-R", "有效子群不足（每群至少 2 筆）。", target_col)
 
         a2, d3, d4 = _XBAR_R_CONSTANTS[n_effective]
 

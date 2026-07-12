@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from typing import Dict, Any, Optional
-from app.analytics.statistical_utils import StatisticalUtils
+from app.analytics.statistical_utils import StatisticalUtils, invalid_chart_payload
 
 # ── SPC formula constants (AIAG SPC 2nd ed. / ISO 7870-2) ────────────────────
 _D2_N2 = 1.128   # Bias-correction factor for moving range (subgroup n=2)
@@ -22,28 +22,13 @@ class CapabilityEngine:
         """
         is_valid, msg = StatisticalUtils.is_valid_for_spc(data)
         if not is_valid:
-             return {
-                "chart_type": "Capability",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": msg}
-            }
+             return invalid_chart_payload("Capability", msg)
             
         if usl is None or lsl is None:
-             return {
-                "chart_type": "Capability",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": "Missing USL or LSL specifications. Capability cannot be computed."}
-            }
+             return invalid_chart_payload("Capability", "Missing USL or LSL specifications. Capability cannot be computed.")
 
         if usl == lsl:
-            return {
-                "chart_type": "Capability",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": "USL 與 LSL 相同，製程能力無法定義。"}
-            }
+            return invalid_chart_payload("Capability", "USL 與 LSL 相同，製程能力無法定義。")
 
         valid_data = data.replace([np.inf, -np.inf], np.nan).dropna()
         mean_val = valid_data.mean()
@@ -59,15 +44,7 @@ class CapabilityEngine:
         # zero); returning 0.0 here would misreport a perfect process as
         # "High risk", so fail closed per the engine contract (SPC_RULES.md).
         if sigma_st <= 0 or sigma_lt <= 0:
-            return {
-                "chart_type": "Capability",
-                "data": {},
-                "statistics": {},
-                "metadata": {
-                    "is_valid": False,
-                    "error": "製程變異為零（所有量測值相同），Cp/Cpk 無法定義。",
-                },
-            }
+            return invalid_chart_payload("Capability", "製程變異為零（所有量測值相同），Cp/Cpk 無法定義。")
 
         cp = (usl - lsl) / (_CP_SIGMA_SPAN * sigma_st)
         cpk = min(

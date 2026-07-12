@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, Optional
 
-from app.analytics.statistical_utils import StatisticalUtils
+from app.analytics.statistical_utils import StatisticalUtils, invalid_chart_payload
 
 
 class EWMAEngine:
@@ -30,23 +30,13 @@ class EWMAEngine:
         l_mult = l_mult if l_mult is not None else EWMAEngine.DEFAULT_L
         is_valid, msg = StatisticalUtils.is_valid_for_spc(data)
         if not is_valid:
-            return {
-                "chart_type": "EWMA",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "target_col": target_col, "error": msg},
-            }
+            return invalid_chart_payload("EWMA", msg, target_col)
         valid_data = data.replace([np.inf, -np.inf], np.nan).dropna()
         n = len(valid_data)
         mu0 = float(valid_data.mean())
         sigma = float(valid_data.std(ddof=1))
         if sigma <= 0:
-            return {
-                "chart_type": "EWMA",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "target_col": target_col, "error": "Standard deviation is 0."},
-            }
+            return invalid_chart_payload("EWMA", "Standard deviation is 0.", target_col)
         # EWMA sequence: z_0 = mu0, z_i = lam * x_i + (1-lam) * z_{i-1}
         vals = valid_data.values
         z = np.empty(n)

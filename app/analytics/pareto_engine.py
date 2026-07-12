@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from typing import Dict, Any, List, Optional
+from app.analytics.statistical_utils import invalid_chart_payload
 
 class ParetoEngine:
     """
@@ -39,25 +40,11 @@ class ParetoEngine:
     ) -> Dict[str, Any]:
         """Compute defect frequencies and cumulative percentages from spec limits."""
         if usl is None and lsl is None:
-            return {
-                "chart_type": "Pareto",
-                "data": {},
-                "statistics": {},
-                "metadata": {
-                    "is_valid": False,
-                    "error": "缺少 USL/LSL，無法進行標準 Pareto 缺陷分類。",
-                    "mode": "non_computable",
-                },
-            }
+            return invalid_chart_payload("Pareto", "缺少 USL/LSL，無法進行標準 Pareto 缺陷分類。", target_col, mode="non_computable")
         classified = ParetoEngine.classify_defects(meas_df, target_col, usl=usl, lsl=lsl)
         
         if classified.empty or "DefectType" not in classified.columns:
-             return {
-                "chart_type": "Pareto",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": "Cannot compute pareto over empty/unmapped data", "mode": "spec"}
-             }
+             return invalid_chart_payload("Pareto", "Cannot compute pareto over empty/unmapped data", target_col, mode="spec")
 
         # Filter out normal
         defects = classified[classified["DefectType"] != "Normal"]
@@ -115,31 +102,12 @@ class ParetoEngine:
         Returns data for chart and component list for click-to-filter.
         """
         if meas_df.empty or target_col not in meas_df.columns or group_col not in meas_df.columns:
-            return {
-                "chart_type": "Pareto",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": "Missing data or required columns", "mode": "component"},
-            }
+            return invalid_chart_payload("Pareto", "Missing data or required columns", target_col, mode="component")
         if usl is None and lsl is None and ucl is None and lcl is None:
-            return {
-                "chart_type": "Pareto",
-                "data": {},
-                "statistics": {},
-                "metadata": {
-                    "is_valid": False,
-                    "error": "缺少規格與管制界線，無法進行元件 Pareto 異常分類。",
-                    "mode": "component_non_computable",
-                },
-            }
+            return invalid_chart_payload("Pareto", "缺少規格與管制界線，無法進行元件 Pareto 異常分類。", target_col, mode="component_non_computable")
         df = meas_df[[group_col, target_col]].dropna()
         if df.empty:
-            return {
-                "chart_type": "Pareto",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": "無有效資料可進行元件 Pareto 分析。", "mode": "component"},
-            }
+            return invalid_chart_payload("Pareto", "無有效資料可進行元件 Pareto 分析。", target_col, mode="component")
         vals = df[target_col].astype(float).to_numpy()
         oos = np.zeros(len(df), dtype=int)
         ucl_v = np.zeros(len(df), dtype=int)

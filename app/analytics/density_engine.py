@@ -5,6 +5,7 @@ Supports both:
 - 2D hexbin density (dual feature) for association analysis.
 """
 from typing import Any, Dict
+from app.analytics.statistical_utils import invalid_chart_payload
 
 import numpy as np
 import pandas as pd
@@ -22,39 +23,19 @@ class DensityEngine:
     ) -> Dict[str, Any]:
         """Return KDE-ready 1D density payload for one feature."""
         if series is None:
-            return {
-                "chart_type": "Density",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": "缺少單特徵資料。"},
-            }
+            return invalid_chart_payload("Density", "缺少單特徵資料。", col)
         valid = series.replace([np.inf, -np.inf], np.nan).dropna()
         if len(valid) < 3:
-            return {
-                "chart_type": "Density",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": "有效資料不足（至少需 3 筆）。"},
-            }
+            return invalid_chart_payload("Density", "有效資料不足（至少需 3 筆）。", col)
         values = valid.to_numpy(dtype=float)
         if not np.isfinite(values).all() or float(np.std(values)) < 1e-12:
-            return {
-                "chart_type": "Density",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": "資料變異不足，無法估計密度。"},
-            }
+            return invalid_chart_payload("Density", "資料變異不足，無法估計密度。", col)
         x_grid = np.linspace(float(np.min(values)), float(np.max(values)), points)
         try:
             kde = stats.gaussian_kde(values)
             y_density = kde.evaluate(x_grid)
         except np.linalg.LinAlgError:
-            return {
-                "chart_type": "Density",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": "KDE 共變異數矩陣奇異，無法估計密度。"},
-            }
+            return invalid_chart_payload("Density", "KDE 共變異數矩陣奇異，無法估計密度。", col)
         return {
             "chart_type": "Density",
             "data": {
@@ -82,20 +63,10 @@ class DensityEngine:
         Return x, y arrays for hexbin/density plot. Optionally limit points for large data.
         """
         if df is None or df.empty or col_x not in df.columns or col_y not in df.columns:
-            return {
-                "chart_type": "Density",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": "無資料或缺少雙特徵欄位。"},
-            }
+            return invalid_chart_payload("Density", "無資料或缺少雙特徵欄位。", col_x)
         valid = df[[col_x, col_y]].replace([np.inf, -np.inf], np.nan).dropna()
         if len(valid) < 2:
-            return {
-                "chart_type": "Density",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": "有效點數不足。"},
-            }
+            return invalid_chart_payload("Density", "有效點數不足。", col_x)
         x = valid[col_x].tolist()
         y = valid[col_y].tolist()
         return {

@@ -3,7 +3,7 @@ import pandas as pd
 from typing import Dict, Any
 import scipy.stats as stats  # type: ignore[import-untyped]
 
-from app.analytics.statistical_utils import StatisticalUtils
+from app.analytics.statistical_utils import StatisticalUtils, invalid_chart_payload
 
 class NormalityEngine:
     """
@@ -20,12 +20,7 @@ class NormalityEngine:
             data, min_samples=3, require_variance=False
         )
         if not is_valid:
-            return {
-                "chart_type": "Normality",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": msg}
-            }
+            return invalid_chart_payload("Normality", msg)
 
         valid_data = data.replace([np.inf, -np.inf], np.nan).dropna()
         n = len(valid_data)

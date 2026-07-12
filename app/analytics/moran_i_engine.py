@@ -15,6 +15,7 @@ Local Moran's I (LISA):
 from __future__ import annotations
 
 from typing import Any, Dict
+from app.analytics.statistical_utils import invalid_chart_payload
 
 import numpy as np
 from numpy.random import default_rng
@@ -102,89 +103,38 @@ class MoranIEngine:
         Standard analytics-engine dict.
         """
         chart_type = "MoranI"
-        # --- guard ---
         try:
             vals = _sanitise(values)
             n = vals.size
             if n < k + 1:
-                return {
-                    "chart_type": chart_type,
-                    "data": {},
-                    "statistics": {},
-                    "metadata": {
-                        "is_valid": False,
-                        "error": f"資料不足（{n} 筆），至少需 {k + 1} 筆才能計算空間權重。",
-                    },
-                }
+                return invalid_chart_payload(chart_type, f"資料不足（{n} 筆），至少需 {k + 1} 筆才能計算空間權重。")
             # coords
             if isinstance(coords, pd.DataFrame):
                 if "X" not in coords.columns or "Y" not in coords.columns:
-                    return {
-                        "chart_type": chart_type,
-                        "data": {},
-                        "statistics": {},
-                        "metadata": {
-                            "is_valid": False,
-                            "error": "座標資料需包含 X 與 Y 欄位。",
-                        },
-                    }
+                    return invalid_chart_payload(chart_type, "座標資料需包含 X 與 Y 欄位。")
                 # align coords to values index if possible
                 coord_arr = coords[["X", "Y"]].to_numpy(dtype=float)
             else:
                 coord_arr = np.asarray(coords, dtype=float)
 
             if coord_arr.ndim != 2 or coord_arr.shape[1] != 2:
-                return {
-                    "chart_type": chart_type,
-                    "data": {},
-                    "statistics": {},
-                    "metadata": {
-                        "is_valid": False,
-                        "error": "座標需為 (N, 2) 陣列。",
-                    },
-                }
+                return invalid_chart_payload(chart_type, "座標需為 (N, 2) 陣列。")
             if coord_arr.shape[0] != n:
-                return {
-                    "chart_type": chart_type,
-                    "data": {},
-                    "statistics": {},
-                    "metadata": {
-                        "is_valid": False,
-                        "error": f"座標數（{coord_arr.shape[0]}）與數值數（{n}）不符。",
-                    },
-                }
+                return invalid_chart_payload(chart_type, f"座標數（{coord_arr.shape[0]}）與數值數（{n}）不符。")
         except ValueError as exc:
-            return {
-                "chart_type": chart_type,
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": str(exc)},
-            }
+            return invalid_chart_payload(chart_type, str(exc))
 
         # --- weights ---
         try:
             neighbour_idx, w_val = _row_standardised_weights(coord_arr, k)
         except ValueError as exc:
-            return {
-                "chart_type": chart_type,
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": str(exc)},
-            }
+            return invalid_chart_payload(chart_type, str(exc))
 
         # --- Global Moran's I ---
         z = vals - np.mean(vals)
         s2 = np.sum(z ** 2)
         if s2 == 0:
-            return {
-                "chart_type": chart_type,
-                "data": {},
-                "statistics": {},
-                "metadata": {
-                    "is_valid": False,
-                    "error": "所有數值相同，無法計算 Moran's I。",
-                },
-            }
+            return invalid_chart_payload(chart_type, "所有數值相同，無法計算 Moran's I。")
 
         # numerator: ΣᵢΣⱼ wᵢⱼ zᵢ zⱼ
         numer = 0.0

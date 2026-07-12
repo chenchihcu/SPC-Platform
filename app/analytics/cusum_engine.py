@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, Optional
 
-from app.analytics.statistical_utils import StatisticalUtils
+from app.analytics.statistical_utils import StatisticalUtils, invalid_chart_payload
 
 
 class CUSUMEngine:
@@ -40,34 +40,11 @@ class CUSUMEngine:
         h = h if h is not None else CUSUMEngine.DEFAULT_H
         is_valid, msg = StatisticalUtils.is_valid_for_spc(data)
         if not is_valid:
-            return {
-                "chart_type": "CUSUM",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "target_col": target_col, "error": msg},
-            }
+            return invalid_chart_payload("CUSUM", msg, target_col)
         if usl is None or lsl is None:
-            return {
-                "chart_type": "CUSUM",
-                "data": {},
-                "statistics": {},
-                "metadata": {
-                    "is_valid": False,
-                    "target_col": target_col,
-                    "error": "Missing USL or LSL.",
-                },
-            }
+            return invalid_chart_payload("CUSUM", "Missing USL or LSL.", target_col)
         if usl == lsl:
-            return {
-                "chart_type": "CUSUM",
-                "data": {},
-                "statistics": {},
-                "metadata": {
-                    "is_valid": False,
-                    "target_col": target_col,
-                    "error": "USL 與 LSL 相同。",
-                },
-            }
+            return invalid_chart_payload("CUSUM", "USL 與 LSL 相同。", target_col)
         valid_data = data.replace([np.inf, -np.inf], np.nan).dropna()
         n = len(valid_data)
 

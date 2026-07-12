@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from typing import Dict, Any, Optional
+from app.analytics.statistical_utils import invalid_chart_payload
 
 # When point count exceeds this, aggregate to grid for faster heatmap rendering (Phase 12)
 # Lowered from 50000 to 30000 to prevent memory pressure in resource-constrained environments.
@@ -68,22 +69,10 @@ class SpatialEngine:
         Extracts X, Y and value/density for scatter map. Mode: value (raw), ucl_density, lcl_density, oos_density, volume_deviation.
         """
         if joined_df is None or joined_df.empty or "X" not in joined_df.columns or "Y" not in joined_df.columns or "RefDes" not in joined_df.columns or target_col not in joined_df.columns:
-            return {
-                "chart_type": "Spatial",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": "缺乏有效的映射座標資料 (Missing Joined Coordinates). 請確認座標檔已匯入且關聯成功率大於零。"},
-                "modes": {},
-            }
+            return invalid_chart_payload("Spatial", "缺乏有效的映射座標資料 (Missing Joined Coordinates). 請確認座標檔已匯入且關聯成功率大於零。", target_col, modes={})
         valid_df = joined_df[["X", "Y", "RefDes", target_col]].dropna()
         if len(valid_df) == 0:
-            return {
-                "chart_type": "Spatial",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": "無有效測量數值與座標組合 (No valid Value-Coordinate pairs)."},
-                "modes": {},
-            }
+            return invalid_chart_payload("Spatial", "無有效測量數值與座標組合 (No valid Value-Coordinate pairs).", target_col, modes={})
         # Normalize pandas arrays to NumPy ndarrays so downstream math/comparisons
         # have a stable type (avoids ExtensionArray vs ndarray ambiguity).
         x_vals = np.asarray(valid_df["X"], dtype=float)

@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, Any
 
-from app.analytics.statistical_utils import StatisticalUtils
+from app.analytics.statistical_utils import StatisticalUtils, invalid_chart_payload
 
 class SPCEngine:
     """
@@ -19,12 +19,7 @@ class SPCEngine:
         """
         is_valid, msg = StatisticalUtils.is_valid_for_spc(data)
         if not is_valid:
-            return {
-                "chart_type": "I-MR",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "target_col": target_col, "error": msg}
-            }
+            return invalid_chart_payload("I-MR", msg, target_col)
 
         valid_data = data.replace([np.inf, -np.inf], np.nan).dropna()
         n = len(valid_data)

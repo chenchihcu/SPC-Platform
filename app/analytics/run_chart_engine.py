@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, Any
 
-from app.analytics.statistical_utils import StatisticalUtils
+from app.analytics.statistical_utils import StatisticalUtils, invalid_chart_payload
 
 
 class RunChartEngine:
@@ -25,12 +25,7 @@ class RunChartEngine:
             data, min_samples=1, require_variance=False
         )
         if not is_valid:
-            return {
-                "chart_type": "RunChart",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "target_col": target_col, "error": msg},
-            }
+            return invalid_chart_payload("RunChart", msg, target_col)
 
         valid_data = data.replace([np.inf, -np.inf], np.nan).dropna()
         n = len(valid_data)

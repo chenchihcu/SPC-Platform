@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict
+from app.analytics.statistical_utils import invalid_chart_payload
 
 import numpy as np
 import pandas as pd
@@ -63,32 +64,14 @@ class PatternRecognitionEngine:
     ) -> Dict[str, Any]:
         valid = _as_valid_series(data)
         if len(valid) < 8:
-            return {
-                "chart_type": "PatternRecognition",
-                "data": {},
-                "statistics": {},
-                "metadata": {
-                    "is_valid": False,
-                    "target_col": target_col,
-                    "error": "資料不足（至少需 8 筆）。",
-                },
-            }
+            return invalid_chart_payload("PatternRecognition", "資料不足（至少需 8 筆）。", target_col)
 
         values = valid.to_numpy(dtype=float)
         indices = list(valid.index)
         mean = float(np.mean(values))
         sigma = float(np.std(values, ddof=1))
         if sigma <= 0:
-            return {
-                "chart_type": "PatternRecognition",
-                "data": {},
-                "statistics": {},
-                "metadata": {
-                    "is_valid": False,
-                    "target_col": target_col,
-                    "error": "標準差為 0，無法做規則判讀。",
-                },
-            }
+            return invalid_chart_payload("PatternRecognition", "標準差為 0，無法做規則判讀。", target_col)
 
         hits: list[dict[str, Any]] = []
 

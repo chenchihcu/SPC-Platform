@@ -4,6 +4,7 @@ Phase 4 P1: compare subgroups by mean and optionally out-of-spec rate.
 """
 import pandas as pd
 from typing import Dict, Any, Optional
+from app.analytics.statistical_utils import invalid_chart_payload
 
 
 class SubgroupEngine:
@@ -22,28 +23,13 @@ class SubgroupEngine:
         If group_col not in df, tries RefDes.
         """
         if df is None or df.empty or target_col not in df.columns:
-            return {
-                "chart_type": "Subgroup",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "target_col": target_col, "error": "無資料或缺少欄位。"},
-            }
+            return invalid_chart_payload("Subgroup", "無資料或缺少欄位。", target_col)
         group_col = group_col if group_col in df.columns else "RefDes"
         if group_col not in df.columns:
-            return {
-                "chart_type": "Subgroup",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "target_col": target_col, "error": "缺少分組欄位 (PartType/RefDes)。"},
-            }
+            return invalid_chart_payload("Subgroup", "缺少分組欄位 (PartType/RefDes)。", target_col)
         valid = df[[group_col, target_col]].dropna()
         if valid.empty:
-            return {
-                "chart_type": "Subgroup",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "target_col": target_col, "error": "無有效分組資料。"},
-            }
+            return invalid_chart_payload("Subgroup", "無有效分組資料。", target_col)
         grp = valid.groupby(group_col)[target_col]
         labels = []
         means = []

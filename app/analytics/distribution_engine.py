@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, Any
 
-from app.analytics.statistical_utils import StatisticalUtils
+from app.analytics.statistical_utils import StatisticalUtils, invalid_chart_payload
 
 class DistributionEngine:
     """
@@ -19,12 +19,7 @@ class DistributionEngine:
             data, min_samples=2, require_variance=False
         )
         if not is_valid:
-            return {
-                "chart_type": "Distribution",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": msg}
-            }
+            return invalid_chart_payload("Distribution", msg)
 
         valid_data = data.replace([np.inf, -np.inf], np.nan).dropna()
             

@@ -4,6 +4,7 @@ Phase 4 P1: single batch or filtered data, per-RefDes violation count.
 """
 import pandas as pd
 from typing import Dict, Any, Optional
+from app.analytics.statistical_utils import invalid_chart_payload
 
 
 class RepeatedOffenderEngine:
@@ -23,34 +24,14 @@ class RepeatedOffenderEngine:
         When top_n is provided, returns only top_n entries with explicit metadata.
         """
         if df is None or df.empty or target_col not in df.columns:
-            return {
-                "chart_type": "RepeatedOffender",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "target_col": target_col, "error": "無資料或缺少欄位。"},
-            }
+            return invalid_chart_payload("RepeatedOffender", "無資料或缺少欄位。", target_col)
         if refdes_col not in df.columns:
-            return {
-                "chart_type": "RepeatedOffender",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "target_col": target_col, "error": "缺少 RefDes 欄位。"},
-            }
+            return invalid_chart_payload("RepeatedOffender", "缺少 RefDes 欄位。", target_col)
         if usl is None and lsl is None:
-            return {
-                "chart_type": "RepeatedOffender",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "target_col": target_col, "error": "請設定規格上下限 (USL/LSL) 以計算違規。"},
-            }
+            return invalid_chart_payload("RepeatedOffender", "請設定規格上下限 (USL/LSL) 以計算違規。", target_col)
         valid = df[[refdes_col, target_col]].dropna()
         if valid.empty:
-            return {
-                "chart_type": "RepeatedOffender",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "target_col": target_col, "error": "無有效資料。"},
-            }
+            return invalid_chart_payload("RepeatedOffender", "無有效資料。", target_col)
         violations = pd.Series(False, index=valid.index)
         if usl is not None:
             violations = violations | (valid[target_col] > usl)

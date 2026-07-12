@@ -105,3 +105,19 @@ def get_dot_nested_value(data, path, default=None):
         else:
             return default
     return val
+
+
+def invalid_chart_payload(chart_type: str, error: str, target_col: str = "Measurement", **extra) -> Dict[str, Any]:
+    """Helper to construct a standardized invalid payload dictionary (Pass 200+ refactor)."""
+    metadata = {"is_valid": False, "target_col": target_col, "error": error}
+    root_keys = {"payload_key", "data", "statistics"}
+    root_overrides = {k: extra.pop(k) for k in list(extra.keys()) if k in root_keys}
+    metadata.update(extra)
+    payload = {
+        "chart_type": chart_type,
+        "data": {},
+        "statistics": {},
+        "metadata": metadata,
+    }
+    payload.update(root_overrides)
+    return payload

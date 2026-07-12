@@ -5,16 +5,10 @@ Phase 4 P1: triple-feature with USL/LSL per column.
 import pandas as pd
 from typing import Dict, Any, List, Optional
 
-from app.analytics.statistical_utils import parse_usl_lsl as _get_spec_bounds
+from app.analytics.statistical_utils import parse_usl_lsl as _get_spec_bounds, invalid_chart_payload
 
 
-def _invalid_pass_fail(error: str) -> Dict[str, Any]:
-    return {
-        "chart_type": "PassFail",
-        "data": {},
-        "statistics": {},
-        "metadata": {"is_valid": False, "error": error},
-    }
+
 
 
 class PassFailEngine:
@@ -31,14 +25,14 @@ class PassFailEngine:
         Returns pass_count, fail_count, pass_rate per column.
         """
         if df is None or df.empty:
-            return _invalid_pass_fail("無資料。")
+            return invalid_chart_payload("PassFail", "無資料。", cols[0] if cols else "")
         missing = [c for c in cols if c not in df.columns]
         if missing:
-            return _invalid_pass_fail(f"缺少欄位: {missing}.")
+            return invalid_chart_payload("PassFail", f"缺少欄位: {missing}.", cols[0] if cols else "")
         spec_by_col = spec_by_col or {}
         valid = df[cols].dropna()
         if valid.empty:
-            return _invalid_pass_fail("無有效資料。")
+            return invalid_chart_payload("PassFail", "無有效資料。", cols[0] if cols else "")
         n_total = len(valid)
         labels = []
         pass_counts = []

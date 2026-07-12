@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy import stats  # type: ignore[import-untyped]
+from app.analytics.statistical_utils import invalid_chart_payload
 
 
 class MultivariateSPCEngine:
@@ -10,38 +11,53 @@ class MultivariateSPCEngine:
     def compute_hotelling_t2(df: pd.DataFrame, feature_cols: list[str]) -> dict:
         """Compute Hotelling T² statistics for multivariate control charting."""
         if df is None or df.empty or not feature_cols or any(c not in df.columns for c in feature_cols):
-            return {
-                "chart_type": "hotelling_t2",
-                "payload_key": "hotelling_t2",
-                "data": {"indices": [], "t2_values": [], "ooc_flags": []},
-                "statistics": {"ucl_value": 0.0, "mean_t2": 0.0, "max_t2": 0.0, "ooc_count": 0, "ooc_pct": 0.0},
-                "metadata": {"is_valid": False, "n_samples": 0, "p_features": len(feature_cols or []), "cov_matrix": [], "mu0_vector": [], "error": "無資料或缺少特徵欄位。"},
-            }
+            return invalid_chart_payload(
+                "hotelling_t2",
+                "無資料或缺少特徵欄位。",
+                "Measurement",
+                payload_key="hotelling_t2",
+                data={"indices": [], "t2_values": [], "ooc_flags": []},
+                statistics={"ucl_value": 0.0, "mean_t2": 0.0, "max_t2": 0.0, "ooc_count": 0, "ooc_pct": 0.0},
+                n_samples=0,
+                p_features=len(feature_cols or []),
+                cov_matrix=[],
+                mu0_vector=[],
+            )
         X = df[feature_cols].to_numpy()
         mask = np.all(np.isfinite(X), axis=1)
         X = X[mask]
         n, p = X.shape
 
         if n <= p:
-            return {
-                "chart_type": "hotelling_t2",
-                "payload_key": "hotelling_t2",
-                "data": {"indices": [], "t2_values": [], "ooc_flags": []},
-                "statistics": {"ucl_value": 0.0, "mean_t2": 0.0, "max_t2": 0.0, "ooc_count": 0, "ooc_pct": 0.0},
-                "metadata": {"is_valid": False, "n_samples": n, "p_features": p, "cov_matrix": [], "mu0_vector": [], "error": "樣本數不足，需至少 4 筆資料 (p+1)"},
-            }
+            return invalid_chart_payload(
+                "hotelling_t2",
+                "樣本數不足，需至少 4 筆資料 (p+1)",
+                "Measurement",
+                payload_key="hotelling_t2",
+                data={"indices": [], "t2_values": [], "ooc_flags": []},
+                statistics={"ucl_value": 0.0, "mean_t2": 0.0, "max_t2": 0.0, "ooc_count": 0, "ooc_pct": 0.0},
+                n_samples=n,
+                p_features=p,
+                cov_matrix=[],
+                mu0_vector=[],
+            )
 
         mu0 = np.mean(X, axis=0)
         S = np.cov(X, rowvar=False)
 
         if np.linalg.cond(S) > 1e12:
-            return {
-                "chart_type": "hotelling_t2",
-                "payload_key": "hotelling_t2",
-                "data": {"indices": [], "t2_values": [], "ooc_flags": []},
-                "statistics": {"ucl_value": 0.0, "mean_t2": 0.0, "max_t2": 0.0, "ooc_count": 0, "ooc_pct": 0.0},
-                "metadata": {"is_valid": False, "n_samples": n, "p_features": p, "cov_matrix": [], "mu0_vector": [], "error": "共變異矩陣接近奇異，無法計算 T²"},
-            }
+            return invalid_chart_payload(
+                "hotelling_t2",
+                "共變異矩陣接近奇異，無法計算 T²",
+                "Measurement",
+                payload_key="hotelling_t2",
+                data={"indices": [], "t2_values": [], "ooc_flags": []},
+                statistics={"ucl_value": 0.0, "mean_t2": 0.0, "max_t2": 0.0, "ooc_count": 0, "ooc_pct": 0.0},
+                n_samples=n,
+                p_features=p,
+                cov_matrix=[],
+                mu0_vector=[],
+            )
 
         S_inv = np.linalg.inv(S)
         diff = X - mu0

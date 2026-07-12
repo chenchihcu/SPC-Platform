@@ -3,6 +3,7 @@ Quadrant classification: four quadrants from two features using spec center or m
 """
 import pandas as pd
 from typing import Dict, Any, Optional
+from app.analytics.statistical_utils import invalid_chart_payload
 
 
 def _parse_spec_center(spec: Optional[Dict[str, Any]]) -> Optional[float]:
@@ -37,27 +38,12 @@ class QuadrantEngine:
         Split uses spec center or median of each column.
         """
         if filtered_df is None or filtered_df.empty:
-            return {
-                "chart_type": "Quadrant",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": "無資料 (No data)."},
-            }
+            return invalid_chart_payload("Quadrant", "無資料 (No data).", col_x)
         if col_x not in filtered_df.columns or col_y not in filtered_df.columns:
-            return {
-                "chart_type": "Quadrant",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": f"缺少欄位 {col_x} 或 {col_y}."},
-            }
+            return invalid_chart_payload("Quadrant", f"缺少欄位 {col_x} 或 {col_y}.", col_x)
         valid = filtered_df[[col_x, col_y]].dropna()
         if len(valid) < 2:
-            return {
-                "chart_type": "Quadrant",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": "有效點數不足 (N<2)."},
-            }
+            return invalid_chart_payload("Quadrant", "有效點數不足 (N<2).", col_x)
         center_x = _parse_spec_center(spec_x)
         center_y = _parse_spec_center(spec_y)
         if center_x is None:

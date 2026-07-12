@@ -82,15 +82,15 @@ Last updated: 2026-05-26
 - Status: stabilizing
 - Latest evidence: 已調整 `CHART_FONT_MICRO` (8pt) 與 `CHART_FONT_ANNOTATION` (9pt)；優化 `base_chart.py` 標籤偏移量與 BBox padding；通過 `test_chart_glyph_rendering.py` 與 `check_launch.py` 驗證。2026-05-26 於目前螢幕 `1280x752` available / DPR `2.0` / logical DPI `96` 完成 Data Setup、Measurement Library、Chart Analysis、Diagnostic、Report Export 與代表性對話框原生 Qt 截圖；視窗 frame 均落在 available geometry 內，Data Setup budget 無 sibling overlap，Report Export 改為無水平捲動的兩欄群組布局。100%/125%/150% 跨縮放人工紀錄仍維持 monitoring。
 
-### 12. Deferred dedup refactors from 2026-07-12 audit fix pass (D3 / D14 / D6)
+### 12. Deferred dedup refactors from 2026-07-12 audit fix pass (D3 / D6)
 
-- Scope: `app/charts/{imr,run_chart,ewma,cusum}_3f_chart.py` 四個 `draw_chart()` N-panel 樣板（D3）；19 個 analytics engine 的 invalid-payload 樣板 40+ 處（D14，共用 helper 尚未建立）；`app/data/validation/` 與 `SchemaMapper` 兩套必要欄位驗證（D6）。
-- Risk: 重複邏輯持續漂移——修一處漏三處；「必要欄位」定義雙軌可能分歧。純可維護性風險，不影響當前正確性。
-- Current guardrail: 861 項 pytest（含 chart draw contract、golden 三特徵）、qt_audit、spc-validation-matrix。
-- Next action (Owner: self): 排獨立任務執行 D3 樣板抽取（需依 ui_theme.md §11 原生截圖視覺驗證），同任務內建立 `invalid_chart_payload()` helper 並批次遷移（D14）、將 `validation/` 模組併入或移除（D6，移除需另行核准刪檔）。
+- Scope: `app/charts/{imr,run_chart,ewma,cusum}_3f_chart.py` 四個 `draw_chart()` N-panel 樣板（D3）；`app/data/validation/` 與 `SchemaMapper` 兩套必要欄位驗證（D6）。（D14 已於 2026-07-12 重構完成）
+- Risk: 重複邏輯持續漂移——修一處漏二處；「必要欄位」定義雙軌可能分歧。純可維護性風險，不影響當前正確性。
+- Current guardrail: 862 項 pytest（含 chart draw contract、golden 三特徵）、qt_audit、spc-validation-matrix。
+- Next action (Owner: self): 排獨立任務執行 D3 樣板抽取（需依 ui_theme.md §11 原生截圖視覺驗證）、將 `validation/` 模組併入或移除（D6，移除需另行核准刪檔）。
 - Revalidation gate: `python -m pytest -q` + `python .claude/skills/spc-validation-matrix/scripts/run_matrix.py --quick` + 3F 圖表原生截圖對照。
 - Rollback: 各 refactor 獨立 commit，逐一 revert。
-- Status: monitoring
+- Status: monitoring (D14 resolved)
 
 ## Moved Out Of Active (Converged / Dormant)
 

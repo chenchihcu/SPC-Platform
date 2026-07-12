@@ -6,7 +6,7 @@ import math
 import pandas as pd
 
 from app.analytics.pearson_utils import pearson_r_safe
-from app.analytics.statistical_utils import parse_usl_lsl as _parse_spec
+from app.analytics.statistical_utils import parse_usl_lsl as _parse_spec, invalid_chart_payload
 from typing import Dict, Any, Optional
 
 
@@ -25,27 +25,12 @@ class ScatterEngine:
         Returns scatter points and optional spec rectangles (usl/lsl per axis).
         """
         if filtered_df is None or filtered_df.empty:
-            return {
-                "chart_type": "ScatterSpec",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": "無資料 (No data)."},
-            }
+            return invalid_chart_payload("ScatterSpec", "無資料 (No data).", col_x)
         if col_x not in filtered_df.columns or col_y not in filtered_df.columns:
-            return {
-                "chart_type": "ScatterSpec",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": f"缺少欄位 {col_x} 或 {col_y}."},
-            }
+            return invalid_chart_payload("ScatterSpec", f"缺少欄位 {col_x} 或 {col_y}.", col_x)
         valid = filtered_df[[col_x, col_y]].dropna()
         if len(valid) < 2:
-            return {
-                "chart_type": "ScatterSpec",
-                "data": {},
-                "statistics": {},
-                "metadata": {"is_valid": False, "error": "有效點數不足 (N<2)."},
-            }
+            return invalid_chart_payload("ScatterSpec", "有效點數不足 (N<2).", col_x)
         x_vals = valid[col_x].tolist()
         y_vals = valid[col_y].tolist()
         usl_x, lsl_x = _parse_spec(spec_x)
