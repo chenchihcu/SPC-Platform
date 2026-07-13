@@ -32,7 +32,7 @@ from app.analytics import chart_registry  # noqa: E402
 from app.data.loaders.coordinate_loader import CoordinateLoader  # noqa: E402
 from app.data.loaders.measurement_loader import MeasurementLoader  # noqa: E402
 from app.data.relation.join_engine import JoinEngine  # noqa: E402
-from app.utils.dataframe_utils import detect_order_col  # noqa: E402
+from app.utils.dataframe_utils import detect_order_col, detect_subgroup_col, sort_by_order_col  # noqa: E402
 from app.viewmodels.chart_analysis_viewmodel import compute_analysis_payload  # noqa: E402
 
 
@@ -206,7 +206,7 @@ def _finite_frame(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
 
 def _analysis_ordered_df(df: pd.DataFrame) -> pd.DataFrame:
     order_col = detect_order_col(df)
-    return df.sort_values(order_col) if order_col else df
+    return sort_by_order_col(df, order_col) if order_col else df
 
 
 def _is_valid_payload(payload: Any) -> bool:
@@ -379,10 +379,27 @@ def _imr_expected(series: pd.Series) -> dict[str, float | int]:
     }
 
 
-def _capability_expected(series: pd.Series, spec: dict[str, float]) -> dict[str, float]:
+def _capability_expected(series: pd.Series, spec: dict[str, float], subgroup_ids: pd.Series | None = None) -> dict[str, float]:
     valid = _finite_series(series)
     mean_val = float(valid.mean())
-    mr_bar = float(valid.diff().abs().mean())
+    
+    if subgroup_ids is not None:
+        aligned = subgroup_ids.reindex(valid.index)
+        if aligned.notna().any():
+            within_mr = [
+                grp.diff().abs().dropna()
+                for _, grp in valid.groupby(aligned, sort=False)
+            ]
+            pooled = pd.concat(within_mr) if within_mr else pd.Series(dtype=float)
+            if not pooled.empty:
+                mr_bar = float(pooled.mean())
+            else:
+                mr_bar = float(valid.diff().abs().mean())
+        else:
+            mr_bar = float(valid.diff().abs().mean())
+    else:
+        mr_bar = float(valid.diff().abs().mean())
+
     sigma_st = mr_bar / 1.128
     sigma_lt = float(np.std(valid, ddof=1))
     usl = spec["usl"]
@@ -434,6 +451,8 @@ def _validate_single_feature_semantics(
     checks: list[dict[str, Any]] = []
     parameters = one_feature_payload.get("parameters") or {}
     ordered_df = _analysis_ordered_df(joined_df)
+    _subgroup_col = detect_subgroup_col(ordered_df)
+    _subgroup_ids = ordered_df[_subgroup_col] if _subgroup_col else None
     for feature in features:
         bundle = parameters.get(feature) or {}
         series = ordered_df[feature]
@@ -444,7 +463,7 @@ def _validate_single_feature_semantics(
             _add_check(checks, f"{feature}.imr.{key}", imr_actual.get(key), expected)
 
         cap_actual = (bundle.get("cap") or {}).get("statistics") or {}
-        for key, expected in _capability_expected(series, feat_spec).items():
+        for key, expected in _capability_expected(series, feat_spec, _subgroup_ids).items():
             _add_check(checks, f"{feature}.capability.{key}", cap_actual.get(key), expected)
 
         run_actual = (bundle.get("run_chart") or {}).get("statistics") or {}
@@ -560,15 +579,18 @@ def _validate_single_feature_semantics(
 
 def _validate_pair_semantics(
     joined_df: pd.DataFrame,
-    one_feature_payload: dict[str, Any],
+    payload: dict[str, Any],
     features: list[str],
+    *,
+    name_prefix: str = "",
 ) -> list[dict[str, Any]]:
     checks: list[dict[str, Any]] = []
-    dual = one_feature_payload.get("dual_parameters") or {}
+    dual = payload.get("dual_parameters") or {}
     for x_col, y_col in combinations(features, 2):
-        key = _pair_key(one_feature_payload, x_col, y_col)
+        key = _pair_key(payload, x_col, y_col)
+        pair_name = f"{name_prefix}{x_col}+{y_col}"
         if key is None:
-            _add_check(checks, f"{x_col}+{y_col}.dual_parameters.present", False, True)
+            _add_check(checks, f"{pair_name}.dual_parameters.present", False, True)
             continue
         pair_payload = dual.get(key) or {}
         work = _finite_frame(joined_df, [x_col, y_col])
@@ -576,24 +598,24 @@ def _validate_pair_semantics(
         expected_corr = _corr_expected(work, x_col, y_col)
 
         scatter_stats = (pair_payload.get("scatter_spec") or {}).get("statistics") or {}
-        _add_check(checks, f"{x_col}+{y_col}.scatter.n", scatter_stats.get("n"), expected_n)
-        _add_check(checks, f"{x_col}+{y_col}.scatter.corr", scatter_stats.get("corr"), expected_corr)
+        _add_check(checks, f"{pair_name}.scatter.n", scatter_stats.get("n"), expected_n)
+        _add_check(checks, f"{pair_name}.scatter.corr", scatter_stats.get("corr"), expected_corr)
 
         corr_payload = pair_payload.get("correlation_matrix") or {}
         corr_stats = corr_payload.get("statistics") or {}
         corr_data = corr_payload.get("data") or {}
         matrix = corr_data.get("matrix") or [[None, None], [None, None]]
-        _add_check(checks, f"{x_col}+{y_col}.correlation.n", corr_stats.get("n"), expected_n)
-        _add_check(checks, f"{x_col}+{y_col}.correlation.r", matrix[0][1], expected_corr)
+        _add_check(checks, f"{pair_name}.correlation.n", corr_stats.get("n"), expected_n)
+        _add_check(checks, f"{pair_name}.correlation.r", matrix[0][1], expected_corr)
 
         quadrant_stats = (pair_payload.get("quadrant") or {}).get("statistics") or {}
-        _add_check(checks, f"{x_col}+{y_col}.quadrant.n", quadrant_stats.get("n"), expected_n)
+        _add_check(checks, f"{pair_name}.quadrant.n", quadrant_stats.get("n"), expected_n)
 
         density_stats = (pair_payload.get("density") or {}).get("statistics") or {}
-        _add_check(checks, f"{x_col}+{y_col}.bivariate_density.n_points", density_stats.get("n_points"), expected_n)
+        _add_check(checks, f"{pair_name}.bivariate_density.n_points", density_stats.get("n_points"), expected_n)
 
         bivariate_stats = (pair_payload.get("bivariate_outlier") or {}).get("statistics") or {}
-        _add_check(checks, f"{x_col}+{y_col}.bivariate_outlier.n", bivariate_stats.get("n"), expected_n)
+        _add_check(checks, f"{pair_name}.bivariate_outlier.n", bivariate_stats.get("n"), expected_n)
 
     return checks
 
@@ -865,28 +887,35 @@ def _build_resolver_rows(payloads: dict[int, dict[str, Any]], features: list[str
     return rows, mismatches
 
 
-def _build_pair_expansion_rows(one_feature_payload: dict[str, Any], features: list[str]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _build_pair_expansion_rows(
+    payload: dict[str, Any],
+    features: list[str],
+    *,
+    analysis_dimension: int = 1,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     rows: list[dict[str, Any]] = []
     failures: list[dict[str, Any]] = []
     for chart_id in PAIR_EXPANSION_CHARTS:
-        for pair in combinations(features, 2):
-            resolved = _resolve(one_feature_payload, chart_id, list(pair))
-            row = {
-                "chart_id": chart_id,
-                "pair": list(pair),
-                "available": chart_registry.is_chart_available_for_selection(chart_id, list(pair)),
-                "resolver_valid": _is_valid_payload(resolved),
-                "error": _payload_error(resolved),
-            }
-            if chart_id == "density":
-                row["density_mode"] = _resolved_density_mode(resolved)
-                row["semantic_valid"] = _bivariate_density_matches_pair(resolved, list(pair))
-            rows.append(row)
-            if row["available"] and (
-                not row["resolver_valid"]
-                or (chart_id == "density" and not row.get("semantic_valid"))
-            ):
-                failures.append(row)
+        for base_pair in combinations(features, 2):
+            for pair in (base_pair, tuple(reversed(base_pair))):
+                resolved = _resolve(payload, chart_id, list(pair))
+                row = {
+                    "analysis_dimension": analysis_dimension,
+                    "chart_id": chart_id,
+                    "pair": list(pair),
+                    "available": chart_registry.is_chart_available_for_selection(chart_id, list(pair)),
+                    "resolver_valid": _is_valid_payload(resolved),
+                    "error": _payload_error(resolved),
+                }
+                if chart_id == "density":
+                    row["density_mode"] = _resolved_density_mode(resolved)
+                    row["semantic_valid"] = _bivariate_density_matches_pair(resolved, list(pair))
+                rows.append(row)
+                if row["available"] and (
+                    not row["resolver_valid"]
+                    or (chart_id == "density" and not row.get("semantic_valid"))
+                ):
+                    failures.append(row)
     return rows, failures
 
 
@@ -933,11 +962,22 @@ def run_validation(args: argparse.Namespace) -> dict[str, Any]:
         3: _build_payload(joined_df, features[:3], workorder_spec),
     }
     resolver_rows, resolver_mismatches = _build_resolver_rows(payloads, features)
-    pair_rows, pair_failures = _build_pair_expansion_rows(payloads[1], features)
+    pair_rows: list[dict[str, Any]] = []
+    pair_failures: list[dict[str, Any]] = []
+    for dimension, pair_features in ((1, features), (2, features[:2]), (3, features[:3])):
+        rows, failures = _build_pair_expansion_rows(
+            payloads[dimension],
+            pair_features,
+            analysis_dimension=dimension,
+        )
+        pair_rows.extend(rows)
+        pair_failures.extend(failures)
 
     checks = []
     checks.extend(_validate_single_feature_semantics(joined_df, payloads[1], features, workorder_spec))
-    checks.extend(_validate_pair_semantics(joined_df, payloads[1], features))
+    checks.extend(_validate_pair_semantics(joined_df, payloads[1], features, name_prefix="1f."))
+    checks.extend(_validate_pair_semantics(joined_df, payloads[2], features[:2], name_prefix="2f."))
+    checks.extend(_validate_pair_semantics(joined_df, payloads[3], features[:3], name_prefix="3f."))
     checks.extend(_validate_three_feature_semantics(joined_df, payloads[3], features[:3]))
     density_modes, density_checks = _validate_density_semantics(payloads, features)
     checks.extend(density_checks)
