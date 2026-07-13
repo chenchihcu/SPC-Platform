@@ -52,18 +52,34 @@ Fix: Copy `data/ipc_jstd_pillar_seed.json` and `data/spi_process_kb/v1/*` from a
 Harness update needed: yes (this entry)
 Destination: `docs/harness/closed-loop-log.md`
 
-## Entry: SQLite vs legacy JSON registries data parity mismatch
+## Entry: SQLite vs legacy JSON registries data parity mismatch & test isolation
 
-Date: 2026-07-12
-Task: Fix SQLite active records and legacy JSON registries data parity mismatch.
-Changes: Added double-write sync logic to coordinate_registry register/remove and product_spec_registry save/remove functions. Created a one-time sync script to align SQLite with JSON registries.
-Impact: Prevented data registries drift in future sessions and resolved 4 existing mismatch findings in master_data_parity_audit.
-Verification: run master_data_parity_audit.py and verify total_mismatch_count is 0. verify.ps1 passed successfully.
+Date: 2026-07-13
+Task: Fix SQLite active records and legacy JSON registries data parity mismatch, and resolve test isolation failures.
+Changes: Added double-write sync logic to coordinate_registry register/remove and product_spec_registry save/remove functions. Exposed isolated JSON path helpers (`coordinate_json_path`, `spec_json_path`, `assignment_json_path`) in master_data_db and apply them across registries to prepend the DB name stem under testing environment (`SPC_MASTER_DB_PATH`).
+Impact: Prevented data registries drift in future sessions, resolved 4 existing mismatch findings, and fixed pytest e2e test failures caused by test database initialization pollution.
+Verification: `master_data_parity_audit.py` returns mismatch count 0; `pytest -v tests/test_product_spec_library_master_db_e2e.py` passed; full `verify.ps1` passed successfully (862 passed).
 Residual risk: none.
 Next action: None.
 Debug/RCA (when applicable):
-Observed: master_data_parity_audit.py failed with mismatch count > 0.
-Root cause: During migration to SQLite backend in 2026-04, write/save paths in coordinate_registry.py and product_spec_registry.py were updated to only write to SQLite, while leaving legacy JSON registries untouched, leading to synchronization drift.
-Fix: Added JSON double-write serialization sync and cascaded delete logic back to coordinate_registry.py and product_spec_registry.py.
+Observed: `master_data_parity_audit.py` failed with mismatch count > 0; and `test_product_spec_library_master_db_e2e.py` failed in subprocess e2e tests due to extra version count.
+Root cause: During migration to SQLite backend in 2026-04, legacy JSON registries were left unsynced. When double-write sync was first added, it wrote directly to the production JSON path (`data/product_spec_registry.json`) even during E2E subprocess runs. The polluted production JSON was subsequently read during temp DB schema migrations for other test cases, inflating the version count.
+Fix: Added JSON double-write serialization sync, and introduced DB-stem-prefixed JSON isolation to ensure temp test sessions do not touch or load production JSON data.
 Harness update needed: yes (this entry)
 Destination: docs/harness/closed-loop-log.md
+
+## Entry: DB chart semantic gate false-green paths
+
+Date: 2026-07-13
+Task: Harden the DB-backed chart semantic validator and its routed matrix/governance gates.
+Changes: Added blocking density-mode, exact-pair identity, and aligned-point assertions plus independent Hotelling checks; fixed pair-density resolution, Hotelling invalid contracts, and safe ERROR fallback for invalid output paths; made matrix quick cover arities 1/2/3 with non-zero blocking exits; and added executable command-policy/mirror/gateway checks to the harness.
+Impact: A recorded-but-wrong density mode, bivariate payload for the wrong feature pair, incomplete Hotelling/Radar/LISA deterministic payload, matrix FAIL, malformed Codex rule, or the known stale Cursor absolute path can no longer be reported as a green local gate when the corresponding checker is available. Actual Cursor UI rule loading remains a manual verification boundary.
+Verification: Focused pytest 45 PASS / 1 SKIP; real DB session 5 replay 185/185 semantic checks PASS; matrix quick 129/129 PASS; `codex execpolicy check` allow; harness, ruff, mypy (195 files), pytest (887 PASS / 1 SKIP), and `check_launch.py` PASS.
+Residual risk: Exact Monte Carlo LISA p-values remain non-deterministic; the gate instead checks their range/length and independently validates deterministic LISA fields plus classifications derived from the emitted p-values. The symlink escape test is explicitly skipped where Windows does not grant symlink creation privilege; ordinary path traversal and output containment are verified. Actual Cursor UI rule loading remains not verified. Active risks, if any, remain in `docs/open-questions.md`.
+Next action: Keep new chart statistical families on the same independent-recomputation pattern rather than relying on payload contract/renderability alone.
+Debug/RCA (when applicable):
+Observed: DB replay returned PASS while 3F density was only logged as `univariate`; a wrong-pair bivariate payload could still pass; an invalid output path raised a traceback before the ERROR contract; a full-arity matrix wrote one Hotelling FAIL but exited 0; Codex policy examples failed the official parser; Cursor's always-on gateway linked to a missing old repository.
+Root cause: Density metadata was outside the failure sum, the resolver preferred a valid top-level 1F slice before pair expansion and checked only bivariate shape rather than exact feature identity, output resolution ran outside the guarded error path, Hotelling invalid branches overrode empty failure payloads, matrix main unconditionally returned 0, and harness checks counted text without executing the policy parser or checking mirrored assets.
+Fix: Convert density modes and pair identity into named semantic checks, require exact pair labels and aligned X/Y points, prefer the matching precomputed pair density, route output/setup failures through a safe machine-readable ERROR fallback, enforce the analytics invalid contract and SPC sample guard, derive matrix exit status from rows, and extend the harness with executable/parser and mirror/path assertions.
+Harness update needed: yes
+Destination: `tests/`, `scripts/validate_db_chart_semantics.py`, `scripts/harness_check.ps1`, `.codex/rules/project.rules`, `.cursor/rules/agents_gateway.mdc`, and mirrored SPC skills.

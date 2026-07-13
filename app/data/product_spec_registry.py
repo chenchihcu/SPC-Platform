@@ -144,14 +144,14 @@ def save(spec: Dict[str, Any]) -> bool:
         try:
             import json
             from datetime import datetime
-            from app.data.master_data_db import data_dir
-            json_path = data_dir() / "product_spec_registry.json"
+            from app.data.master_data_db import spec_json_path
+            json_path = spec_json_path()
             
             payload: dict[str, Any] = {"specs": {}}
             if json_path.exists():
                 try:
                     payload = json.loads(json_path.read_text(encoding="utf-8"))
-                except Exception:
+                except (OSError, TypeError, ValueError, json.JSONDecodeError):
                     pass
             if not isinstance(payload, dict):
                 payload = {"specs": {}}
@@ -178,7 +178,7 @@ def save(spec: Dict[str, Any]) -> bool:
                 "updated_at": datetime.now().isoformat()
             }
             json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        except Exception:
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
             pass
 
     return bool(saved_stencil and saved_paste)
@@ -192,12 +192,12 @@ def remove(product_name: str) -> bool:
     # JSON 雙軌同步刪除
     try:
         import json
-        from app.data.master_data_db import data_dir
-        json_path = data_dir() / "product_spec_registry.json"
+        from app.data.master_data_db import spec_json_path
+        json_path = spec_json_path()
         if json_path.exists():
             try:
                 payload = json.loads(json_path.read_text(encoding="utf-8"))
-            except Exception:
+            except (OSError, TypeError, ValueError, json.JSONDecodeError):
                 payload = {}
             if isinstance(payload, dict) and "specs" in payload:
                 specs = payload["specs"]
@@ -210,7 +210,7 @@ def remove(product_name: str) -> bool:
                     for k in keys_to_delete:
                         del specs[k]
                     json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    except Exception:
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
         pass
 
     return bool(removed_stencil or removed_paste)

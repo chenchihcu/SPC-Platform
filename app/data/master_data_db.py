@@ -89,15 +89,27 @@ def db_path() -> Path:
     return data_dir() / DB_FILENAME
 
 
-def _coordinate_json_path() -> Path:
+def coordinate_json_path() -> Path:
+    override = os.environ.get(_MASTER_DB_PATH_ENV)
+    if override:
+        db_p = Path(override)
+        return db_p.parent / f"{db_p.stem}_coordinate_registry.json"
     return data_dir() / "coordinate_registry.json"
 
 
-def _spec_json_path() -> Path:
+def spec_json_path() -> Path:
+    override = os.environ.get(_MASTER_DB_PATH_ENV)
+    if override:
+        db_p = Path(override)
+        return db_p.parent / f"{db_p.stem}_product_spec_registry.json"
     return data_dir() / "product_spec_registry.json"
 
 
-def _assignment_json_path() -> Path:
+def assignment_json_path() -> Path:
+    override = os.environ.get(_MASTER_DB_PATH_ENV)
+    if override:
+        db_p = Path(override)
+        return db_p.parent / f"{db_p.stem}_stencil_assignments.json"
     return data_dir() / "stencil_assignments.json"
 
 
@@ -449,7 +461,7 @@ def upsert_product(
 
 
 def _import_coordinate_registry(conn: sqlite3.Connection) -> None:
-    payload = _read_json(_coordinate_json_path())
+    payload = _read_json(coordinate_json_path())
     entries = payload.get("entries")
     if not isinstance(entries, list):
         return
@@ -505,7 +517,7 @@ def _import_coordinate_registry(conn: sqlite3.Connection) -> None:
 
 
 def _import_spec_registry(conn: sqlite3.Connection) -> None:
-    payload = _read_json(_spec_json_path())
+    payload = _read_json(spec_json_path())
     specs = payload.get("specs")
     if not isinstance(specs, dict):
         return
@@ -579,7 +591,7 @@ def _import_spec_registry(conn: sqlite3.Connection) -> None:
 
 
 def _import_assignment_registry(conn: sqlite3.Connection) -> None:
-    payload = _read_json(_assignment_json_path())
+    payload = _read_json(assignment_json_path())
     assignments = payload.get("assignments")
     coord_map = payload.get("coord_path_by_product")
     if not isinstance(assignments, dict):
