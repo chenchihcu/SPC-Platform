@@ -520,4 +520,34 @@ for s, c in Counter(s.strip() for s in selectors).items():
 必須統一調用 statistical_utils.invalid_chart_payload() helper，
 禁止在引擎內手動組裝包含空 data/statistics 與 error metadata 的原始 dict，以防契約漂移與重複邏輯。
 ```
+
+---
+
+## 十四、SQLite 與 Legacy JSON 雙軌寫入一致性與測試隔離教訓
+
+### 發生了什麼
+
+1. **數據一致性 Mismatch**：在向 SQLite 遷移之後，規格 (spec) 與座標 (coordinate) 在資料庫與舊有 JSON 註冊表之間產生了不一致。
+2. **測試環境資料污染**：在引入雙軌同步寫入後，E2E 測試在 subprocess 中執行 `save_spec` 時，因為測試環境未對 JSON 檔案進行隔離，導致寫入了真實專案的 `data/product_spec_registry.json`。這使得下一次在執行測試初始化全新臨時資料庫時，讀取並 migrate 了真實 JSON 中的污染數據，造成 `len(rows)` 大於 1 導致 `AssertionError`。
+
+### 根本原因
+
+1. 2026-04 專案向 SQLite 遷移時，只修改了 SQLite 的儲存邏輯，卻忽略了 legacy JSON registries 的同步，導致數據不一致。
+2. 測試環境僅對 SQLite 資料庫進行了環境變數隔離（`SPC_MASTER_DB_PATH`），但沒有對 legacy JSON 註冊表進行檔名與路徑隔離，導致測試過程中發生的 JSON 寫入污染了真實的 production 資料。
+
+### 修正
+
+1. 在 `coordinate_registry.py` 與 `product_spec_registry.py` 中新增防禦性的雙軌寫入與刪除邏輯。
+2. 在 `master_data_db.py` 中公開並優化三個 JSON 檔案路徑獲取函數：`coordinate_json_path()`、`spec_json_path()` 和 `assignment_json_path()`。
+3. 當 `SPC_MASTER_DB_PATH` 環境變數被設定時，JSON 檔案會自動儲存在臨時 DB 所在的目錄，並**前綴加上該臨時 DB 檔案的名稱**（如 `tmpshwp_28_product_spec_registry.json`），實現測試 session 的完全物理隔離，防止測試資料交叉污染。
+4. 通過專案所有 862 項測試與基線發行門。
+
+### 預防規則
+
+```
+規則 D-1：雙軌寫入契約一致性
+任何與 legacy facade 相容的寫入/刪除操作，必須確保 SQLite 資料庫與對應的 JSON 檔案雙軌同步寫入，預防數據飄移。
+
+規則 D-2：測試環境下的 JSON 物理隔離
+在編寫測試或對檔案進行讀寫時，若 SPC_MASTER_DB_PATH 被設定，所有的附帶產出物（如 JSON、XML）必須前綴加上該測試 DB 的名稱，並寫入該臨時目錄，禁止寫入或載入 production 的真實 data/ 目錄。
 ```
