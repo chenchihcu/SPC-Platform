@@ -10,32 +10,35 @@ class MultivariateSPCEngine:
     @staticmethod
     def compute_hotelling_t2(df: pd.DataFrame, feature_cols: list[str]) -> dict:
         """Compute Hotelling T² statistics for multivariate control charting."""
-        if df is None or df.empty or not feature_cols or any(c not in df.columns for c in feature_cols):
+        if (
+            df is None
+            or df.empty
+            or len(feature_cols or []) != 3
+            or any(c not in df.columns for c in feature_cols)
+        ):
             return invalid_chart_payload(
                 "hotelling_t2",
-                "無資料或缺少特徵欄位。",
+                "無資料、缺少特徵欄位，或未提供恰好 3 個特徵。",
                 "Measurement",
                 payload_key="hotelling_t2",
-                data={"indices": [], "t2_values": [], "ooc_flags": []},
-                statistics={"ucl_value": 0.0, "mean_t2": 0.0, "max_t2": 0.0, "ooc_count": 0, "ooc_pct": 0.0},
                 n_samples=0,
                 p_features=len(feature_cols or []),
                 cov_matrix=[],
                 mu0_vector=[],
             )
-        X = df[feature_cols].to_numpy()
+        numeric = df[feature_cols].apply(pd.to_numeric, errors="coerce")
+        X = numeric.to_numpy(dtype=float)
         mask = np.all(np.isfinite(X), axis=1)
         X = X[mask]
         n, p = X.shape
 
-        if n <= p:
+        minimum_n = max(p + 1, 11)
+        if n < minimum_n:
             return invalid_chart_payload(
                 "hotelling_t2",
-                "樣本數不足，需至少 4 筆資料 (p+1)",
+                f"樣本數不足，需至少 {minimum_n} 筆資料 (n > p 且 n > 10)。",
                 "Measurement",
                 payload_key="hotelling_t2",
-                data={"indices": [], "t2_values": [], "ooc_flags": []},
-                statistics={"ucl_value": 0.0, "mean_t2": 0.0, "max_t2": 0.0, "ooc_count": 0, "ooc_pct": 0.0},
                 n_samples=n,
                 p_features=p,
                 cov_matrix=[],
@@ -51,8 +54,6 @@ class MultivariateSPCEngine:
                 "共變異矩陣接近奇異，無法計算 T²",
                 "Measurement",
                 payload_key="hotelling_t2",
-                data={"indices": [], "t2_values": [], "ooc_flags": []},
-                statistics={"ucl_value": 0.0, "mean_t2": 0.0, "max_t2": 0.0, "ooc_count": 0, "ooc_pct": 0.0},
                 n_samples=n,
                 p_features=p,
                 cov_matrix=[],
@@ -86,6 +87,6 @@ class MultivariateSPCEngine:
                 "p_features": p,
                 "cov_matrix": [float(v) for v in S.flatten()],
                 "mu0_vector": [float(v) for v in mu0],
-                "error": None,
+                "error": "",
             },
         }

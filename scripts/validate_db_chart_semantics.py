@@ -9,6 +9,8 @@ recomputes selected statistics from the joined dataframe.
 from __future__ import annotations
 
 import argparse
+from collections.abc import Iterator, Sized
+from contextlib import contextmanager
 import json
 import math
 import sqlite3
@@ -19,6 +21,8 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from scipy import stats  # type: ignore[import-untyped]
+from scipy.spatial import KDTree  # type: ignore[import-untyped]
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -34,7 +38,19 @@ from app.viewmodels.chart_analysis_viewmodel import compute_analysis_payload  # 
 
 FEATURES = ["Volume", "Area", "Height"]
 SPEC_KEY_BY_COL = {"Volume": "volume", "Area": "area", "Height": "height"}
-PAIR_EXPANSION_CHARTS = ("scatter_spec", "correlation_matrix", "correlation_heatmap", "quadrant", "bivariate_outlier")
+PAIR_EXPANSION_CHARTS = (
+    "scatter_spec",
+    "correlation_matrix",
+    "correlation_heatmap",
+    "quadrant",
+    "bivariate_outlier",
+    "density",
+)
+EXPECTED_DENSITY_MODES = {
+    "1f_density": "univariate",
+    "2f_density": "bivariate",
+    "3f_density": "multi_feature_univariate",
+}
 FLOAT_TOL = 1e-9
 
 
@@ -54,12 +70,17 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
-def _connect_readonly(db_path: Path) -> sqlite3.Connection:
+@contextmanager
+def _connect_readonly(db_path: Path) -> Iterator[sqlite3.Connection]:
     if not db_path.exists():
         raise FileNotFoundError(f"DB not found: {db_path}")
     conn = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        conn.execute("PRAGMA query_only = ON")
+        yield conn
+    finally:
+        conn.close()
 
 
 def _row_to_dict(row: sqlite3.Row | None) -> dict[str, Any]:
@@ -214,7 +235,7 @@ def _numeric_equal(actual: Any, expected: Any, *, tol: float = FLOAT_TOL) -> boo
     if actual is None or expected is None:
         return actual is expected
     if isinstance(actual, bool) or isinstance(expected, bool):
-        return bool(actual) is bool(expected)
+        return type(actual) is bool and type(expected) is bool and actual is expected
     if isinstance(actual, str) or isinstance(expected, str):
         return str(actual) == str(expected)
     try:
@@ -236,6 +257,94 @@ def _add_check(checks: list[dict[str, Any]], name: str, actual: Any, expected: A
             "expected": _json_safe(expected),
         }
     )
+
+
+def _max_abs_error(actual: Any, expected: Any) -> float | str:
+    try:
+        actual_values = np.asarray(actual, dtype=float).reshape(-1)
+        expected_values = np.asarray(expected, dtype=float).reshape(-1)
+    except (TypeError, ValueError):
+        return "non_numeric"
+    if actual_values.shape != expected_values.shape:
+        return f"shape_mismatch:{actual_values.shape}!={expected_values.shape}"
+    if actual_values.size == 0:
+        return 0.0
+    errors = np.abs(actual_values - expected_values)
+    if not np.all(np.isfinite(errors)):
+        return "non_finite"
+    return float(np.max(errors))
+
+
+def _sequence_mismatch_count(actual: Any, expected: Any) -> int | str:
+    try:
+        actual_values = list(actual)
+        expected_values = list(expected)
+    except TypeError:
+        return "not_sequence"
+    if len(actual_values) != len(expected_values):
+        return f"length_mismatch:{len(actual_values)}!={len(expected_values)}"
+    return sum(left != right for left, right in zip(actual_values, expected_values))
+
+
+def _lisa_expected(joined_df: pd.DataFrame, feature: str, *, k: int = 3) -> dict[str, Any]:
+    required = ["X", "Y", feature]
+    if not set(required).issubset(joined_df.columns):
+        return {"is_valid": False}
+    work = _finite_frame(joined_df, required)
+    n = int(len(work))
+    if n < k + 1:
+        return {"is_valid": False, "n": n}
+
+    coords = work[["X", "Y"]].to_numpy(dtype=float, copy=False)
+    values = work[feature].to_numpy(dtype=float, copy=False)
+    k_eff = min(k, n - 1)
+    neighbour_idx: np.ndarray
+    weight = 1.0 / k_eff
+
+    if n > 2000:
+        flat = coords[:, 0] + coords[:, 1] * 1j
+        _, first_occurrences, inverse_idx = np.unique(
+            flat,
+            return_index=True,
+            return_inverse=True,
+        )
+        unique_count = int(first_occurrences.shape[0])
+        if unique_count < n // 2 and unique_count > 1:
+            unique_k = min(k, unique_count - 1)
+            unique_coords = coords[first_occurrences]
+            _, indices = KDTree(unique_coords).query(unique_coords, k=unique_k + 1)
+            neighbour_idx = first_occurrences[indices[:, 1:][inverse_idx]]
+            weight = 1.0 / unique_k
+        else:
+            _, indices = KDTree(coords).query(coords, k=k_eff + 1)
+            neighbour_idx = indices[:, 1:]
+    else:
+        _, indices = KDTree(coords).query(coords, k=k_eff + 1)
+        neighbour_idx = indices[:, 1:]
+
+    centered = values - np.mean(values)
+    variance = float(np.sum(centered ** 2) / (n - 1))
+    if variance == 0:
+        return {"is_valid": False, "n": n}
+    local_i = centered * np.sum(centered[neighbour_idx], axis=1) * weight / variance
+    standardized = centered / math.sqrt(variance)
+    lag = np.mean(standardized[neighbour_idx], axis=1)
+    z_scores = (
+        (local_i - np.mean(local_i)) / np.std(local_i, ddof=1)
+        if n > 2
+        else np.zeros(n, dtype=float)
+    )
+    permutations = 49 if n > 20000 else 99 if n > 2000 else 999
+    return {
+        "is_valid": True,
+        "n": n,
+        "k": k,
+        "permutations": permutations,
+        "local_i": local_i,
+        "z_scores": z_scores,
+        "quadrant_std_value": standardized,
+        "quadrant_lag": lag,
+    }
 
 
 def _build_payload(joined_df: pd.DataFrame, features: list[str], spec: dict[str, dict[str, float]]) -> dict[str, Any]:
@@ -358,6 +467,94 @@ def _validate_single_feature_semantics(
         if not spatial_valid.empty:
             _add_check(checks, f"{feature}.spatial.n", spatial_actual.get("n"), int(len(spatial_valid)))
 
+        lisa_payload = bundle.get("lisa") or {}
+        lisa_meta = lisa_payload.get("metadata") or {}
+        lisa_data = lisa_payload.get("data") or {}
+        lisa_stats = lisa_payload.get("statistics") or {}
+        lisa_expected = _lisa_expected(joined_df, feature)
+        lisa_expected_valid = bool(lisa_expected.get("is_valid"))
+        _add_check(
+            checks,
+            f"{feature}.lisa.is_valid",
+            lisa_meta.get("is_valid"),
+            lisa_expected_valid,
+        )
+        if lisa_expected_valid:
+            for key in ("n", "k", "permutations"):
+                _add_check(
+                    checks,
+                    f"{feature}.lisa.{key}",
+                    lisa_stats.get(key),
+                    lisa_expected.get(key),
+                )
+            for key in ("local_i", "z_scores", "quadrant_std_value", "quadrant_lag"):
+                _add_check(
+                    checks,
+                    f"{feature}.lisa.{key}.max_abs_error",
+                    _max_abs_error(lisa_data.get(key), lisa_expected.get(key)),
+                    0.0,
+                )
+
+            expected_n = int(lisa_expected["n"])
+            try:
+                p_values = np.asarray(lisa_data.get("p_values", []), dtype=float)
+            except (TypeError, ValueError):
+                p_values = np.asarray([], dtype=float)
+            p_value_contract_ok = bool(
+                p_values.shape == (expected_n,)
+                and np.all(np.isfinite(p_values))
+                and np.all((p_values > 0) & (p_values <= 1))
+            )
+            _add_check(
+                checks,
+                f"{feature}.lisa.p_values.contract",
+                p_value_contract_ok,
+                True,
+            )
+            if p_value_contract_ok:
+                standardized = np.asarray(lisa_expected["quadrant_std_value"], dtype=float)
+                lag = np.asarray(lisa_expected["quadrant_lag"], dtype=float)
+                conditions = [
+                    p_values >= 0.05,
+                    (standardized > 0) & (lag > 0),
+                    (standardized < 0) & (lag < 0),
+                    (standardized > 0) & (lag < 0),
+                    (standardized < 0) & (lag > 0),
+                ]
+                expected_classes = np.select(
+                    conditions,
+                    ["NS", "HH", "LL", "HL", "LH"],
+                    default="NS",
+                ).tolist()
+                actual_classes = lisa_data.get("classifications", [])
+                _add_check(
+                    checks,
+                    f"{feature}.lisa.classifications.mismatch_count",
+                    _sequence_mismatch_count(actual_classes, expected_classes),
+                    0,
+                )
+                significant_count = int(np.sum(p_values < 0.05))
+                _add_check(
+                    checks,
+                    f"{feature}.lisa.n_significant",
+                    lisa_stats.get("n_significant"),
+                    significant_count,
+                )
+                _add_check(
+                    checks,
+                    f"{feature}.lisa.pct_significant",
+                    lisa_stats.get("pct_significant"),
+                    round(significant_count / expected_n * 100, 1),
+                )
+                actual_class_counts = lisa_stats.get("class_counts") or {}
+                for class_name in ("HH", "LL", "HL", "LH", "NS"):
+                    _add_check(
+                        checks,
+                        f"{feature}.lisa.class_counts.{class_name}",
+                        actual_class_counts.get(class_name),
+                        expected_classes.count(class_name),
+                    )
+
     return checks
 
 
@@ -401,6 +598,69 @@ def _validate_pair_semantics(
     return checks
 
 
+def _validate_radar_semantics(
+    joined_df: pd.DataFrame,
+    three_feature_payload: dict[str, Any],
+    features: list[str],
+) -> list[dict[str, Any]]:
+    checks: list[dict[str, Any]] = []
+    radar = three_feature_payload.get("radar") or {}
+    radar_meta = radar.get("metadata") or {}
+    radar_data = radar.get("data") or {}
+    if "RefDes" not in joined_df.columns:
+        _add_check(checks, "3f.radar.is_valid", radar_meta.get("is_valid"), False)
+        return checks
+
+    feature_values = joined_df[features].apply(pd.to_numeric, errors="coerce")
+    radar_work = pd.concat([joined_df[["RefDes"]], feature_values], axis=1)
+    radar_work = radar_work.replace([np.inf, -np.inf], np.nan).dropna()
+    if radar_work.empty:
+        _add_check(checks, "3f.radar.is_valid", radar_meta.get("is_valid"), False)
+        return checks
+
+    means = radar_work.groupby("RefDes")[features].mean()
+    expected_categories = sorted(features)
+    expected_names = [str(name) for name in means.index]
+    actual_categories = list(radar_data.get("categories") or [])
+    actual_series = radar_data.get("series") or []
+    actual_names = [str(item.get("name")) for item in actual_series if isinstance(item, dict)]
+
+    _add_check(checks, "3f.radar.is_valid", radar_meta.get("is_valid"), True)
+    _add_check(checks, "3f.radar.n_series", radar_meta.get("n_series"), len(expected_names))
+    _add_check(
+        checks,
+        "3f.radar.n_categories",
+        radar_meta.get("n_categories"),
+        len(expected_categories),
+    )
+    _add_check(
+        checks,
+        "3f.radar.categories.mismatch_count",
+        _sequence_mismatch_count(actual_categories, expected_categories),
+        0,
+    )
+    _add_check(
+        checks,
+        "3f.radar.series_names.mismatch_count",
+        _sequence_mismatch_count(actual_names, expected_names),
+        0,
+    )
+
+    max_error: float | str = "shape_mismatch"
+    if actual_categories == expected_categories and actual_names == expected_names:
+        actual_values: list[float] = []
+        expected_values: list[float] = []
+        for series_item, group_name in zip(actual_series, means.index):
+            if not isinstance(series_item, dict):
+                break
+            actual_values.extend(series_item.get("values") or [])
+            expected_values.extend(float(means.loc[group_name, feature]) for feature in expected_categories)
+        else:
+            max_error = _max_abs_error(actual_values, expected_values)
+    _add_check(checks, "3f.radar.values.max_abs_error", max_error, 0.0)
+    return checks
+
+
 def _validate_three_feature_semantics(
     joined_df: pd.DataFrame,
     three_feature_payload: dict[str, Any],
@@ -423,19 +683,163 @@ def _validate_three_feature_semantics(
         (three_feature_payload.get("consistency_3f") or {}).get("statistics", {}).get("n"),
         expected_consistency_n,
     )
+
+    hotelling = three_feature_payload.get("hotelling_t2") or {}
+    hotelling_meta = hotelling.get("metadata") or {}
+    hotelling_data = hotelling.get("data") or {}
+    hotelling_stats = hotelling.get("statistics") or {}
+    n, p = work.shape
+    covariance: np.ndarray | None = None
+    hotelling_expected_valid = False
+    if p == 3 and n > p and n > 10:
+        covariance = np.cov(work.to_numpy(dtype=float, copy=False), rowvar=False)
+        hotelling_expected_valid = bool(np.linalg.cond(covariance) <= 1e12)
+    _add_check(checks, "3f.hotelling_t2.is_valid", hotelling_meta.get("is_valid"), hotelling_expected_valid)
+    if hotelling_expected_valid and covariance is not None:
+        values = work.to_numpy(dtype=float, copy=False)
+        center = np.mean(values, axis=0)
+        inverse_covariance = np.linalg.inv(covariance)
+        delta = values - center
+        t2_values = np.sum(delta @ inverse_covariance * delta, axis=1)
+        ucl = p * (n - 1) * (n + 1) / (n * (n - p)) * stats.f.ppf(0.95, p, n - p)
+        ooc_count = int(np.sum(t2_values > ucl))
+        expected_flags = [bool(value > ucl) for value in t2_values]
+        _add_check(checks, "3f.hotelling_t2.n_samples", hotelling_meta.get("n_samples"), n)
+        _add_check(checks, "3f.hotelling_t2.p_features", hotelling_meta.get("p_features"), p)
+        _add_check(
+            checks,
+            "3f.hotelling_t2.indices.mismatch_count",
+            _sequence_mismatch_count(hotelling_data.get("indices", []), range(n)),
+            0,
+        )
+        _add_check(
+            checks,
+            "3f.hotelling_t2.t2_values.max_abs_error",
+            _max_abs_error(hotelling_data.get("t2_values"), t2_values),
+            0.0,
+        )
+        _add_check(
+            checks,
+            "3f.hotelling_t2.ooc_flags.mismatch_count",
+            _sequence_mismatch_count(hotelling_data.get("ooc_flags", []), expected_flags),
+            0,
+        )
+        _add_check(
+            checks,
+            "3f.hotelling_t2.mu0_vector.max_abs_error",
+            _max_abs_error(hotelling_meta.get("mu0_vector"), center),
+            0.0,
+        )
+        _add_check(
+            checks,
+            "3f.hotelling_t2.cov_matrix.max_abs_error",
+            _max_abs_error(hotelling_meta.get("cov_matrix"), covariance.flatten()),
+            0.0,
+        )
+        for key, expected in {
+            "ucl_value": float(ucl),
+            "mean_t2": float(np.mean(t2_values)),
+            "max_t2": float(np.max(t2_values)),
+            "ooc_count": ooc_count,
+            "ooc_pct": float(ooc_count / n * 100),
+        }.items():
+            _add_check(checks, f"3f.hotelling_t2.{key}", hotelling_stats.get(key), expected)
+    checks.extend(_validate_radar_semantics(joined_df, three_feature_payload, features))
     return checks
 
 
-def _density_mode(payload: dict[str, Any], features: list[str]) -> str:
-    resolved = _resolve(payload, "density", features)
+def _resolved_density_mode(resolved: dict[str, Any]) -> str:
     data = resolved.get("data") or {}
+    if resolved.get("_multi_feature"):
+        return "multi_feature_univariate"
     if data.get("mode"):
         return str(data.get("mode"))
     if "x" in data and "y" in data:
         return "bivariate"
-    if resolved.get("_multi_feature"):
-        return "multi_feature_univariate"
     return "unknown"
+
+
+def _bivariate_density_matches_pair(resolved: dict[str, Any], features: list[str]) -> bool:
+    """Independently validate pair identity and point alignment for density."""
+    if len(features) != 2 or not _is_valid_payload(resolved):
+        return False
+    data = resolved.get("data") or {}
+    if not isinstance(data, dict) or _resolved_density_mode(resolved) != "bivariate":
+        return False
+    col_x = data.get("col_x")
+    col_y = data.get("col_y")
+    if not isinstance(col_x, str) or not col_x or not isinstance(col_y, str) or not col_y:
+        return False
+    if sorted([col_x, col_y]) != sorted(features):
+        return False
+    x_values = data.get("x")
+    y_values = data.get("y")
+    if (
+        not isinstance(x_values, Sized)
+        or not isinstance(y_values, Sized)
+        or isinstance(x_values, (str, bytes, dict))
+        or isinstance(y_values, (str, bytes, dict))
+    ):
+        return False
+    return len(x_values) == len(y_values) and len(x_values) >= 2
+
+
+def _density_mode(payload: dict[str, Any], features: list[str]) -> str:
+    return _resolved_density_mode(_resolve(payload, "density", features))
+
+
+def _validate_density_semantics(
+    payloads: dict[int, dict[str, Any]],
+    features: list[str],
+) -> tuple[dict[str, str], list[dict[str, Any]]]:
+    modes = {
+        "1f_density": _density_mode(payloads[1], features[:1]),
+        "2f_density": _density_mode(payloads[2], features[:2]),
+        "3f_density": _density_mode(payloads[3], features[:3]),
+    }
+    checks: list[dict[str, Any]] = []
+    for name, expected in EXPECTED_DENSITY_MODES.items():
+        _add_check(checks, f"density_mode.{name}", modes.get(name), expected)
+
+    resolved_2f = _resolve(payloads[2], "density", features[:2])
+    _add_check(
+        checks,
+        "density_mode.2f_pair_semantics",
+        _bivariate_density_matches_pair(resolved_2f, features[:2]),
+        True,
+    )
+
+    resolved_3f = _resolve(payloads[3], "density", features[:3])
+    actual_features = list(resolved_3f.get("_features") or [])
+    expected_features = list(features[:3])
+    _add_check(
+        checks,
+        "density_mode.3f.features.mismatch_count",
+        _sequence_mismatch_count(actual_features, expected_features),
+        0,
+    )
+    feature_data = resolved_3f.get("_feature_data") or {}
+    for feature in expected_features:
+        child = feature_data.get(feature) if isinstance(feature_data, dict) else None
+        _add_check(
+            checks,
+            f"density_mode.3f.{feature}.present",
+            isinstance(child, dict),
+            True,
+        )
+        _add_check(
+            checks,
+            f"density_mode.3f.{feature}.is_valid",
+            bool(isinstance(child, dict) and (child.get("metadata") or {}).get("is_valid")),
+            True,
+        )
+        _add_check(
+            checks,
+            f"density_mode.3f.{feature}.mode",
+            _resolved_density_mode(child) if isinstance(child, dict) else "missing",
+            "univariate",
+        )
+    return modes, checks
 
 
 def _build_resolver_rows(payloads: dict[int, dict[str, Any]], features: list[str]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -474,8 +878,14 @@ def _build_pair_expansion_rows(one_feature_payload: dict[str, Any], features: li
                 "resolver_valid": _is_valid_payload(resolved),
                 "error": _payload_error(resolved),
             }
+            if chart_id == "density":
+                row["density_mode"] = _resolved_density_mode(resolved)
+                row["semantic_valid"] = _bivariate_density_matches_pair(resolved, list(pair))
             rows.append(row)
-            if row["available"] and not row["resolver_valid"]:
+            if row["available"] and (
+                not row["resolver_valid"]
+                or (chart_id == "density" and not row.get("semantic_valid"))
+            ):
                 failures.append(row)
     return rows, failures
 
@@ -529,6 +939,8 @@ def run_validation(args: argparse.Namespace) -> dict[str, Any]:
     checks.extend(_validate_single_feature_semantics(joined_df, payloads[1], features, workorder_spec))
     checks.extend(_validate_pair_semantics(joined_df, payloads[1], features))
     checks.extend(_validate_three_feature_semantics(joined_df, payloads[3], features[:3]))
+    density_modes, density_checks = _validate_density_semantics(payloads, features)
+    checks.extend(density_checks)
     semantic_failures = [check for check in checks if check["status"] != "PASS"]
 
     return {
@@ -553,13 +965,34 @@ def run_validation(args: argparse.Namespace) -> dict[str, Any]:
         "statistical_semantic_checks": checks,
         "mismatches": _json_safe([*resolver_mismatches, *pair_failures, *semantic_failures]),
         "resolver_rows": _json_safe(resolver_rows),
-        "density_modes": {
-            "1f_density": _density_mode(payloads[1], features[:1]),
-            "2f_density": _density_mode(payloads[2], features[:2]),
-            "3f_density": _density_mode(payloads[3], features[:3]),
-        },
+        "density_modes": density_modes,
         "pair_expansion": _json_safe(pair_rows),
     }
+
+
+def _resolve_output_dir(raw_output: str) -> Path:
+    output = Path(raw_output)
+    if not output.is_absolute():
+        output = REPO_ROOT / output
+    resolved = output.resolve()
+    outputs_root = (REPO_ROOT / "Outputs").resolve()
+    if resolved != outputs_root and not resolved.is_relative_to(outputs_root):
+        raise ValueError(f"--output must stay within {outputs_root}: {raw_output}")
+    return resolved
+
+
+def _write_summary(out_dir: Path, summary: dict[str, Any]) -> Path:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    summary_path = out_dir / "summary.json"
+    resolved_summary_path = summary_path.resolve()
+    outputs_root = (REPO_ROOT / "Outputs").resolve()
+    if not resolved_summary_path.is_relative_to(outputs_root):
+        raise ValueError(f"summary.json must stay within {outputs_root}: {summary_path}")
+    resolved_summary_path.write_text(
+        json.dumps(_json_safe(summary), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return resolved_summary_path
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -578,13 +1011,64 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    summary = run_validation(args)
-    out_dir = Path(args.output)
-    if not out_dir.is_absolute():
-        out_dir = REPO_ROOT / out_dir
-    out_dir.mkdir(parents=True, exist_ok=True)
-    summary_path = out_dir / "summary.json"
-    summary_path.write_text(json.dumps(_json_safe(summary), ensure_ascii=False, indent=2), encoding="utf-8")
+    out_dir: Path | None = None
+    try:
+        out_dir = _resolve_output_dir(args.output)
+        summary = run_validation(args)
+        summary_path = _write_summary(out_dir, summary)
+    except Exception as exc:
+        error_summary = {
+            "status": "ERROR",
+            "failures": 1,
+            "requested_output": str(args.output),
+            "error": {
+                "type": type(exc).__name__,
+                "message": str(exc),
+            },
+        }
+        try:
+            fallback_dir = _resolve_output_dir("Outputs/db_chart_semantics_error")
+        except Exception as fallback_exc:
+            error_result = {
+                "status": "ERROR",
+                "failures": 1,
+                "summary": None,
+                "error": error_summary["error"],
+                "summary_error": {
+                    "type": type(fallback_exc).__name__,
+                    "message": str(fallback_exc),
+                },
+            }
+            print(json.dumps(error_result, ensure_ascii=False, indent=None if args.quiet else 2))
+            return 2
+        error_dir = out_dir if out_dir is not None else fallback_dir
+        try:
+            summary_path = _write_summary(error_dir, error_summary)
+        except Exception as summary_exc:
+            if error_dir == fallback_dir:
+                fallback_summary_path: Path | None = None
+            else:
+                try:
+                    fallback_summary_path = _write_summary(fallback_dir, error_summary)
+                except Exception:
+                    fallback_summary_path = None
+            error_result = {
+                "status": "ERROR",
+                "failures": 1,
+                "summary": str(fallback_summary_path) if fallback_summary_path else None,
+                "error": error_summary["error"],
+                "summary_error": {
+                    "type": type(summary_exc).__name__,
+                    "message": str(summary_exc),
+                },
+            }
+            print(json.dumps(error_result, ensure_ascii=False, indent=None if args.quiet else 2))
+            return 2
+        if args.quiet:
+            print(f"[db-chart-semantics] ERROR failures=1 summary={summary_path}")
+        else:
+            print(json.dumps({"status": "ERROR", "failures": 1, "summary": str(summary_path)}, ensure_ascii=False, indent=2))
+        return 2
 
     failures = (
         int(summary["available_resolver_mismatch_count"])

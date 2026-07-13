@@ -1,6 +1,8 @@
 # AI Rules Compatibility Overview - SPC Platform
 
-Last verified: 2026-05-25
+Last full verification: 2026-05-25
+
+Targeted command-policy and skill-mirror update: 2026-07-13
 
 This file is the repo-local compatibility register for Codex, Claude Code, Cursor, and Google Antigravity. It is a control document for AI-agent operation, not an SPC/SPI formula specification.
 
@@ -54,6 +56,7 @@ This file is the repo-local compatibility register for Codex, Claude Code, Curso
 | Cursor optional tool reference | `.cursor/rules/vibe-tools.mdc` | `local-observed` | Optional context | Must not be always-on; request only when external model/tool lookup is needed. |
 | Antigravity adapter | `.agents/rules/agents_gateway.md` | `local-observed` | Prompt context | Workspace gateway pointing to `AGENTS.md`; prefer New Worktree Mode. |
 | Harness check | `scripts/harness_check.ps1` | `local-observed` | Deterministic local check | Verify gateway presence, source register, claim types, and completion format. |
+| Routed validation skill mirrors | `.claude/skills` → `.agents/skills` for `spc-change-router`, `spc-db-chart-semantics-validator`, and `spc-validation-matrix` | `local-observed` | Cross-assistant routing contract | Keep these three enforced mirrors identical after removing Claude-only `allowed-tools`; other skill pairs are outside this targeted mirror gate. |
 | Source baseline manifest | `docs/harness/source-baseline-manifest.md` | `local-observed` | Source-control audit register | Record Git root, tracked/untracked/ignored status, baseline readiness, candidate lists, and role review. |
 
 ## Source Control Boundary

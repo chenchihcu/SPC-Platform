@@ -8,8 +8,8 @@
       "docs": ["AI_RULES.md", "docs/specs/ui_state_semantics.md"],
       "reviewer": "qt-ui-token-auditor",
       "gates": [
-        { "cmd": "python scripts/qt_audit.py app/", "when": "" },
-        { "cmd": "python scripts/check_launch.py", "when": "" }
+        { "cmd": ".venv/Scripts/python.exe scripts/qt_audit.py app/", "when": "" },
+        { "cmd": ".venv/Scripts/python.exe scripts/check_launch.py", "when": "" }
       ],
       "notes": []
     },
@@ -20,9 +20,9 @@
       "docs": ["docs/governance/SPC_RULES.md", ".claude/skills/analytics-engine-contract/SKILL.md", ".claude/skills/spc-db-chart-semantics-validator/SKILL.md"],
       "reviewer": "spc-stat-contract-reviewer",
       "gates": [
-        { "cmd": "python -m pytest -q", "when": "" },
-        { "cmd": "python .claude/skills/spc-validation-matrix/scripts/run_matrix.py --quick", "when": "when chart routing changes" },
-        { "cmd": ".venv\\Scripts\\python.exe scripts\\validate_db_chart_semantics.py --db data\\spc_master.db --latest-session --output Outputs\\db_chart_semantics_current --quiet", "when": "when chart statistics, payload slicing, density, pair, or triple-feature semantics change and real DB data is available" }
+        { "cmd": ".venv/Scripts/python.exe -m pytest -q", "when": "" },
+        { "cmd": ".venv/Scripts/python.exe .claude/skills/spc-validation-matrix/scripts/run_matrix.py --quick", "when": "when chart routing changes" },
+        { "cmd": ".venv/Scripts/python.exe scripts/validate_db_chart_semantics.py --db data/spc_master.db --latest-session --output Outputs/db_chart_semantics_current --quiet", "when": "when chart statistics, payload slicing, density, pair, or triple-feature semantics change and real DB data is available" }
       ],
       "notes": ["Preserve engine payload shape: chart_type, data, statistics, metadata.", "Contract/renderability PASS is not proof of statistical correctness; independently recompute against joined DB-backed data when semantics change."]
     },
@@ -33,8 +33,8 @@
       "docs": ["README.md", "docs/specs/project_architecture.md"],
       "reviewer": "report-export-parity-reviewer",
       "gates": [
-        { "cmd": "python -m pytest -q", "when": "" },
-        { "cmd": "python scripts/check_launch.py", "when": "" }
+        { "cmd": ".venv/Scripts/python.exe -m pytest -q", "when": "" },
+        { "cmd": ".venv/Scripts/python.exe scripts/check_launch.py", "when": "" }
       ],
       "notes": ["Check UI/report/PPTX/Excel evidence parity before completion."]
     },
@@ -56,7 +56,7 @@
       "docs": ["docs/open-questions.md"],
       "reviewer": "release-gate-triager",
       "gates": [
-        { "cmd": "python scripts/run_release_gate.py", "when": "only when release scope requires it" }
+        { "cmd": ".venv/Scripts/python.exe scripts/run_release_gate.py", "when": "only when release scope requires it" }
       ],
       "notes": ["Keep Watchlist #7 numbering stable."]
     }

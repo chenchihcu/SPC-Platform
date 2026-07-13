@@ -105,8 +105,8 @@ def resolve_workorder_spec(product_name: str) -> Tuple[Optional[Dict[str, Any]],
     paste, stencil, err = _resolve_active_specs(product_name)
     if err:
         return None, err
-    assert paste is not None
-    assert stencil is not None
+    if paste is None or stencil is None:
+        return None, "解析規格失敗：錫膏或鋼板設定為空。"
     key = str(product_name).strip()
 
     stencil_type = str(stencil.get("stencil_type") or STENCIL_NORMAL).strip().lower()
@@ -154,8 +154,8 @@ def resolve_height_spec_by_refdes(
     paste, stencil, err = _resolve_active_specs(product_name)
     if err:
         return result
-    assert paste is not None
-    assert stencil is not None
+    if paste is None or stencil is None:
+        return result
 
     stencil_type = str(stencil.get("stencil_type") or STENCIL_NORMAL).strip().lower()
     thickness_main = float(stencil.get("thickness_main") or 0.12)
@@ -204,7 +204,8 @@ def can_run_analysis(product_name: str) -> Tuple[bool, str]:
     paste, stencil, err = _resolve_active_specs(product_name)
     if err:
         return False, err
-    assert stencil is not None
+    if stencil is None:
+        return False, "解析規格失敗：鋼板設定為空。"
     key = str(product_name or "").strip()
     stencil_type = str(stencil.get("stencil_type") or STENCIL_NORMAL).strip().lower()
     if stencil_type == STENCIL_STEPPED and not has_any_precision_assignment(key):

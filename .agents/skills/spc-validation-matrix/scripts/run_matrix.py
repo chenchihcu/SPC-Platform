@@ -56,6 +56,8 @@ from report_writer import (  # noqa: E402
     write_summary_md,
 )
 
+NON_BLOCKING_STATUSES = frozenset({"PASS", "SKIP"})
+
 
 def _env_float(name: str, default: float) -> float:
     raw = os.environ.get(name)
@@ -105,9 +107,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--quick",
         action="store_true",
-        help="Reduced sweep: filters=full, arities=1,2 (~smaller cell count).",
+        help="Reduced sweep: filters=full with all supported arities (1,2,3).",
     )
     return parser.parse_args(argv)
+
+
+def _selected_arities(raw_arities: str, quick: bool) -> list[int]:
+    if quick:
+        return list(DEFAULT_ARITIES)
+    return [int(value) for value in raw_arities.split(",") if value.strip()]
+
+
+def _result_exit_code(rows: list[dict[str, object]]) -> int:
+    if not rows:
+        return 1
+    return 1 if any(str(row.get("status")) not in NON_BLOCKING_STATUSES for row in rows) else 0
 
 
 def _ensure_output_dir(arg_output: str | None) -> Path:
@@ -132,9 +146,7 @@ def main(argv: list[str] | None = None) -> int:
     filters = (
         ["full"] if args.quick else [s.strip() for s in args.filters.split(",") if s.strip()]
     )
-    arities = (
-        [1, 2] if args.quick else [int(s) for s in args.arities.split(",") if s.strip()]
-    )
+    arities = _selected_arities(args.arities, args.quick)
     engines = (
         [s.strip() for s in args.engines.split(",") if s.strip()]
         if args.engines
@@ -173,15 +185,31 @@ def main(argv: list[str] | None = None) -> int:
 
     for cell in cells:
         if (time.perf_counter() - wall_t0) > THRESHOLD_MATRIX_TIMEOUT_S:
-            rows.append(_skip_row(cell, "matrix wall-clock budget exhausted"))
+            rows.append(
+                _row(
+                    cell,
+                    status="STALL",
+                    duration_ms=0,
+                    peak_mb=0.0,
+                    error="matrix wall-clock budget exhausted",
+                )
+            )
             continue
 
         # --- load fixture once
         if cell.fixture not in df_by_fixture:
             try:
                 df, spec = load_fixture(golden_root, cell.fixture)
-            except BaseException as exc:
-                rows.append(_skip_row(cell, f"load_fixture: {type(exc).__name__}: {exc}"))
+            except Exception as exc:
+                rows.append(
+                    _row(
+                        cell,
+                        status="ERROR",
+                        duration_ms=0,
+                        peak_mb=0.0,
+                        error=f"load_fixture: {type(exc).__name__}: {exc}",
+                    )
+                )
                 continue
             df_by_fixture[cell.fixture] = df
             spec_by_fixture[cell.fixture] = spec
@@ -320,7 +348,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[spc-validation-matrix] wrote {csv_path}", flush=True)
     print(f"[spc-validation-matrix] wrote {md_path}", flush=True)
     print(f"[spc-validation-matrix] wall-clock: {wall_clock:.1f}s", flush=True)
-    return 0
+    return _result_exit_code(rows)
 
 
 def _row(

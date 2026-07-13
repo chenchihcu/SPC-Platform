@@ -137,6 +137,7 @@ assert row3["outsource_work_order_no"] == ""
     proc = subprocess.run(
         [sys.executable, "-c", code],
         cwd=str(repo),
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
         encoding="utf-8",

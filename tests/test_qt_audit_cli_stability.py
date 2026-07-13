@@ -16,6 +16,7 @@ def test_qt_audit_cli_is_stable_with_cp950_output() -> None:
         [sys.executable, "scripts/qt_audit.py", "app"],
         cwd=repo_root,
         env=env,
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
         encoding="cp950",

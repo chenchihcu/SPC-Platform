@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import subprocess
-import sys
 from pathlib import Path
+
+from scripts.check_governance_alignment import check
 
 
 def _repo_root() -> Path:
@@ -12,14 +12,18 @@ def _repo_root() -> Path:
 
 
 def test_governance_alignment_check_passes() -> None:
-    repo = _repo_root()
-    proc = subprocess.run(
-        [sys.executable, "scripts/check_governance_alignment.py"],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=30,
-    )
-    assert proc.returncode == 0, proc.stdout + proc.stderr
+    """Validate Gate A-F governance alignment by importing check() directly.
+
+    Avoids ``subprocess.run(capture_output=True)`` which triggers
+    ``DuplicateHandle`` → ``WinError 50`` on certain Windows environments
+    (the underlying ``check()`` function is safe to call in-process).
+    """
+    findings = check(_repo_root())
+    assert not findings, _findings_message(findings)
+
+
+def _findings_message(findings: list) -> str:
+    lines = ["[FAIL] Governance alignment check failed:"]
+    for f in findings:
+        lines.append(f"  - {f.path}: {f.message}")
+    return "\n".join(lines)

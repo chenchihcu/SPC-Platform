@@ -66,6 +66,7 @@ assert ok2 is True and msg2 == ""
     proc = subprocess.run(
         [sys.executable, "-c", code],
         cwd=str(repo),
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
         encoding="utf-8",

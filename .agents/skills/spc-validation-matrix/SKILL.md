@@ -1,16 +1,17 @@
 ---
 name: spc-validation-matrix
-version: 1.0.0
 description: SPC/SPI Platform v2 跨組合整合驗證器 — 一次同時驗證圖表輸出、函數定義、統計數據、報告匯出在所有合理特徵組合下都正確,並且大量組合下不會停滯或超出系統計算負荷。Use this skill 當使用者要做交叉驗證、組合驗證、cross validation matrix、驗證所有 engine、圖表/統計/匯出整合驗證、確認大量組合下不會 stall、或在 release 前/合併新 engine 後做整體 sanity sweep。觸發詞包含「交叉驗證」「組合驗證」「驗證所有圖表」「跨特徵驗證」「stall test」「matrix validation」「regression sweep」。
-type: validation
-compatibility:
-  python: ">=3.10"
-  requires:
-    - pandas
-    - numpy
-    - matplotlib
-    - python-pptx
-    - openpyxl
+metadata:
+  version: "1.0.1"
+  type: validation
+  compatibility:
+    python: ">=3.10"
+    requires:
+      - pandas
+      - numpy
+      - matplotlib
+      - python-pptx
+      - openpyxl
 ---
 
 # spc-validation-matrix
@@ -78,7 +79,7 @@ python .claude/skills/spc-validation-matrix/scripts/run_matrix.py \
     [--arities 1,2,3] \
     [--output Outputs/cross_validation_<auto_timestamp>] \
     [--skip-export]              # 跳過 PPTX/XLSX 匯出驗證
-    [--quick]                    # 等同 --filters full --arities 1,2,3 (~200 cells)
+    [--quick]                    # 等同 --filters full --arities 1,2,3；cell 數由即時 catalog 決定
 ```
 
 預設不傳任何旗標時:
@@ -119,6 +120,8 @@ python .claude/skills/spc-validation-matrix/scripts/run_matrix.py \
 | `STALL` | 單 cell 執行時間超過 timeout |
 | `OVERLOAD` | tracemalloc peak 超過 `peak_mb` |
 | `SKIP` | fixture 不滿足前置條件(例如 `no_coords` 跑 spatial_heatmap) |
+
+CLI 只在至少產生一列且所有列皆為 `PASS` / `SKIP` 時回傳 exit code 0；空矩陣、未知狀態及 `FAIL` / `ERROR` / `STALL` / `OVERLOAD` 一律 fail closed。
 
 ## 如何解讀結果
 

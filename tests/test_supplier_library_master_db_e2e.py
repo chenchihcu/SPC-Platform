@@ -13,6 +13,7 @@ def _run_child(repo: Path, code: str) -> None:
     proc = subprocess.run(
         [sys.executable, "-c", code],
         cwd=str(repo),
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
         encoding="utf-8",

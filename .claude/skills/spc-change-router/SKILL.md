@@ -1,8 +1,9 @@
 ---
 name: spc-change-router
-version: 1.0.1
 allowed-tools: Read, Grep, Glob
 description: 把 SPC Platform 任務路由到正確的來源文件、reviewer subagent 與驗證 gate。Use this skill 當任務涉及 UI/theme、analytics engine、chart registry、報告/匯出、docs/harness、release validation,或使用者詢問該跑哪些檢查時。觸發詞包含「該跑什麼檢查」「route」「change router」「驗證 gate」「reviewer」「UI/theme」「analytics engine」。
+metadata:
+  version: "1.0.1"
 ---
 
 # SPC Change Router
@@ -11,15 +12,15 @@ Classify the task before changing code. Keep routing concise and use existing re
 
 ## Route Table
 
-> 機器可讀正本:[`route-table.json`](route-table.json)(`changed-path-advisor.ps1` hook 執行期讀取;pathRegex/docs/reviewer/gates 以 JSON 為準)。下表為人類可讀鏡像——**改路由先改 JSON,再同批更新本表**。
+> 機器可讀正本:[`route-table.json`](../../../.claude/skills/spc-change-router/route-table.json)(`changed-path-advisor.ps1` hook 執行期讀取;pathRegex/docs/reviewer/gates 以 JSON 為準)。下表為人類可讀鏡像——**改路由先改 JSON,再同批更新本表**。
 
 | Task surface | Read first | Prefer reviewer | Minimum verification |
 |---|---|---|---|
-| UI/theme/chart visuals | `AI_RULES.md`, `docs/specs/ui_state_semantics.md` | `qt-ui-token-auditor` | `python scripts/qt_audit.py app/`, `python scripts/check_launch.py` |
-| Analytics/statistics/chart registry | `docs/governance/SPC_RULES.md`, `.claude/skills/analytics-engine-contract/SKILL.md`, `.claude/skills/spc-db-chart-semantics-validator/SKILL.md` | `spc-stat-contract-reviewer` | focused pytest, `python .claude/skills/spc-validation-matrix/scripts/run_matrix.py --quick` when routing changes, and `.venv\Scripts\python.exe scripts\validate_db_chart_semantics.py --db data\spc_master.db --latest-session --output Outputs\db_chart_semantics_current --quiet` when chart statistics/payload semantics change |
-| Reports/PPTX/Excel exports | `README.md`, `docs/specs/project_architecture.md` | `report-export-parity-reviewer` | focused pytest plus `python scripts/check_launch.py` |
+| UI/theme/chart visuals | `AI_RULES.md`, `docs/specs/ui_state_semantics.md` | `qt-ui-token-auditor` | `.venv/Scripts/python.exe scripts/qt_audit.py app/`, `.venv/Scripts/python.exe scripts/check_launch.py` |
+| Analytics/statistics/chart registry | `docs/governance/SPC_RULES.md`, `.claude/skills/analytics-engine-contract/SKILL.md`, `.claude/skills/spc-db-chart-semantics-validator/SKILL.md` | `spc-stat-contract-reviewer` | `.venv/Scripts/python.exe -m pytest -q`, `.venv/Scripts/python.exe .claude/skills/spc-validation-matrix/scripts/run_matrix.py --quick` when routing changes, and `.venv/Scripts/python.exe scripts/validate_db_chart_semantics.py --db data/spc_master.db --latest-session --output Outputs/db_chart_semantics_current --quiet` when chart statistics/payload semantics change |
+| Reports/PPTX/Excel exports | `README.md`, `docs/specs/project_architecture.md` | `report-export-parity-reviewer` | `.venv/Scripts/python.exe -m pytest -q` plus `.venv/Scripts/python.exe scripts/check_launch.py` |
 | Docs/harness/Claude automation | `AGENTS.md`, `CLAUDE.md`, `docs/harness/README.md` | none by default | `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/harness_check.ps1` |
-| Release validation/performance | `docs/open-questions.md`, `README.md` validation section | `release-gate-triager` | `python scripts/run_release_gate.py` only when release scope requires it |
+| Release validation/performance | `docs/open-questions.md`, `README.md` validation section | `release-gate-triager` | `.venv/Scripts/python.exe scripts/run_release_gate.py` only when release scope requires it |
 
 ## Rules
 

@@ -122,6 +122,7 @@ assert marker is not None and str(marker[0]) == '1'
     proc = subprocess.run(
         [sys.executable, "-c", code],
         cwd=str(repo),
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
         encoding="utf-8",

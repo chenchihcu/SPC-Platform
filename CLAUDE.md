@@ -17,11 +17,11 @@ Claude Code reads this file first and imports `AGENTS.md` as the shared repo pol
 ## Verification Pointers
 
 ```powershell
-python -m ruff check .
-python -m mypy app
-python -m pytest -q
-python scripts/qt_audit.py app/
-python scripts/check_launch.py
-python .claude/skills/spc-validation-matrix/scripts/run_matrix.py --quick   # when chart registry/routing changes (~5s, 105 cells)
+.venv/Scripts/python.exe -m ruff check .
+.venv/Scripts/python.exe -m mypy app
+.venv/Scripts/python.exe -m pytest -q
+.venv/Scripts/python.exe scripts/qt_audit.py app/
+.venv/Scripts/python.exe scripts/check_launch.py
+.venv/Scripts/python.exe .claude/skills/spc-validation-matrix/scripts/run_matrix.py --quick   # when chart registry/routing changes (~7s, 129 cells)
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/harness_check.ps1
 ```

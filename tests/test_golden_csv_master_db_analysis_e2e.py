@@ -75,6 +75,7 @@ assert vol, "expected Volume in summary"
     proc = subprocess.run(
         [sys.executable, "-c", code],
         cwd=str(repo),
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
         encoding="utf-8",

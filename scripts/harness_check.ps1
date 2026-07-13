@@ -3,10 +3,16 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $failures = [System.Collections.Generic.List[string]]::new()
+$skips = [System.Collections.Generic.List[string]]::new()
 
 function Add-Failure {
     param([string]$Message)
     $script:failures.Add($Message) | Out-Null
+}
+
+function Add-Skip {
+    param([string]$Message)
+    $script:skips.Add($Message) | Out-Null
 }
 
 function Join-RepoPath {
@@ -49,6 +55,75 @@ function Require-Text {
     $content = Get-Content -LiteralPath $path -Raw
     if (-not $content.Contains($Text)) {
         Add-Failure "Missing ${Label} in ${RelativePath}: $Text"
+    }
+}
+
+function Require-NotText {
+    param(
+        [string]$RelativePath,
+        [string]$Text,
+        [string]$Label
+    )
+    $path = Join-RepoPath $RelativePath
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        Add-Failure "Cannot check ${Label}; missing file: $RelativePath"
+        return
+    }
+
+    $content = Get-Content -LiteralPath $path -Raw
+    if ($content.Contains($Text)) {
+        Add-Failure "Forbidden ${Label} remains in ${RelativePath}: $Text"
+    }
+}
+
+function Require-NormalizedSkillMirror {
+    param(
+        [string]$ClaudePath,
+        [string]$AgentsPath,
+        [string]$Label
+    )
+    $claudeFullPath = Join-RepoPath $ClaudePath
+    $agentsFullPath = Join-RepoPath $AgentsPath
+    if (-not (Test-Path -LiteralPath $claudeFullPath -PathType Leaf)) {
+        Add-Failure "Cannot check ${Label}; missing file: $ClaudePath"
+        return
+    }
+    if (-not (Test-Path -LiteralPath $agentsFullPath -PathType Leaf)) {
+        Add-Failure "Cannot check ${Label}; missing file: $AgentsPath"
+        return
+    }
+
+    $claudeContent = (
+        Get-Content -LiteralPath $claudeFullPath |
+            Where-Object { -not $_.StartsWith("allowed-tools:") }
+    ) -join "`n"
+    $agentsContent = (
+        Get-Content -LiteralPath $agentsFullPath |
+            Where-Object { -not $_.StartsWith("allowed-tools:") }
+    ) -join "`n"
+    if ($claudeContent -cne $agentsContent) {
+        Add-Failure "${Label} drifted after removing Claude-only allowed-tools: $ClaudePath != $AgentsPath"
+    }
+}
+
+function Require-ExactFileMirror {
+    param(
+        [string]$LeftPath,
+        [string]$RightPath,
+        [string]$Label
+    )
+    $leftFullPath = Join-RepoPath $LeftPath
+    $rightFullPath = Join-RepoPath $RightPath
+    if (-not (Test-Path -LiteralPath $leftFullPath -PathType Leaf)) {
+        Add-Failure "Cannot check ${Label}; missing file: $LeftPath"
+        return
+    }
+    if (-not (Test-Path -LiteralPath $rightFullPath -PathType Leaf)) {
+        Add-Failure "Cannot check ${Label}; missing file: $RightPath"
+        return
+    }
+    if ((Get-FileHash -Algorithm SHA256 -LiteralPath $leftFullPath).Hash -cne (Get-FileHash -Algorithm SHA256 -LiteralPath $rightFullPath).Hash) {
+        Add-Failure "${Label} drifted: $LeftPath != $RightPath"
     }
 }
 
@@ -101,6 +176,54 @@ function Require-CodexRuleExamples {
     }
     if ($notMatchCount -ne $ruleCount) {
         Add-Failure "Codex command policy must include one not_match example per prefix_rule: $RelativePath"
+    }
+}
+
+function Require-CodexPolicyParses {
+    param([string]$RelativePath)
+    $path = Join-RepoPath $RelativePath
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        Add-Failure "Cannot parse Codex command policy; missing file: $RelativePath"
+        return
+    }
+
+    $codexCommand = Get-Command codex -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $codexCommand) {
+        Add-Skip "Codex CLI not available; execpolicy parser check not executed."
+        return
+    }
+
+    $policyCommands = @(
+        ,@("python", "scripts/validate_db_chart_semantics.py")
+        ,@(".venv/Scripts/python.exe", "scripts/validate_db_chart_semantics.py")
+        ,@(".venv\Scripts\python.exe", "scripts\validate_db_chart_semantics.py")
+    )
+    foreach ($commandPrefix in $policyCommands) {
+        $commandArgs = @(
+            $commandPrefix[0],
+            $commandPrefix[1],
+            "--db",
+            "data/spc_master.db",
+            "--latest-session",
+            "--output",
+            "Outputs/db_chart_semantics_current",
+            "--quiet"
+        )
+        Push-Location $repoRoot
+        try {
+            $policyOutput = & $codexCommand.Source execpolicy check --pretty --rules $path -- @commandArgs 2>&1
+            $policyExitCode = $LASTEXITCODE
+        }
+        finally {
+            Pop-Location
+        }
+        if ($policyExitCode -ne 0) {
+            Add-Failure "Codex command policy parser failed for ${RelativePath}: $($policyOutput -join ' ')"
+            return
+        }
+        if (-not (($policyOutput -join "`n").Contains('"decision": "allow"'))) {
+            Add-Failure "Codex command policy did not allow prefix '$($commandPrefix -join ' ')': $RelativePath"
+        }
     }
 }
 
@@ -180,11 +303,21 @@ $requiredFiles = @(
     ".cursor\rules\vibe-tools.mdc",
     ".claude\rules\ui_theme.md",
     ".codex\rules\project.rules",
+    ".agents\skills\spc-db-chart-semantics-validator\SKILL.md",
+    ".claude\skills\spc-db-chart-semantics-validator\SKILL.md",
+    ".agents\skills\spc-change-router\SKILL.md",
+    ".claude\skills\spc-change-router\SKILL.md",
+    ".claude\skills\spc-change-router\route-table.json",
+    ".agents\skills\spc-validation-matrix\SKILL.md",
+    ".claude\skills\spc-validation-matrix\SKILL.md",
+    ".agents\skills\spc-validation-matrix\scripts\run_matrix.py",
+    ".claude\skills\spc-validation-matrix\scripts\run_matrix.py",
     "scripts\verify.ps1",
     "scripts\harness_check.ps1",
     "scripts\check_launch.py",
     "scripts\qt_audit.py",
     "scripts\run_release_gate.py",
+    "scripts\validate_db_chart_semantics.py",
     "docs\governance\AGENTS.md",
     "docs\governance\SPC_RULES.md",
     "docs\open-questions.md",
@@ -203,6 +336,8 @@ $requiredFiles = @(
 $requiredDirectories = @(
     ".agents",
     ".agents\rules",
+    ".agents\skills\spc-db-chart-semantics-validator",
+    ".claude\skills\spc-db-chart-semantics-validator",
     "docs\harness",
     "docs\exec-plans",
     "docs\exec-plans\active",
@@ -229,8 +364,9 @@ Require-Text "AGENTS.md" "Residual risk" "residual risk field"
 Require-Text "AGENTS.md" "Source-Control Boundary" "source-control boundary rule"
 
 Require-Text "CLAUDE.md" "@AGENTS.md" "Claude imports AGENTS policy"
-Require-Text ".cursor\rules\agents_gateway.mdc" "AGENTS.md" "Cursor gateway points to AGENTS"
+Require-Text ".cursor\rules\agents_gateway.mdc" "](../../AGENTS.md)" "Cursor gateway uses a repo-relative AGENTS link"
 Require-Text ".cursor\rules\agents_gateway.mdc" "alwaysApply: true" "Cursor gateway always-on"
+Require-NotText ".cursor\rules\agents_gateway.mdc" "SPC%20platform%20v2" "stale Cursor repository path"
 Require-Text ".cursor\rules\vibe-tools.mdc" "alwaysApply: false" "vibe-tools is not always-on"
 Require-Text ".agents\rules\agents_gateway.md" "AGENTS.md" "Antigravity gateway points to AGENTS"
 Require-Text ".agents\rules\agents_gateway.md" "New Worktree Mode" "Antigravity worktree preference"
@@ -298,10 +434,26 @@ Require-Text "docs\harness\closed-loop-log.md" "Destination:" "closed-loop desti
 Require-Text "scripts\verify.ps1" "harness_check.ps1" "verify harness check call"
 Require-Text ".codex\rules\project.rules" "harness_check.ps1" "project rule for harness check"
 Require-Text ".codex\rules\project.rules" "scripts/verify.ps1" "project rule for verify"
+Require-Text ".codex\rules\project.rules" "validate_db_chart_semantics.py" "project rule for DB semantic validation"
 Require-Text ".codex\rules\project.rules" "match =" "Codex rule match examples"
 Require-Text ".codex\rules\project.rules" "not_match =" "Codex rule not_match examples"
 Require-Text ".codex\rules\project.rules" "WindowsPowerShell" "Codex rule supports full Windows PowerShell path"
 Require-CodexRuleExamples ".codex\rules\project.rules"
+Require-CodexPolicyParses ".codex\rules\project.rules"
+Require-Text "scripts\validate_db_chart_semantics.py" "PRAGMA query_only = ON" "DB semantic validator query-only guard"
+Require-Text "scripts\validate_db_chart_semantics.py" "EXPECTED_DENSITY_MODES" "DB semantic validator density assertion"
+Require-Text "scripts\validate_db_chart_semantics.py" "_resolve_output_dir" "DB semantic validator Outputs boundary"
+Require-Text "README.md" "validate_db_chart_semantics.py" "README DB semantic gate pointer"
+Require-Text "docs\governance\AGENTS.md" "validate_db_chart_semantics.py" "governance DB semantic gate pointer"
+Require-Text "docs\harness\README.md" "validate_db_chart_semantics.py" "harness DB semantic gate pointer"
+Require-Text "docs\specs\project_architecture.md" "validate_db_chart_semantics.py" "architecture DB semantic gate pointer"
+Require-Text ".claude\skills\spc-change-router\route-table.json" "validate_db_chart_semantics.py" "router DB semantic gate pointer"
+Require-Text ".claude\skills\spc-change-router\SKILL.md" ".venv/Scripts/python.exe -m pytest -q" "router full analytics pytest gate"
+Require-Text "CLAUDE.md" ".venv/Scripts/python.exe -m pytest -q" "Claude venv verification command"
+Require-NormalizedSkillMirror ".claude\skills\spc-db-chart-semantics-validator\SKILL.md" ".agents\skills\spc-db-chart-semantics-validator\SKILL.md" "DB semantic validator skill mirror"
+Require-NormalizedSkillMirror ".claude\skills\spc-change-router\SKILL.md" ".agents\skills\spc-change-router\SKILL.md" "change router skill mirror"
+Require-NormalizedSkillMirror ".claude\skills\spc-validation-matrix\SKILL.md" ".agents\skills\spc-validation-matrix\SKILL.md" "validation matrix skill mirror"
+Require-ExactFileMirror ".claude\skills\spc-validation-matrix\scripts\run_matrix.py" ".agents\skills\spc-validation-matrix\scripts\run_matrix.py" "validation matrix runner mirror"
 Require-ByteBudget "AGENTS.md" 32768 "Codex AGENTS.md size budget"
 Require-LineBudget "CLAUDE.md" 200 "Claude CLAUDE.md line budget"
 Require-CursorRuleLineBudgets
@@ -321,4 +473,12 @@ if ($failures.Count -gt 0) {
     exit 1
 }
 
-Write-Host "Harness check passed."
+if ($skips.Count -gt 0) {
+    Write-Host "Harness check passed with skips:"
+    foreach ($skip in $skips) {
+        Write-Host "- $skip"
+    }
+}
+else {
+    Write-Host "Harness check passed."
+}

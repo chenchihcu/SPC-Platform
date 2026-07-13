@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from app.analytics.multivariate_spc_engine import MultivariateSPCEngine
+from tests.helpers import assert_engine_contract
 
 FACTORY = MultivariateSPCEngine()
 
@@ -13,6 +14,8 @@ def test_in_control():
     X = np.random.multivariate_normal(mean, cov, size=100)
     df = pd.DataFrame(X, columns=["A", "B", "C"])
     result = FACTORY.compute_hotelling_t2(df, ["A", "B", "C"])
+    assert_engine_contract(result, expect_valid=True)
+    assert result["metadata"]["error"] == ""
     assert result["metadata"]["is_valid"] is True
     assert result["statistics"]["ucl_value"] > 0
     assert result["statistics"]["ooc_pct"] < 10, (
@@ -36,7 +39,48 @@ def test_out_of_control():
 def test_insufficient_data():
     df = pd.DataFrame({"A": [1, 2], "B": [3, 4], "C": [5, 6]})
     result = FACTORY.compute_hotelling_t2(df, ["A", "B", "C"])
-    assert result["metadata"]["is_valid"] is False
+    assert_engine_contract(result, expect_valid=False)
+
+
+def test_ten_samples_are_invalid_per_spc_minimum_sample_rule():
+    rng = np.random.default_rng(7)
+    df = pd.DataFrame(rng.normal(size=(10, 3)), columns=["A", "B", "C"])
+
+    result = FACTORY.compute_hotelling_t2(df, ["A", "B", "C"])
+
+    assert_engine_contract(result, expect_valid=False)
+    assert result["metadata"]["n_samples"] == 10
+    assert "11" in result["metadata"]["error"]
+
+
+def test_eleven_numeric_string_samples_are_valid_boundary():
+    rng = np.random.default_rng(17)
+    df = pd.DataFrame(rng.normal(size=(11, 3)), columns=["A", "B", "C"]).astype(str)
+
+    result = FACTORY.compute_hotelling_t2(df, ["A", "B", "C"])
+
+    assert_engine_contract(result, expect_valid=True)
+    assert result["metadata"]["n_samples"] == 11
+
+
+def test_singular_covariance_returns_empty_invalid_contract():
+    values = np.arange(20, dtype=float)
+    df = pd.DataFrame({"A": values, "B": values * 2, "C": values * 3})
+
+    result = FACTORY.compute_hotelling_t2(df, ["A", "B", "C"])
+
+    assert_engine_contract(result, expect_valid=False)
+    assert "奇異" in result["metadata"]["error"]
+
+
+def test_exactly_three_features_are_required():
+    rng = np.random.default_rng(11)
+    df = pd.DataFrame(rng.normal(size=(20, 2)), columns=["A", "B"])
+
+    result = FACTORY.compute_hotelling_t2(df, ["A", "B"])
+
+    assert_engine_contract(result, expect_valid=False)
+    assert result["metadata"]["p_features"] == 2
 
 
 def test_payload_structure():

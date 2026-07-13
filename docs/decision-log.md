@@ -1,5 +1,15 @@
 # Decision Log
 
+## 2026-07-13 DB-backed Chart Semantic Gate Hardening
+
+- Decision: 將 DB semantic gate 從「記錄 density mode」提升為可阻擋的語意檢查，修正單特徵預算 payload 的雙特徵 density resolver，並讓跨組合 matrix 對所有 arity 執行且在任何 blocking status 時回傳非零。
+- Scope: `chart_registry.py` density slicing、`multivariate_spc_engine.py` 無效契約與最小樣本規則、DB validator、matrix runner/skills、focused tests、Codex/Cursor/router/harness 治理檔。
+- Reason: 真實 DB gate 雖顯示 PASS，實際只記錄 density mode；全 arity matrix 發現 Hotelling invalid payload 保留非空 data/statistics，但 runner 仍回傳 exit 0；Codex policy inline examples亦無法被 parser 載入。
+- Impact: 1F→2F density 缺少 bivariate pair、payload 特徵身分錯置或 X/Y 點數不一致時 fail closed；3F density 要求三個完整 univariate child；Hotelling 依 `n > p` 且 `n > 10` 守門並逐點對帳；Radar group means 與 LISA deterministic fields 也獨立重算；非法 output path 會寫入安全 fallback ERROR summary；matrix 與 command policy 可作真實機械 gate。
+- Verification: focused pytest 45 PASS / 1 SKIP；real DB session 5（17,632 rows、100% coordinate join、185 semantic checks、0 failures）；matrix quick 129/129 PASS；Codex `execpolicy check` allow；harness PASS；ruff PASS；mypy 195 files PASS；pytest 887 PASS / 1 SKIP；`check_launch.py` PASS。
+- Risk: DB gate仍依賴本機 measurement/coordinate/spec 檔可讀；Monte Carlo LISA p-value 本質非決定性，因此不作逐值對帳，但會檢查值域/長度及依輸出 p-value 推導的分類一致性。Windows 環境無建立 symlink 權限時，symlink escape 測試會明示 SKIP，但一般路徑穿越與 output containment 仍有執行驗證。
+- Rollback: 回退本條所列程式、技能、測試與治理檔；不涉及 SQLite schema、migration 或 persistent data mutation。
+
 ## 2026-07-12 DB-backed Chart Semantic Validation Gate
 
 - Decision: 新增 `scripts/validate_db_chart_semantics.py` 與 `spc-db-chart-semantics-validator` 技能，並將 DB-backed chart semantic gate 接入 analytics/chart registry 路由、harness README、治理規則與 Codex command policy。

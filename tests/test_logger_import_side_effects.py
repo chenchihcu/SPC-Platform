@@ -33,6 +33,7 @@ print(json.dumps({"before": before, "after": after}))
         [sys.executable, "-c", code],
         cwd=repo,
         env=env,
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
         encoding="utf-8",

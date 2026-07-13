@@ -6,6 +6,7 @@ Phase 2: category, payload_key, get_charts_by_category, get_payload_slice.
 Phase 3: use unified message constants from app.utils.constants.
 Display names (Chinese-first) and 4-section description metadata are unified here.
 """
+from collections.abc import Sized
 from typing import List, Optional, Dict, Any
 
 from app.utils.constants import (
@@ -997,6 +998,37 @@ def _ensure_chart_payload_schema(chart_id: str, result: Any) -> Dict[str, Any]:
     return normalized
 
 
+def _is_bivariate_density_for_features(result: Any, features: List[str]) -> bool:
+    """Return whether a density payload exactly represents the requested pair."""
+    if not isinstance(result, dict) or len(features) != 2:
+        return False
+    metadata = result.get("metadata") or {}
+    data = result.get("data") or {}
+    if not isinstance(metadata, dict) or not metadata.get("is_valid") or not isinstance(data, dict):
+        return False
+
+    mode = data.get("mode")
+    if mode not in (None, "", "bivariate"):
+        return False
+    col_x = data.get("col_x")
+    col_y = data.get("col_y")
+    if not isinstance(col_x, str) or not col_x or not isinstance(col_y, str) or not col_y:
+        return False
+    if sorted([col_x, col_y]) != sorted(features):
+        return False
+
+    x_values = data.get("x")
+    y_values = data.get("y")
+    if (
+        not isinstance(x_values, Sized)
+        or not isinstance(y_values, Sized)
+        or isinstance(x_values, (str, bytes, dict))
+        or isinstance(y_values, (str, bytes, dict))
+    ):
+        return False
+    return len(x_values) == len(y_values) and len(x_values) >= 2
+
+
 def _resolve_3f_parallel_payload(payload: Dict[str, Any], chart_id: str, normalized: bool = False) -> Dict[str, Any]:
     params = (payload or {}).get("parameters", {}) or {}
     if not params:
@@ -1102,11 +1134,34 @@ def resolve_chart_payload(
         )
 
     if chart_id == "density" and len(active_features) >= 2:
-        # Prefer dual-feature density payload when available; otherwise fallback to
-        # per-feature univariate density merge.
-        direct = get_payload_slice(payload or {}, chart_id)
-        if isinstance(direct, dict) and direct.get("metadata", {}).get("is_valid", False):
-            return _ensure_chart_payload_schema(chart_id, direct)
+        if len(active_features) == 2:
+            # A one-feature analysis precomputes every pair in dual_parameters so
+            # the display selector can switch without recomputing. Native 2F
+            # analysis stores the bivariate slice at the top level.
+            dual_params = (payload or {}).get("dual_parameters", {}) or {}
+            f0, f1 = active_features[0], active_features[1]
+            pair_data = dual_params.get(f"{f0}+{f1}") or dual_params.get(f"{f1}+{f0}")
+            if isinstance(pair_data, dict) and "density" in pair_data:
+                pair_density = pair_data.get("density")
+                if _is_bivariate_density_for_features(pair_density, active_features):
+                    return _ensure_chart_payload_schema(chart_id, pair_density)
+
+            direct = get_payload_slice(payload or {}, chart_id)
+            if _is_bivariate_density_for_features(direct, active_features):
+                return _ensure_chart_payload_schema(chart_id, direct)
+            return _ensure_chart_payload_schema(
+                chart_id,
+                {
+                    "metadata": {
+                        "is_valid": False,
+                        "error": "缺少所選雙特徵的 bivariate density payload，或特徵/點數不一致。",
+                    },
+                    "analysis_context": {},
+                },
+            )
+
+        # Three-feature analysis intentionally falls through to the per-feature
+        # merge below and is labelled multi_feature_univariate by the validator.
 
     payload_key = entry.get("payload_key")
     if isinstance(payload_key, str):

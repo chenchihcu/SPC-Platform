@@ -22,15 +22,16 @@ When a specific real session is known, prefer exact replay:
 .venv\Scripts\python.exe scripts\validate_db_chart_semantics.py --db data\spc_master.db --session-id <id> --output Outputs\db_chart_semantics_current --quiet
 ```
 
-The script opens SQLite read-only, loads the measurement file, active coordinate file, and active paste/stencil specs, joins with `JoinEngine`, computes payloads through `compute_analysis_payload`, resolves chart slices through `chart_registry.resolve_chart_payload`, and writes `summary.json`.
+The script opens SQLite with URI read-only mode plus `PRAGMA query_only=ON`, loads the measurement file, active coordinate file, and active paste/stencil specs, joins with `JoinEngine`, computes payloads through `compute_analysis_payload`, resolves chart slices through `chart_registry.resolve_chart_payload`, and writes `summary.json` below `Outputs/`. Output paths outside `Outputs/` are rejected. Setup/runtime failures write an `ERROR` summary and return exit code 2.
 
 ## What This Catches
 
 - Chart availability says a chart is usable but resolver returns invalid.
 - Single-feature SPC/capability/run/EWMA/CUSUM/spatial statistics drift from joined dataframe recomputation.
 - Dual-feature precomputed pair payloads are missing or numerically inconsistent.
-- Density mode regresses between univariate and bivariate semantics.
-- Triple-feature denominator semantics drift, including `consistency_3f` excluding non-positive Volume/Area before counting.
+- Density mode regresses from the required `1F=univariate`, `2F=bivariate`, or `3F=multi_feature_univariate` semantics.
+- Triple-feature semantics drift, including `consistency_3f` denominator filtering, pointwise Hotelling T²/UCL/OOC checks, and Radar group-mean recomputation.
+- Deterministic LISA local-I/z-score/lag semantics drift; Monte Carlo p-values are checked for contract and derived classification consistency rather than exact equality.
 
 ## Non-Negotiable Rules
 

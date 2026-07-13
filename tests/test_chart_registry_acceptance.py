@@ -1,3 +1,5 @@
+import pytest
+
 from app.analytics.chart_registry import (
     CHART_UI_GROUPS_ORDER,
     TEXT_SUMMARY_CHART_IDS,
@@ -71,6 +73,93 @@ def test_multi_feature_payload_slice_merges_feature_data_for_run_chart():
     assert result["_multi_feature"] is True
     assert result["_normalized"] is True
     assert set(result["_features"]) == {"Volume", "Area"}
+
+
+def test_density_resolver_prefers_precomputed_pair_when_one_feature_payload_expands():
+    payload = {
+        "selected_features": ["Volume"],
+        "density": {
+            "metadata": {"is_valid": True},
+            "data": {"mode": "univariate", "values": [1.0, 2.0]},
+            "statistics": {"n": 2},
+        },
+        "dual_parameters": {
+            "Volume+Area": {
+                "density": {
+                    "metadata": {"is_valid": True},
+                    "data": {
+                        "mode": "bivariate",
+                        "x": [1.0, 2.0],
+                        "y": [3.0, 4.0],
+                        "col_x": "Volume",
+                        "col_y": "Area",
+                    },
+                    "statistics": {"n_points": 2},
+                }
+            }
+        },
+    }
+
+    result = resolve_chart_payload(payload, "density", features=["Area", "Volume"])
+
+    assert result["data"]["mode"] == "bivariate"
+    assert {result["data"]["col_x"], result["data"]["col_y"]} == {"Volume", "Area"}
+    assert result["statistics"]["n_points"] == 2
+
+
+@pytest.mark.parametrize(
+    ("col_x", "col_y", "x", "y"),
+    [
+        ("Volume", "Height", [1.0, 2.0], [3.0, 4.0]),
+        ("Volume", "Area", [1.0, 2.0], [3.0]),
+    ],
+)
+def test_density_resolver_rejects_wrong_pair_or_misaligned_points(col_x, col_y, x, y):
+    payload = {
+        "selected_features": ["Volume"],
+        "density": {
+            "metadata": {"is_valid": True},
+            "data": {"mode": "univariate", "values": [1.0, 2.0]},
+        },
+        "dual_parameters": {
+            "Volume+Area": {
+                "density": {
+                    "metadata": {"is_valid": True},
+                    "data": {
+                        "mode": "bivariate",
+                        "x": x,
+                        "y": y,
+                        "col_x": col_x,
+                        "col_y": col_y,
+                    },
+                }
+            }
+        },
+    }
+
+    result = resolve_chart_payload(payload, "density", features=["Volume", "Area"])
+
+    assert result["metadata"]["is_valid"] is False
+    assert "特徵/點數不一致" in result["metadata"]["error"]
+
+
+def test_density_resolver_rejects_native_payload_for_different_requested_pair():
+    payload = {
+        "selected_features": ["Volume", "Area"],
+        "density": {
+            "metadata": {"is_valid": True},
+            "data": {
+                "x": [1.0, 2.0],
+                "y": [3.0, 4.0],
+                "col_x": "Volume",
+                "col_y": "Area",
+            },
+        },
+    }
+
+    result = resolve_chart_payload(payload, "density", features=["Volume", "Height"])
+
+    assert result["metadata"]["is_valid"] is False
 
 
 def test_feature_slice_fallback_exposes_reason_metadata():
