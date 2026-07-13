@@ -551,3 +551,34 @@ for s, c in Counter(s.strip() for s in selectors).items():
 規則 D-2：測試環境下的 JSON 物理隔離
 在編寫測試或對檔案進行讀寫時，若 SPC_MASTER_DB_PATH 被設定，所有的附帶產出物（如 JSON、XML）必須前綴加上該測試 DB 的名稱，並寫入該臨時目錄，禁止寫入或載入 production 的真實 data/ 目錄。
 ```
+
+---
+
+## 十五、統計語意驗證器與引擎排序及子群 MR 估計對等性教訓
+
+### 發生了什麼
+
+在執行真實 DB-backed session 的統計語意驗證腳本 (`validate_db_chart_semantics.py`) 時，驗證器在載入真實生產資料進行獨立語意重新計算（如 I-MR 控制界限與 Capability 的 $C_p$/$C_{pk}$ 指標）時，比對結果發生了 **21 項統計偏差 failures**。
+
+### 根本原因
+
+此不一致性由以下兩個維度的預期值計算偏差所引起：
+1. **排序規則不對等（字典序 vs 自然排序）**：在 SPI/SPC 的生產資料中，板號 (例如 `BoardNo` 包含 `Board_2` 與 `Board_10`) 必須使用符合生產時間線的**自然排序**。統計引擎在處理資料時調用了 `sort_by_order_col` 自然排序，但驗證腳本在計算預期值時，卻採用了標準的字典序 `df.sort_values`。這導致兩邊的 row 順序不一致，從而導致相鄰觀測值相減的移動極差 (MR) 平均值 `mr_bar` 產生極大偏差。
+2. **短期變異估計未考慮合理子群**：統計引擎在計算 Capability 的短期變異（`sigma_st`）時，套用了 Rational Subgroup 規則（排除跨板邊界的 MR 變異），而驗證腳本在自行計算 expected 的 `sigma_st` 時，未傳入 `subgroup_ids` 進行分組 pooled MR，導致 expected 使用了整條數列的 MR 差值，進而高估了短期變異。
+
+### 修正
+
+1. 修改 `scripts/validate_db_chart_semantics.py`，將 `_analysis_ordered_df` 排序函數由原本的 `df.sort_values` 替換為 `app.utils.dataframe_utils.sort_by_order_col` 以進行穩定的自然排序。
+2. 在 `_capability_expected` 中引入 `subgroup_ids` 的支援，並對其進行與引擎相同的 pooled 排除邊界 MR 邏輯計算，且在語意比對的 loop 中正確解析並傳入 `_subgroup_ids`。
+3. 修正後，語意比對失敗全部歸零（PASS），且專屬測試與全庫 919 個 pytest 案例全數通過。
+
+### 預防規則
+
+```
+規則 V-1：驗證器與引擎的資料排序契約必須 100% 同源
+凡涉及移動極差 (Moving Range)、時間序列管制圖 (EWMA/CUSUM) 等對觀測值排序極度敏感的統計驗證，驗證腳本必須統一使用與生產系統一致的 `sort_by_order_col` 自然排序，嚴禁使用無自然排序鍵的標準 `sort_values`。
+
+規則 V-2：變異估計需統一合理子群 (Rational Subgroup) 邊界條件
+在計算 Short-term Sigma (within-subgroup) 以得出 Cp/Cpk 時，驗證程式必須同等處理資料的 `subgroup_ids` (如板號/拼板號)，以確保雙方均排除跨越邊界的非合理 MR，保持變異估計尺度的一致性。
+```
+
