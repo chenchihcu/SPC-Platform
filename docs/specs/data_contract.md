@@ -108,8 +108,15 @@ Area(mm)<n>
 | Area(mm)<n> | Area |
 | <n> | BoardNo = Board_<n> |
 
+供應商限定衍生欄位（僅此 profile）：
+
+| 衍生欄位 | 規則 |
+|---------|------|
+| BaseRefDes | `RefDes` 尾端符合 `_<整數>` 或 `-<整數>` 時移除該尾碼；不符合時保留原值 |
+| ImageID | 只從上述明確尾碼解析為 nullable integer；沒有可分類尾碼時為空值，不猜測 |
+
 此 profile 將寬表轉為長表，並於 `meas_meta` 記錄 `vendor_profile`、
-`raw_rows`、`raw_columns`、`board_count` 與 `measurement_units`。`Volume`、
+`raw_rows`、`raw_columns`、`board_count`、`measurement_units` 與 `derived_columns`。`Volume`、
 `Area`、`Height` 會轉為 numeric，但系統不隱性把絕對量測值轉成百分比；規格比對仍需由產品規格單位模式保證語意一致。
 
 量測庫 session 需保存 `supplier` 供應商名稱；從量測庫回載量測檔時，
@@ -358,7 +365,11 @@ RefDes
 ## 16.1 ChartAnalysisPage state model
 
 - `active_features: List[str]`
-  - 來源：`_display_features` 與目前頁籤（1F/2F/3F）切片結果。
+  - 來源：目前 `圖表檢視組合` 的穩定 feature key。
+- `active_feature_combination: List[str]`
+  - 與 `active_features` 對齊，供 UI 快照明確揭露實際組合。
+- `feature_tab_count: int`
+  - 向後相容欄位；由 `len(active_feature_combination)` 衍生，不再代表可見頁籤。
 - `selected_chart_ids: List[str]`
   - 來源：目前 selector 勾選。
 - `autoswitch_reason: str`
@@ -366,6 +377,8 @@ RefDes
 - `render_status: Dict[chart_id, {status, reason}]`
   - `status in {Ready, Incompatible, NoData, Error}`
   - 用於圖卡標籤與缺圖可解釋性。
+
+`dual_parameters` 為加法式預算快取：1F 分析維持所有可用量測特徵配對，2F 保存所選配對，3F 保存三個 C(3,2) 配對。`resolve_chart_payload(...)` 對雙變量組合優先解析此快取，找不到時才走既有 top-level fallback；切換組合不得觸發 engine 重算。
 
 ## 16.2 ReportExportPage 圖表勾選（UI-local）
 

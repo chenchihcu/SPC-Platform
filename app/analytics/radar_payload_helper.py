@@ -178,4 +178,9 @@ def build_radar_from_dataframe_groups(
         str(name): {feat: float(means.loc[name, feat]) for feat in cols}
         for name in group_order
     }
-    return build_radar_payload(statistics_map, category_label="features")
+    result = build_radar_payload(statistics_map, category_label="features")
+    result["metadata"]["source_n_series"] = int(len(means))
+    result["metadata"]["series_truncated"] = bool(
+        max_series is not None and len(means) > max_series
+    )
+    return result

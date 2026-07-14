@@ -78,6 +78,24 @@ def _pareto_with_parttype_fallback(
             pareto = ParetoEngine.compute_pareto(df, target_col, usl=usl, lsl=lsl)
     else:
         pareto = ParetoEngine.compute_pareto(df, target_col, usl=usl, lsl=lsl)
+    variants: Dict[str, Dict[str, Any]] = {}
+    for key, group_col in (("pad", "Pad"), ("image", "ImageID")):
+        if group_col not in df.columns:
+            continue
+        variant = ParetoEngine.compute_component_pareto(
+            df, target_col, group_col=group_col,
+            ucl=ucl, lcl=lcl, usl=usl, lsl=lsl,
+        )
+        if not variant.get("metadata", {}).get("is_valid"):
+            continue
+        variant["_grouping_mode"] = key
+        variant["_group_col"] = group_col
+        variant.setdefault("analysis_context", {})["target_col"] = target_col
+        # Pad/Image labels are not RefDes drill-down targets.
+        variant.setdefault("data", {})["component_ids"] = []
+        variants[key] = variant
+    if variants:
+        pareto["_group_variants"] = variants
     return pareto
 
 
@@ -166,13 +184,27 @@ def _compute_boxplot_for_df(df: pd.DataFrame, target_col: str) -> Dict[str, Any]
         result = ComparisonEngine.compute_boxplot(df, target_col, group_col=board_col)
         result["_grouping_mode"] = "board"
         result["_group_col"] = board_col
-        return result
+        default_result = result
+    else:
+        group_col: str = "RefDes" if "RefDes" in df.columns else (board_col or "RefDes")
+        default_result = ComparisonEngine.compute_boxplot(df, target_col, group_col=group_col)
+        default_result["_grouping_mode"] = "refdes"
+        default_result["_group_col"] = group_col
 
-    group_col: str = "RefDes" if "RefDes" in df.columns else (board_col or "RefDes")
-    result = ComparisonEngine.compute_boxplot(df, target_col, group_col=group_col)
-    result["_grouping_mode"] = "refdes"
-    result["_group_col"] = group_col
-    return result
+    variants: Dict[str, Dict[str, Any]] = {}
+    for key, variant_col in (("pad", "Pad"), ("image", "ImageID")):
+        if variant_col not in df.columns:
+            continue
+        variant = ComparisonEngine.compute_boxplot(df, target_col, group_col=variant_col)
+        if not variant.get("metadata", {}).get("is_valid"):
+            continue
+        variant["_grouping_mode"] = key
+        variant["_group_col"] = variant_col
+        variant.setdefault("analysis_context", {})["target_col"] = target_col
+        variants[key] = variant
+    if variants:
+        default_result["_group_variants"] = variants
+    return default_result
 
 
 def _safe_compute_chart(
@@ -453,6 +485,77 @@ def _compute_driver_bundle(
     }
 
 
+def _build_dual_feature_parameters(
+    df: pd.DataFrame,
+    features: List[str],
+    workorder_spec: Dict[str, Any],
+    *,
+    precomputed: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> Dict[str, Dict[str, Any]]:
+    """Build every requested pair once for zero-recompute UI switching."""
+    ordered = list(dict.fromkeys(feature for feature in features if feature in df.columns))
+    cached = precomputed or {}
+    dual_parameters: Dict[str, Dict[str, Any]] = {}
+    for index, col_x in enumerate(ordered):
+        for col_y in ordered[index + 1:]:
+            pair_key = f"{col_x}+{col_y}"
+            reverse_key = f"{col_y}+{col_x}"
+            existing = cached.get(pair_key) or cached.get(reverse_key)
+            if existing is not None:
+                dual_parameters[pair_key] = dict(existing)
+                continue
+
+            spec_x = _parse_workorder_spec_entry(
+                workorder_spec.get(SPEC_KEY_BY_COL.get(col_x, col_x.lower()))
+            )
+            spec_y = _parse_workorder_spec_entry(
+                workorder_spec.get(SPEC_KEY_BY_COL.get(col_y, col_y.lower()))
+            )
+            correlation = _safe_compute_chart(
+                "CorrelationMatrix",
+                CorrelationMatrixEngine.compute_matrix,
+                df[[col_x, col_y]],
+                [col_x, col_y],
+            )
+            dual_parameters[pair_key] = {
+                "scatter_spec": _safe_compute_chart(
+                    "ScatterSpec",
+                    ScatterEngine.compute_scatter_spec,
+                    df,
+                    col_x,
+                    col_y,
+                    spec_x,
+                    spec_y,
+                ),
+                "correlation_matrix": correlation,
+                "correlation_heatmap": correlation,
+                "quadrant": _safe_compute_chart(
+                    "Quadrant",
+                    QuadrantEngine.compute_quadrant,
+                    df,
+                    col_x,
+                    col_y,
+                    spec_x,
+                    spec_y,
+                ),
+                "bivariate_outlier": _safe_compute_chart(
+                    "BivariateOutlier",
+                    BivariateOutlierEngine.compute_bivariate_outlier,
+                    df,
+                    col_x,
+                    col_y,
+                ),
+                "density": _safe_compute_chart(
+                    "Density",
+                    DensityEngine.compute_density,
+                    df,
+                    col_x,
+                    col_y,
+                ),
+            }
+    return dual_parameters
+
+
 def compute_analysis_payload(
     filtered_df: pd.DataFrame,
     selected_features: List[str],
@@ -664,51 +767,11 @@ def compute_analysis_payload(
                 precomputed_parameters={target_col: selected_parameter_bundle},
             )
 
-            # Pre-compute dual-feature combinations so chart page can enable dual charts
-            # when the user selects 2 display features without re-running the analysis.
-            dual_parameters: dict[str, dict] = {}
-            for _di, _cx in enumerate(_feature_cols):
-                for _cy in _feature_cols[_di + 1:]:
-                    _spec_x = _parse_workorder_spec_entry(
-                        workorder_spec.get(SPEC_KEY_BY_COL.get(_cx, _cx.lower()))
-                    )
-                    _spec_y = _parse_workorder_spec_entry(
-                        workorder_spec.get(SPEC_KEY_BY_COL.get(_cy, _cy.lower()))
-                    )
-                    _pair_key = f"{_cx}+{_cy}"
-                    dual_parameters[_pair_key] = {
-                        "scatter_spec": _safe_compute_chart(
-                            "ScatterSpec",
-                            ScatterEngine.compute_scatter_spec,
-                            filtered_df, _cx, _cy, _spec_x, _spec_y,
-                        ),
-                        # correlation_heatmap shares the identical matrix result (filled below)
-                        "correlation_matrix": _safe_compute_chart(
-                            "CorrelationMatrix",
-                            CorrelationMatrixEngine.compute_matrix,
-                            filtered_df[[_cx, _cy]],
-                            [_cx, _cy],
-                        ),
-                        "quadrant": _safe_compute_chart(
-                            "Quadrant",
-                            QuadrantEngine.compute_quadrant,
-                            filtered_df, _cx, _cy, _spec_x, _spec_y,
-                        ),
-                        "bivariate_outlier": _safe_compute_chart(
-                            "BivariateOutlier",
-                            BivariateOutlierEngine.compute_bivariate_outlier,
-                            filtered_df, _cx, _cy,
-                        ),
-                        "density": _safe_compute_chart(
-                            "Density",
-                            DensityEngine.compute_density,
-                            filtered_df, _cx, _cy,
-                        ),
-                    }
-                    dual_parameters[_pair_key]["correlation_heatmap"] = (
-                        dual_parameters[_pair_key]["correlation_matrix"]
-                    )
-            payload["dual_parameters"] = dual_parameters
+            payload["dual_parameters"] = _build_dual_feature_parameters(
+                filtered_df,
+                _feature_cols,
+                workorder_spec,
+            )
 
             # Pre-compute triple-feature combination for when user selects all 3 display features.
             triple_parameters: dict[str, Any] = {}
@@ -799,6 +862,22 @@ def compute_analysis_payload(
             payload["radar"] = None
             payload["parallel_coord"] = None
             payload["pass_fail_matrix"] = None
+            pair_key = f"{col_x}+{col_y}"
+            payload["dual_parameters"] = _build_dual_feature_parameters(
+                filtered_df,
+                selected_features,
+                workorder_spec,
+                precomputed={
+                    pair_key: {
+                        "scatter_spec": scatter,
+                        "correlation_matrix": corr_matrix,
+                        "correlation_heatmap": corr_heatmap,
+                        "quadrant": quadrant,
+                        "bivariate_outlier": bivariate,
+                        "density": density,
+                    }
+                },
+            )
             # Build per-feature bundles for multi-feature tabs (histogram/normality/boxplot)
             # and for future 3F-parallel continuity if user expands selection later.
             if cancel_fn and cancel_fn():
@@ -872,6 +951,11 @@ def compute_analysis_payload(
                 raise _AnalysisCancelled()
             payload["parameters"] = _build_feature_parameters(
                 filtered_df, selected_features, workorder_spec, cancel_fn=cancel_fn
+            )
+            payload["dual_parameters"] = _build_dual_feature_parameters(
+                filtered_df,
+                selected_features,
+                workorder_spec,
             )
         if progress_callback:
             progress_callback(95, "正在完成分析...")

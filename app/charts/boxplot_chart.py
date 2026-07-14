@@ -120,6 +120,8 @@ class BoxplotChart(BaseChart):
             "board":     "板號 (Board No)",
             "footprint": "足印 / 元件 (Footprint / RefDes)",
             "refdes":    "元件或群組 (Component / Subgroup)",
+            "pad":       "焊墊編號 (Pad)",
+            "image":     "印刷影像序號 (Image)",
         }
         _xlabel = _xlabel_map.get(_grouping_mode)
         if _xlabel is None and _group_col:

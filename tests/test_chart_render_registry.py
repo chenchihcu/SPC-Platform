@@ -1,10 +1,15 @@
 from app.services import chart_render
+from app.analytics.chart_registry import CHART_ORDER
 from app.services.chart_render import _RENDERERS
 
 
 def test_renderers_include_3f_parallel_charts() -> None:
     required = {"imr_3f", "run_chart_3f", "ewma_3f", "cusum_3f", "boxplot_3f"}
     assert required.issubset(set(_RENDERERS.keys()))
+
+
+def test_every_registered_report_chart_has_a_renderer() -> None:
+    assert set(CHART_ORDER).issubset(set(_RENDERERS))
 
 
 def test_render_chart_uses_shared_resolver_and_feature_context(monkeypatch) -> None:

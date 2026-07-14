@@ -332,6 +332,8 @@ class MoranIEngine:
         return {
             "chart_type": chart_type,
             "data": {
+                "x": coord_arr[:, 0].tolist(),
+                "y": coord_arr[:, 1].tolist(),
                 "local_i": I_local.tolist(),
                 "p_values": p_values.tolist(),
                 "z_scores": ((I_local - np.mean(I_local)) / np.std(I_local, ddof=1)).tolist()

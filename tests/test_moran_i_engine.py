@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from app.analytics.moran_i_engine import MoranIEngine
 from tests.helpers import assert_engine_contract
@@ -130,8 +131,10 @@ def test_local_valid_with_sufficient_data():
 def test_local_data_keys_present():
     result = MoranIEngine.compute_local_moran_i(_coords(), _values())
     if result["metadata"]["is_valid"]:
-        for key in ("local_i", "p_values", "classifications", "quadrant_std_value", "quadrant_lag"):
+        for key in ("x", "y", "local_i", "p_values", "classifications", "quadrant_std_value", "quadrant_lag"):
             assert key in result["data"], f"Missing key: {key}"
+        assert result["data"]["x"] == pytest.approx(_coords()[:, 0])
+        assert result["data"]["y"] == pytest.approx(_coords()[:, 1])
 
 
 def test_local_classifications_length():

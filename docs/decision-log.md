@@ -1308,3 +1308,21 @@
 - Verification: ruff ✅、mypy ✅（196 檔 0 錯）、pytest 861 passed ✅、qt_audit ALL CLEAR ✅、check_launch [PASS] ✅、spc-validation-matrix --quick 105/105 PASS ✅、harness_check ✅。
 - Risk: 深度重構（D3 四個 3F draw_chart 樣板抽取、D14 40+ 處 invalid-payload 樣板遷移、D6 驗證器整併）刻意延後（見 open-questions）；C6 隱藏錨點與 C8 template_type 契約保留待 owner 決定。
 - Rollback: 依本 decision 範圍 `git checkout -- <files>` 或整批 revert 本次 commit；資料庫 schema 無變更。
+
+## 2026-07-13 Report Feature Expansion and Pad/Image Grouping
+
+- Decision: 工程 PPTX 的 1F 圖依所有選定特徵展開，指定 2F 圖依所有配對展開；補齊 Hotelling T²、Radar、LISA 的 headless report renderer，並在既有 Boxplot/Pareto 圖族加入預先計算的 Pad／Image 分組變體。
+- Scope: chart registry/report coverage/PPTX gallery/render registry、振順豐 TOP profile 衍生欄位、Boxplot/Pareto UI selector、測試與主動文件；不新增 chart ID、不修改統計公式或門檻。
+- Reason: 原報告只取第一個特徵／第一組配對，且三個已登錄圖表缺 report renderer；來源檔的 `RefDes` 尾碼與 `Pad` 欄位可提供可追溯的 Image/Pad 分組分析。
+- Impact: 覆蓋表新增 feature contexts、pair expansion 與實際輸出張數；Boxplot/Pareto UI 可在 default/Pad/Image 間即時切換而不重算，PPTX 自動輸出有效變體。LISA payload 的 `data` 補入與計算列對齊的 `x`/`y` 供 UI/PPTX renderer 使用；Radar 保留全部群組統計 payload，繪圖層只顯示前 8 個有序群組並揭露 `8/總數`，避免大量圖例壓縮圖面。無座標時 Spatial Heatmap 與 LISA 均排除。
+- Risk: 全選圖表時 PPTX 頁數會增加；`ImageID` 僅在振順豐 profile 且 `RefDes` 有明確數字尾碼時產生，無尾碼保持空值。
+- Rollback: 回退本決策涵蓋的 registry/report/renderer/viewmodel/UI/loader 檔與對應測試文件；無資料庫 migration，既有 payload top-level keys 保持不變。
+
+## 2026-07-13 Chart Feature Combination Selector
+
+- Decision: 以單一 `圖表檢視組合` ComboBox 取代 1F/2F/3F 數量按鈕；使用穩定 feature key 直接選擇實際單／雙／三變量組合。側欄改稱 `分析特徵` 並明示變更後重新計算。
+- Scope: ChartAnalysisPage、控制側欄、analysis payload pair cache、chart resolver、UI/payload tests 與契約文件；不修改 SPC 公式、門檻、chart ID、報告組合策略或資料庫 schema。
+- Reason: 數量模式固定取前 N 個特徵，無法明確選擇 `Volume × Height` 等配對，且分析輸入與顯示切換成本邊界不清。
+- Impact: 3F 分析新增三組 `dual_parameters` 預算快取，2F 快取重用既有 top-level 結果；組合切換只重建 UI selector 並解析快取，不啟動分析 worker。`feature_tab_count` 保留為由實際組合長度衍生的相容欄位。
+- Risk: 3F 初次分析增加三組雙變量引擎計算；以 validation matrix 的既有 timeout/memory gate 阻擋效能退化。
+- Rollback: 僅反向套用本決策 hunks，恢復數量按鈕與原 resolver；不得整檔 checkout，以免覆蓋同工作樹的報告與 Pad/Image 變更。

@@ -99,7 +99,12 @@ class ParetoChart(BaseChart):
         self.ax.set_xticks(indices)
         self.ax.set_xticklabels(display_labels, rotation=rot, ha="right", fontsize=fs)
         if mode == "component":
-            self.ax.set_xlabel("元件類別 (Part Type / RefDes)")
+            group_col = engine_output.get("_group_col", "")
+            xlabel = {
+                "Pad": "焊墊編號 (Pad)",
+                "ImageID": "印刷影像序號 (Image)",
+            }.get(group_col, "元件類別 (Part Type / RefDes)")
+            self.ax.set_xlabel(xlabel)
             self.ax.set_ylabel("異常次數 (Abnormal Count)", color=CHART_BAR_FAIL)
         else:
             self.ax.set_ylabel("數量 (Count)", color=CHART_BAR_FAIL)
@@ -140,4 +145,3 @@ class ParetoChart(BaseChart):
         # layout handled by BaseChart
         self.canvas.draw()
         return True
-

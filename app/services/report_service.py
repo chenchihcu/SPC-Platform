@@ -160,7 +160,7 @@ def _make_cached_chart_renderer(
 ) -> Callable[..., Optional[bytes]]:
     from app.services.chart_render import render_chart_to_png_bytes
 
-    cache: Dict[Tuple[str, Tuple[str, ...], bool, str], Optional[bytes]] = {}
+    cache: Dict[Tuple[str, Tuple[str, ...], bool, str, str], Optional[bytes]] = {}
 
     def _render(
         chart_id: str,
@@ -168,9 +168,16 @@ def _make_cached_chart_renderer(
         *,
         features: Optional[List[str]] = None,
         normalized: bool = False,
+        group_key: Optional[str] = None,
         context: str = "report",
     ) -> Optional[bytes]:
-        key = (chart_id, tuple(features or []), bool(normalized), context)
+        key = (
+            chart_id,
+            tuple(features or []),
+            bool(normalized),
+            str(group_key or "default"),
+            context,
+        )
         stats["requests"] = stats.get("requests", 0) + 1
         if key in cache:
             stats["hits"] = stats.get("hits", 0) + 1
@@ -181,6 +188,7 @@ def _make_cached_chart_renderer(
             payload,
             features=features,
             normalized=normalized,
+            group_key=group_key,
             context=context,
         )
         cache[key] = rendered

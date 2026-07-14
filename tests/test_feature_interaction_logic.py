@@ -225,8 +225,8 @@ def test_chart_analysis_page_records_autoswitch_reason_when_feature_count_change
     assert state["feature_tab_count"] == 3
     assert state["selected_chart_ids"]
     assert "imr" not in state["selected_chart_ids"]
-    assert "已依顯示模式自動改選" in state["autoswitch_reason"]
-    assert "目前為三特徵" in state["autoswitch_reason"]
+    assert "已依圖表組合自動改選" in state["autoswitch_reason"]
+    assert "目前為三變量" in state["autoswitch_reason"]
 
 
 def test_chart_analysis_page_autoswitch_hint_cleared_when_selector_rebuilds_without_new_switch(qapp):
@@ -265,7 +265,7 @@ def test_chart_analysis_page_autoswitch_hint_cleared_when_selector_rebuilds_with
     page._chart_id_to_checkbox["imr"].setChecked(True)
     page._on_feature_shortcut_clicked("area")
     page._on_feature_shortcut_clicked("height")
-    assert "已依顯示模式自動改選" in page.get_ui_state_snapshot()["autoswitch_reason"]
+    assert "已依圖表組合自動改選" in page.get_ui_state_snapshot()["autoswitch_reason"]
 
     page._set_autoswitch_reason("STALE_HINT_SHOULD_NOT_PERSIST")
     page._refresh_chart_selector(["Volume", "Area", "Height"])
@@ -354,7 +354,7 @@ def test_manual_chart_selection_clears_autoswitch_reason(qapp):
     page._chart_id_to_checkbox["imr"].setChecked(True)
     page._on_feature_shortcut_clicked("area")
     page._on_feature_shortcut_clicked("height")
-    assert "已依顯示模式自動改選" in page.get_ui_state_snapshot()["autoswitch_reason"]
+    assert "已依圖表組合自動改選" in page.get_ui_state_snapshot()["autoswitch_reason"]
 
     page._chart_id_to_checkbox["run_chart_3f"].setChecked(True)
     assert page.get_ui_state_snapshot()["autoswitch_reason"] == ""
@@ -393,7 +393,7 @@ def test_chart_context_strip_exposes_feature_mode_and_filters(qapp):
     page = ChartAnalysisPage()
     page._display_features = ["Volume", "Area", "Height"]
     page._selected_chart_ids = ["histogram_spec", "run_chart_3f"]
-    page._active_feature_tab_count = 2
+    page._sync_feature_combination_selector(preferred=("Volume", "Area"))
     page._normalize_multi = True
     page._last_payload = {
         "_ctx_batch": "B-01",
@@ -404,23 +404,147 @@ def test_chart_context_strip_exposes_feature_mode_and_filters(qapp):
     page._sync_ui_state()
 
     text = page._chart_context_strip.text()
-    assert "Volume / Area" in text
-    assert "顯示模式: 雙特徵" in text
+    assert "圖表組合: 體積 × 面積（雙變量）" in text
     assert "已選圖表: 2 張" in text
     assert "多特徵標準化: 開啟" in text
     assert "批次: B-01" in text
     assert "PartType: R0402" in text
 
 
-def test_chart_context_strip_marks_normalization_as_pending_from_single_feature_mode(qapp):
+def test_chart_context_strip_hides_normalization_from_single_feature_combination(qapp):
     page = ChartAnalysisPage()
     page._display_features = ["Volume", "Area", "Height"]
     page._selected_chart_ids = ["imr"]
-    page._active_feature_tab_count = 1
+    page._sync_feature_combination_selector(preferred=("Volume",))
     page._normalize_multi = True
 
     page._sync_ui_state()
 
     text = page._chart_context_strip.text()
-    assert "顯示模式: 單特徵" in text
-    assert "多特徵標準化: 待雙/三特徵模式" in text
+    assert "圖表組合: 體積（單變量）" in text
+    assert "多特徵標準化:" not in text
+    assert page.get_ui_state_snapshot()["active_feature_combination"] == ["Volume"]
+
+
+def test_chart_combination_selector_switches_exact_pair_without_reanalysis(qapp):
+    page = ChartAnalysisPage()
+    page._display_features = ["Volume", "Area", "Height"]
+    page._last_payload = {
+        "selected_features": ["Volume", "Area", "Height"],
+        "dual_parameters": {
+            "Volume+Height": {
+                "scatter_spec": {
+                    "chart_type": "ScatterSpec",
+                    "data": {"x": [1.0], "y": [2.0]},
+                    "statistics": {"n": 1},
+                    "metadata": {"is_valid": True, "error": ""},
+                }
+            }
+        },
+    }
+    page._sync_feature_combination_selector(preferred=("Volume", "Area", "Height"))
+    refresh_calls = {"count": 0}
+    original = page._refresh_chart_selector
+
+    def refresh_spy(features):
+        refresh_calls["count"] += 1
+        return original(features)
+
+    page._refresh_chart_selector = refresh_spy
+    index = page.feature_combination_combo.findData("Volume|Height")
+    page.feature_combination_combo.setCurrentIndex(index)
+
+    state = page.get_ui_state_snapshot()
+    assert state["active_feature_combination"] == ["Volume", "Height"]
+    assert state["feature_tab_count"] == 2
+    assert refresh_calls["count"] == 1
+    resolved = page._resolve_multi_feature_data("scatter_spec", ["Volume", "Height"])
+    assert resolved["metadata"]["is_valid"] is True
+    assert page._last_payload["selected_features"] == ["Volume", "Area", "Height"]
+    assert page._chart_id_to_checkbox["scatter_spec"].isEnabled() is True
+    assert page._chart_id_to_checkbox["imr_3f"].isEnabled() is False
+    assert page._chart_id_to_checkbox["run_chart_3f"].isEnabled() is False
+    assert page._chart_id_to_checkbox["boxplot_3f"].isEnabled() is False
+
+
+def test_chart_combination_selector_rejects_unknown_item_data(qapp):
+    page = ChartAnalysisPage()
+    page._display_features = ["Volume", "Area"]
+    page._sync_feature_combination_selector(preferred=("Volume", "Area"))
+    previous = page.get_ui_state_snapshot()["active_feature_combination"]
+
+    blocked = page.feature_combination_combo.blockSignals(True)
+    try:
+        page.feature_combination_combo.addItem("未知組合", "Unknown|Area")
+        rogue_index = page.feature_combination_combo.count() - 1
+    finally:
+        page.feature_combination_combo.blockSignals(blocked)
+    page._on_feature_combination_changed(rogue_index)
+
+    assert page.get_ui_state_snapshot()["active_feature_combination"] == previous
+
+
+def test_chart_combination_population_restores_previous_signal_state_on_error(qapp):
+    page = ChartAnalysisPage()
+    page._display_features = ["Volume", "Area"]
+
+    class FailingCombo:
+        def __init__(self):
+            self.blocked = True
+
+        def blockSignals(self, blocked):
+            previous = self.blocked
+            self.blocked = blocked
+            return previous
+
+        def clear(self):
+            return None
+
+        def addItem(self, _label, _key):
+            raise RuntimeError("synthetic addItem failure")
+
+    failing = FailingCombo()
+    page.feature_combination_combo = failing
+
+    with pytest.raises(RuntimeError, match="synthetic"):
+        page._sync_feature_combination_selector(preferred=("Volume", "Area"))
+
+    assert failing.blocked is True
+
+
+def test_analysis_refresh_preserves_valid_combination_and_resets_invalid_one(qapp):
+    page = ChartAnalysisPage()
+    page._display_features = ["Volume", "Area", "Height"]
+    page._sync_feature_combination_selector(preferred=("Volume", "Height"))
+    page._sync_selection_ui = lambda *, rebuild_selector: None
+    page._refresh_recommendation_strip = lambda _payload: None
+    page._update_details_hints = lambda _payload: None
+
+    page.update_all_charts(
+        {
+            "selected_features": ["Volume", "Area", "Height"],
+            "parameters": {"Volume": {}, "Area": {}, "Height": {}},
+        }
+    )
+    assert page._active_feature_combination == ("Volume", "Height")
+    assert page.feature_combination_combo.currentData() == "Volume|Height"
+
+    page.update_all_charts(
+        {
+            "selected_features": ["Volume", "Area"],
+            "parameters": {"Volume": {}, "Area": {}},
+        }
+    )
+    assert page._active_feature_combination == ("Volume", "Area")
+    assert page.feature_combination_combo.currentData() == "Volume|Area"
+
+
+def test_diagnostic_navigation_selects_requested_feature_combination(qapp):
+    page = ChartAnalysisPage()
+    page._display_features = ["Volume", "Area", "Height"]
+    page._sync_feature_combination_selector(preferred=("Volume", "Area", "Height"))
+
+    assert page._select_feature_combination(["Volume", "Height"]) is True
+    assert page.feature_combination_combo.currentData() == "Volume|Height"
+    assert page.get_ui_state_snapshot()["active_feature_combination"] == ["Volume", "Height"]
+    assert page._select_feature_combination(["Width"]) is False

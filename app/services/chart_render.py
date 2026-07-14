@@ -9,7 +9,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-from app.analytics.chart_registry import resolve_chart_payload
+from app.analytics.chart_registry import resolve_chart_payload, select_chart_group_variant
 
 _QT_APP_REF: Any | None = None
 
@@ -193,6 +193,9 @@ def _init_renderers():
     from app.charts.ewma_3f_chart import EWMA3F
     from app.charts.cusum_3f_chart import CUSUM3F
     from app.charts.boxplot_chart import BoxplotChart
+    from app.charts.hotelling_t2_chart import HotellingT2Chart
+    from app.charts.radar_chart import RadarChart
+    from app.charts.lisa_chart import LisaChart
     _register_single("xbar_r", XbarRChart)
     _register_single("scatter_spec", ScatterSpecChart)
     _register_single("correlation_matrix", CorrelationMatrixChart)
@@ -220,6 +223,9 @@ def _init_renderers():
     _register_single("ewma_3f", EWMA3F)
     _register_single("cusum_3f", CUSUM3F)
     _register_single("boxplot_3f", BoxplotChart)
+    _register_single("hotelling_t2", HotellingT2Chart)
+    _register_single("radar", RadarChart)
+    _register_single("lisa", LisaChart)
 
 
 _init_renderers()
@@ -231,6 +237,7 @@ def render_chart_to_png_bytes(
     *,
     features: Optional[List[str]] = None,
     normalized: bool = False,
+    group_key: Optional[str] = None,
     context: str = "report",
 ) -> Optional[bytes]:
     """
@@ -246,6 +253,7 @@ def render_chart_to_png_bytes(
     )
     if not slice_data:
         return None
+    slice_data = select_chart_group_variant(slice_data, group_key)
     renderer = _RENDERERS.get(chart_id)
     if not renderer:
         return None

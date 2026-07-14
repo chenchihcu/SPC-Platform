@@ -135,6 +135,8 @@ class TestBuildRadarFromDataframeGroups:
         result = build_radar_from_dataframe_groups(df, ["Volume"], max_series=2)
         names = {s["name"] for s in result["data"]["series"]}
         assert names == {"A", "B"}
+        assert result["metadata"]["source_n_series"] == 3
+        assert result["metadata"]["series_truncated"] is True
 
     def test_invalid_when_no_group_column_present(self):
         df = pd.DataFrame({"Volume": [1.0, 2.0], "Area": [3.0, 4.0]})

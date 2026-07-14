@@ -7,6 +7,7 @@ Phase 3: use unified message constants from app.utils.constants.
 Display names (Chinese-first) and 4-section description metadata are unified here.
 """
 from collections.abc import Sized
+from itertools import combinations
 from typing import List, Optional, Dict, Any
 
 from app.utils.constants import (
@@ -257,6 +258,18 @@ CHART_ORDER = [
     # 比較分析
     "subgroup", "anova_parttype", "radar",
 ]
+
+# Report export expands these families across every selected feature/pair.
+# UI availability remains selection-specific; this contract is report-only.
+PAIR_EXPANSION_CHART_IDS = {"scatter_spec", "quadrant", "bivariate_outlier"}
+MATRIX_CHART_IDS = {"correlation_matrix", "correlation_heatmap"}
+SPATIAL_CHART_IDS = {"spatial_heatmap", "lisa"}
+
+CHART_GROUP_VARIANT_LABELS: Dict[str, str] = {
+    "default": "目前分組",
+    "pad": "Pad",
+    "image": "Image",
+}
 
 # Root-cause flow metadata (aligned to 5 decision categories)
 ROOT_CAUSE_FLOW_ORDER: list[dict[str, Any]] = [
@@ -667,16 +680,50 @@ def resolve_features_for_chart(
 ) -> List[str]:
     """Pick the ordered, deduplicated feature list for a chart according to its
     required feature count. Shared by report coverage and PPTX export paths."""
+    contexts = resolve_feature_contexts_for_chart(
+        chart_id,
+        selected_features=selected_features,
+        available_features=available_features,
+    )
+    return contexts[0] if contexts else []
+
+
+def resolve_feature_contexts_for_chart(
+    chart_id: str,
+    *,
+    selected_features: List[str],
+    available_features: List[str],
+) -> List[List[str]]:
+    """Return every ordered feature context required by report export.
+
+    Selected features are authoritative. Available features are used only when
+    no explicit selection exists, so report export never silently adds a field.
+    """
     ordered: List[str] = []
-    for feature in [*selected_features, *available_features]:
+    source = selected_features if selected_features else available_features
+    for feature in source:
         normalized = str(feature or "").strip()
         if not normalized or normalized in ordered:
             continue
         ordered.append(normalized)
     required = get_required_feature_count(chart_id)
     if required <= 1:
-        return ordered[:1]
-    return ordered[:required]
+        return [[feature] for feature in ordered]
+    if chart_id in PAIR_EXPANSION_CHART_IDS:
+        return [list(pair) for pair in combinations(ordered, 2)]
+    if chart_id in MATRIX_CHART_IDS:
+        return [ordered] if len(ordered) >= 2 else []
+    return [ordered[:required]] if len(ordered) >= required else []
+
+
+def select_chart_group_variant(slice_data: Dict[str, Any], group_key: Optional[str]) -> Dict[str, Any]:
+    """Select a precomputed grouping variant without mutating the payload."""
+    key = str(group_key or "default").strip() or "default"
+    if key == "default":
+        return slice_data
+    variants = slice_data.get("_group_variants", {}) if isinstance(slice_data, dict) else {}
+    variant = variants.get(key) if isinstance(variants, dict) else None
+    return variant if isinstance(variant, dict) else slice_data
 
 
 def get_charts_by_category(
@@ -1106,19 +1153,31 @@ def resolve_chart_payload(
     entry = _CATALOG_BY_ID.get(chart_id, {})
     required_count = entry.get("required_feature_count", REQUIRED_SINGLE)
     if required_count != REQUIRED_SINGLE:
-        payload_n = len(selected)
-        if payload_n == 1:
-            if required_count == REQUIRED_DUAL and len(active_features) == 2:
-                dual_params = (payload or {}).get("dual_parameters", {}) or {}
-                f0, f1 = active_features[0], active_features[1]
-                pair_data = dual_params.get(f"{f0}+{f1}") or dual_params.get(f"{f1}+{f0}")
-                if isinstance(pair_data, dict) and chart_id in pair_data:
-                    return _ensure_chart_payload_schema(chart_id, pair_data.get(chart_id))
-            elif required_count == REQUIRED_TRIPLE and len(active_features) == 3:
-                triple_params = (payload or {}).get("triple_parameters", {}) or {}
-                if chart_id in triple_params:
-                    return _ensure_chart_payload_schema(chart_id, triple_params.get(chart_id))
-        return _ensure_chart_payload_schema(chart_id, get_payload_slice(payload or {}, chart_id))
+        if required_count == REQUIRED_DUAL and len(active_features) == 2:
+            dual_params = (payload or {}).get("dual_parameters", {}) or {}
+            f0, f1 = active_features[0], active_features[1]
+            pair_data = dual_params.get(f"{f0}+{f1}") or dual_params.get(f"{f1}+{f0}")
+            if isinstance(pair_data, dict) and chart_id in pair_data:
+                return _ensure_chart_payload_schema(chart_id, pair_data.get(chart_id))
+        elif required_count == REQUIRED_TRIPLE and len(active_features) == 3:
+            triple_params = (payload or {}).get("triple_parameters", {}) or {}
+            if chart_id in triple_params:
+                return _ensure_chart_payload_schema(chart_id, triple_params.get(chart_id))
+        if len(selected) == len(active_features) and set(selected) == set(active_features):
+            return _ensure_chart_payload_schema(
+                chart_id, get_payload_slice(payload or {}, chart_id)
+            )
+        return _ensure_chart_payload_schema(
+            chart_id,
+            {
+                "metadata": {
+                    "is_valid": False,
+                    "incompatible": True,
+                    "error": "目前分析結果缺少指定特徵組合的預算資料。",
+                },
+                "analysis_context": {},
+            },
+        )
 
     if chart_id == "imr" and len(active_features) != 1:
         reason = get_incompatible_reason("imr", active_features) or "此圖表僅支援單一特徵。"

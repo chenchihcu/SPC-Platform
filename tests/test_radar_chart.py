@@ -78,3 +78,21 @@ def test_radar_empty_series():
     chart = RadarChart()
     result = chart.draw_chart(payload)
     assert result is True
+
+
+def test_radar_limits_rendered_series_without_truncating_payload():
+    series = [
+        {"name": f"G{i}", "values": [float(i), float(i + 1), float(i + 2)]}
+        for i in range(12)
+    ]
+    payload = {
+        "chart_type": "radar",
+        "data": {"categories": ["A", "B", "C"], "series": series},
+        "metadata": {"is_valid": True, "n_series": 12},
+    }
+    chart = RadarChart()
+
+    assert chart.draw_chart(payload) is True
+    assert len(chart.ax.get_legend_handles_labels()[1]) == 8
+    assert any("8 / 12" in text.get_text() for text in chart.ax.texts)
+    assert len(payload["data"]["series"]) == 12

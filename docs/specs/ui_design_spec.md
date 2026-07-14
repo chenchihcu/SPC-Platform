@@ -122,7 +122,7 @@ MainWindow
 - 左欄同時可見的主要流程導覽為 8 個按鈕 / 6 個視覺列（`統計圖表 / 統計資料`、`診斷一 / 診斷二` 並列）+ 2 個全域動作按鈕。
 - 篩選與特徵為控制項，不加入頁面型 action。
 - 若導覽、分析條件、特徵與動作在預設視窗高度下出現重疊、裁切或底部動作不可見，優先壓縮 token spacing / 字級；仍不足時收合分析條件，不收合流程導覽或底部主動作。
-- 視窗最小高度以側欄可讀性為準；在最小高度附近，`分析條件` 預設收合並顯示「已收合、已保留篩選值」的可見 affordance，`特徵`、`下一步`、`重新分析` 仍須完整顯示。
+- 視窗最小高度以側欄可讀性為準；在最小高度附近，`分析條件` 預設收合並顯示「已收合、已保留篩選值」的可見 affordance，`分析特徵`、`下一步`、`重新分析` 仍須完整顯示。
 - 快速載入 DB 面板延後；不得在此版本加入側欄，以免流程、篩選、資料庫操作競爭注意力。
 
 # 6. Chart Analysis Workspace
@@ -130,11 +130,11 @@ MainWindow
 圖表頁為「Dashboard + 圖表選擇器」模式，不是傳統單一 `QTabWidget`。
 
 組成：
-- 頂部工具列（特徵快捷切換、標準化切換）
-- 多特徵頁籤分流（`1F / 2F / 3F`，依檢視特徵數切換 selector 相容性）
+- 頂部工具列（`圖表檢視組合` ComboBox、條件式標準化切換）
+- 組合 selector 直接列出已分析特徵的合法單／雙／三變量組合；item data 使用穩定 feature key，切換只重繪預算 payload，不重新分析
 - 五大分類圖表選擇器（緊湊分類區，可展開/收合；不得以空白欄位撐高第一屏）
 - 圖表卡片區（依選取顯示/隱藏）
-- 圖表脈絡列需常駐顯示目前特徵、1F/2F/3F 模式、勾選圖表數、標準化狀態與批次／PartType／RefDes 等 active filter；操作提示併入同一列，不能再固定佔兩行。
+- 圖表脈絡列需常駐顯示實際特徵組合與單／雙／三變量語意、勾選圖表數、適用時的標準化狀態及批次／PartType／RefDes 等 active filter；操作提示併入同一列，不能再固定佔兩行。
 - 特徵數變更造成不相容時，系統自動改選相容圖，並顯示 transition 訊息（來源圖/目標圖/原因）。
 - 圖卡標題列需保持緊湊，顯示圖名、`解讀` 按鈕與渲染狀態 badge：`Ready` / `Incompatible` / `NoData` / `Error`，並以 QSS state 呈現不同視覺語意。
 - 每張圖卡標題列提供 `解讀` 按鈕；預設隱藏說明內容，點擊後開啟完整解讀視窗（用途／函數與公式／資料來源／SMT 判讀與下一步）。
@@ -297,7 +297,7 @@ Refresh Analysis (orchestrator + worker)
    ▼
 View Dashboard (Diagnostic) / Charts / Report
    │
-  ├─ Charts: 步驟 1 特徵 -> 步驟 2 顯示模式 -> selector 重建 -> autoswitch 提示 -> 脈絡列/狀態確認
+  ├─ Charts: 分析特徵（重算） -> 圖表檢視組合（不重算） -> selector 重建 -> autoswitch 提示 -> 脈絡列/狀態確認
    │
    └─ Report: 工程建議預設勾選 -> 微調勾選 -> 匯出範圍摘要 -> 選檔確認 -> PPTX
    │
@@ -337,8 +337,8 @@ Export Report (Engineering PPTX)
 - 圖表分析前置由 `AnalysisOrchestrator` 統一處理，並以狀態碼回傳給 UI。
 - 製程統計分析輸出（`DiagnosticPage`）依 `dashboard_layers` 呈現報告式多層工程資訊（含 Alarm／KPI／規格能力／診斷對策等）。
 - 圖表頁主流程採五大分類（製程監控／製程能力／異常根源／變數關係／比較分析），分類與 `chart_registry` 一致。
-- 圖表頁頂部工具列維持單列緊湊模式；`多特徵標準化` 與 `單特徵/雙特徵/三特徵` 同列，避免誤讀為獨立流程。
-- 圖表頁新增 autoswitch reason 與全域脈絡列；脈絡列即時顯示 active features、顯示模式、已選圖表數、多特徵標準化狀態與 active filters，並承接操作提示。圖卡維持 `Ready/Incompatible/NoData/Error` 狀態 badge。
+- 圖表頁頂部工具列維持單列緊湊模式；單一 `圖表檢視組合` ComboBox 取代 `單特徵/雙特徵/三特徵` 按鈕，只有一個合法組合時改顯示靜態文字；`多特徵標準化` 僅在雙／三變量組合顯示。
+- 圖表頁 autoswitch reason 與全域脈絡列即時顯示 active feature combination、衍生變量數、已選圖表數、適用時的標準化狀態與 active filters，並承接操作提示。圖卡維持 `Ready/Incompatible/NoData/Error` 狀態 badge。
 - 圖表頁每張圖卡新增 `解讀` 按鈕，使用共用視窗顯示完整四段說明（不再依賴 tooltip 才能看完整內容）。
 - 診斷頁新增 `指標解讀` 按鈕，使用單一 registry 維護 layer_1~layer_7 工程判讀文案。
 - 診斷頁新增組合證據分頁，依 `diagnostic_evidence_matrix` 呈現 feature/chart/filter/display 候選覆蓋、證據矩陣與多圖表關聯判讀；可見文字使用 readable rows 說明「判斷結果、原因、證據來源、下一步」，避免只顯示狀態碼或下一步圖表名稱。

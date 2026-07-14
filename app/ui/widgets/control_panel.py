@@ -211,10 +211,15 @@ class ControlPanel(QWidget):
         _feat_vbox.setContentsMargins(0, 0, 0, 0)
         _feat_vbox.setSpacing(SPACING_8)
 
-        _feat_title = QLabel("特徵")
+        _feat_title = QLabel("分析特徵")
         _feat_title.setProperty("class", "sectionTitle")
         _feat_title.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         _feat_vbox.addWidget(_feat_title)
+
+        _feat_cost_hint = QLabel("變更後重新計算")
+        _feat_cost_hint.setProperty("class", "caption")
+        _feat_cost_hint.setAccessibleName("分析特徵變更後重新計算")
+        _feat_vbox.addWidget(_feat_cost_hint)
 
         _feat_seg = QFrame()
         _feat_seg.setProperty("class", "segmentedControl")
@@ -227,7 +232,7 @@ class ControlPanel(QWidget):
         self._btn_height.setProperty("class", "featureToggle")
         self._btn_height.setProperty("feature", "height")
         self._btn_height.setProperty("position", "first")
-        self._btn_height.setToolTip("分析高度特徵（可複選）")
+        self._btn_height.setToolTip("選取高度作為分析輸入；變更後會重新計算")
         self._btn_height.clicked.connect(lambda: self.feature_shortcut_toggled.emit("height"))
 
         self._btn_area = QPushButton("面積")
@@ -235,7 +240,7 @@ class ControlPanel(QWidget):
         self._btn_area.setProperty("class", "featureToggle")
         self._btn_area.setProperty("feature", "area")
         self._btn_area.setProperty("position", "middle")
-        self._btn_area.setToolTip("分析面積特徵（可複選）")
+        self._btn_area.setToolTip("選取面積作為分析輸入；變更後會重新計算")
         self._btn_area.clicked.connect(lambda: self.feature_shortcut_toggled.emit("area"))
 
         self._btn_volume = QPushButton("體積")
@@ -243,7 +248,7 @@ class ControlPanel(QWidget):
         self._btn_volume.setProperty("class", "featureToggle")
         self._btn_volume.setProperty("feature", "volume")
         self._btn_volume.setProperty("position", "last")
-        self._btn_volume.setToolTip("分析體積特徵（可複選）")
+        self._btn_volume.setToolTip("選取體積作為分析輸入；變更後會重新計算")
         self._btn_volume.clicked.connect(lambda: self.feature_shortcut_toggled.emit("volume"))
 
         for btn in (self._btn_height, self._btn_area, self._btn_volume):

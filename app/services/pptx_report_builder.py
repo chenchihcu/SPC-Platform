@@ -572,16 +572,16 @@ def _get_chart_required_feature_count(chart_id: str) -> int:
     return get_required_feature_count(chart_id)
 
 
-def _resolve_chart_features_for_export(
+def _resolve_chart_feature_contexts_for_export(
     chart_id: str,
     *,
     selected_features: List[str],
     available_features: List[str],
-) -> List[str]:
-    """Pick feature list for a chart render according to its required feature count."""
-    from app.analytics.chart_registry import resolve_features_for_chart
+) -> List[List[str]]:
+    """Return every feature context required for a report chart family."""
+    from app.analytics.chart_registry import resolve_feature_contexts_for_chart
 
-    return resolve_features_for_chart(
+    return resolve_feature_contexts_for_chart(
         chart_id,
         selected_features=selected_features,
         available_features=available_features,
@@ -601,7 +601,7 @@ def _render_chart_evidence_items(
     if not selected_chart_ids or not isinstance(analysis_payload, dict) or not analysis_payload:
         return []
 
-    from app.analytics.chart_registry import get_chart_display_name
+    from app.analytics.chart_registry import get_chart_display_name, is_text_summary_chart
     if render_chart_fn is None:
         from app.services.chart_render import render_chart_to_png_bytes
         render_chart_fn = render_chart_to_png_bytes
@@ -612,49 +612,82 @@ def _render_chart_evidence_items(
         if coverage_item is not None and coverage_item.get("status") == "未納入":
             continue
         required = _get_chart_required_feature_count(chart_id)
-        features = _resolve_chart_features_for_export(
+        feature_contexts = _resolve_chart_feature_contexts_for_export(
             chart_id,
             selected_features=selected_features,
             available_features=available_features,
         )
-        if len(features) < required:
+        if not feature_contexts:
             if coverage_item is not None:
                 coverage_item["status"] = "不相容"
                 coverage_item["reason"] = f"需 {required} 特徵"
             continue
-        try:
-            chart_bytes = render_chart_fn(
-                chart_id,
-                analysis_payload,
-                features=features,
-                context="report",
-            )
-        except (AttributeError, KeyError, TypeError, ValueError, RuntimeError, OSError):
-            logger.exception("PPTX: 圖表證據渲染失敗: chart_id=%s", chart_id)
-            if coverage_item is not None:
-                coverage_item["status"] = "渲染失敗"
-                coverage_item["reason"] = "圖表渲染失敗"
-            continue
-        if not chart_bytes:
-            if coverage_item is not None:
-                coverage_item["status"] = "無資料"
-                coverage_item["reason"] = "圖表資料不足或未產生有效圖像"
-            continue
+        attempted = 0
+        rendered = 0
+        render_contexts: List[Dict[str, Any]] = []
+        for features in feature_contexts:
+            group_keys = ["default"]
+            if chart_id in {"boxplot", "pareto"}:
+                from app.analytics.chart_registry import resolve_chart_payload
+                preview = resolve_chart_payload(
+                    analysis_payload, chart_id, features=features, context="report"
+                )
+                variants = preview.get("_group_variants", {}) if isinstance(preview, dict) else {}
+                group_keys.extend(
+                    key for key in ("pad", "image")
+                    if isinstance(variants, dict) and isinstance(variants.get(key), dict)
+                )
+            for group_key in group_keys:
+                attempted += 1
+                try:
+                    chart_bytes = render_chart_fn(
+                        chart_id,
+                        analysis_payload,
+                        features=features,
+                        group_key=group_key,
+                        context="report",
+                    )
+                except (AttributeError, KeyError, TypeError, ValueError, RuntimeError, OSError):
+                    logger.exception(
+                        "PPTX: 圖表證據渲染失敗: chart_id=%s features=%s group=%s",
+                        chart_id, features, group_key,
+                    )
+                    continue
+                if not chart_bytes:
+                    continue
+                rendered += 1
+                render_contexts.append({"features": features, "group_key": group_key})
+                feature_suffix = " × ".join(features)
+                group_suffix = {"pad": "Pad 分組", "image": "Image 分組"}.get(group_key, "")
+                suffix = "｜".join(part for part in (feature_suffix, group_suffix) if part)
+                title = get_chart_display_name(chart_id, lang="zh_only")
+                items.append(
+                    {
+                        "chart_id": chart_id,
+                        "title": f"{title}｜{suffix}" if suffix else title,
+                        "features": features,
+                        "group_key": group_key,
+                        "image_bytes": chart_bytes,
+                    }
+                )
         if coverage_item is not None:
-            coverage_item["status"] = "已輸出"
-            coverage_item["features"] = features
-            if len(features) == 1 and len(selected_features) > 1:
-                coverage_item["reason"] = f"已輸出；代表特徵：{features[0]}"
+            # These evidence items render as text KPI cards, not plots — label them
+            # 文字證據 so the coverage table does not overstate chart evidence.
+            is_text = is_text_summary_chart(chart_id)
+            evidence_noun = "文字證據" if is_text else "圖表證據"
+            coverage_item["chart_kind"] = "text_summary" if is_text else "chart"
+            coverage_item["attempted_outputs"] = attempted
+            coverage_item["rendered_outputs"] = rendered
+            coverage_item["render_contexts"] = render_contexts
+            if rendered == attempted:
+                coverage_item["status"] = "已輸出"
+                coverage_item["reason"] = f"已輸出 {rendered} 張{evidence_noun}"
+            elif rendered:
+                coverage_item["status"] = "部分輸出"
+                coverage_item["reason"] = f"已輸出 {rendered}/{attempted} 張{evidence_noun}"
             else:
-                coverage_item["reason"] = "已納入 PPTX 圖表證據畫廊"
-        items.append(
-            {
-                "chart_id": chart_id,
-                "title": get_chart_display_name(chart_id, lang="zh_only"),
-                "features": features,
-                "image_bytes": chart_bytes,
-            }
-        )
+                coverage_item["status"] = "無資料"
+                coverage_item["reason"] = "圖表資料不足、渲染失敗或未產生有效圖像"
     return items
 
 

@@ -1,7 +1,12 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox
 from PySide6.QtCore import Qt
 from app.charts.boxplot_chart import BoxplotChart
-from app.analytics.chart_registry import format_chart_description, format_chart_description_compact
+from app.analytics.chart_registry import (
+    CHART_GROUP_VARIANT_LABELS,
+    format_chart_description,
+    format_chart_description_compact,
+    select_chart_group_variant,
+)
 from app.ui.theme.tokens import SPACING_SM
 
 
@@ -33,6 +38,18 @@ class ComparisonTab(QWidget):
         )
         layout.addWidget(self.lbl_desc)
 
+        self._group_row = QWidget(self)
+        group_layout = QHBoxLayout(self._group_row)
+        group_layout.setContentsMargins(0, 0, 0, 0)
+        group_layout.addWidget(QLabel("分組方式："))
+        self.group_combo = QComboBox(self._group_row)
+        self.group_combo.setAccessibleName("箱型圖分組方式")
+        self.group_combo.currentIndexChanged.connect(self._on_group_changed)
+        group_layout.addWidget(self.group_combo)
+        group_layout.addStretch(1)
+        self._group_row.setVisible(False)
+        layout.addWidget(self._group_row)
+
         # Context hint (shown for board-grouping mode)
         self._hint_label = QLabel()
         self._hint_label.setWordWrap(True)
@@ -62,6 +79,7 @@ class ComparisonTab(QWidget):
         self.lbl_desc.setToolTip(format_chart_description("boxplot", desc_ctx))
 
         self._last_payload = boxplot_json
+        self._group_row.setVisible(False)
         self._hint_label.setVisible(False)
         self.chart_view.draw_chart(boxplot_json)
 
@@ -73,9 +91,13 @@ class ComparisonTab(QWidget):
         self.lbl_desc.setToolTip(format_chart_description("boxplot", desc_ctx))
 
         self._last_payload = boxplot_json or {}
+        self._refresh_group_selector()
+        active_payload = select_chart_group_variant(
+            self._last_payload, self.group_combo.currentData()
+        )
 
-        grouping_mode: str = self._last_payload.get("_grouping_mode", "")
-        group_col: str = self._last_payload.get("_group_col", "")
+        grouping_mode: str = active_payload.get("_grouping_mode", "")
+        group_col: str = active_payload.get("_group_col", "")
         refdes: str = self._last_payload.get("_ctx_refdes", "")
         part_type: str = self._last_payload.get("_ctx_part_type", "")
 
@@ -98,4 +120,24 @@ class ComparisonTab(QWidget):
         else:
             self._hint_label.setVisible(False)
 
-        self.chart_view.draw_chart(self._last_payload)
+        self.chart_view.draw_chart(active_payload)
+
+    def _refresh_group_selector(self) -> None:
+        previous = self.group_combo.currentData() or "default"
+        variants = self._last_payload.get("_group_variants", {})
+        keys = ["default", *[key for key in ("pad", "image") if key in variants]]
+        self.group_combo.blockSignals(True)
+        try:
+            self.group_combo.clear()
+            for key in keys:
+                self.group_combo.addItem(CHART_GROUP_VARIANT_LABELS[key], key)
+            selected = self.group_combo.findData(previous)
+            self.group_combo.setCurrentIndex(selected if selected >= 0 else 0)
+        finally:
+            self.group_combo.blockSignals(False)
+        self._group_row.setVisible(len(keys) > 1)
+
+    def _on_group_changed(self, _index: int) -> None:
+        if not self._last_payload:
+            return
+        self._update_single_feature(self._last_payload)

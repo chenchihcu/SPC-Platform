@@ -89,10 +89,13 @@ def test_zhen_shun_feng_top_profile_maps_mm_wide_format_when_supplier_matches(tm
     }
     assert meta["unmapped_columns"] == []
     assert meta["measurement_units"] == {"Volume": "mm", "Height": "mm", "Area": "mm"}
-    assert set(["RefDes", "Pad", "Volume", "Height", "Area", "BoardNo", "PartType"]) <= set(df.columns)
+    assert meta["derived_columns"] == ["BaseRefDes", "ImageID"]
+    assert set(["RefDes", "BaseRefDes", "ImageID", "Pad", "Volume", "Height", "Area", "BoardNo", "PartType"]) <= set(df.columns)
     assert df["BoardNo"].tolist() == ["Board_1", "Board_1", "Board_2", "Board_2"]
     assert df["Pad"].tolist() == ["1", "15", "1", "15"]
     assert df["Volume"].notna().sum() == 4
+    assert df["BaseRefDes"].tolist() == ["C1", "U2", "C1", "U2"]
+    assert df["ImageID"].tolist() == [1, 1, 1, 1]
 
 
 def test_zhen_shun_feng_top_profile_does_not_apply_without_supplier_or_path_hint(tmp_path: Path) -> None:

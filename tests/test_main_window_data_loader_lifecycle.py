@@ -55,6 +55,23 @@ def test_current_data_loader_worker_none_when_unset(qapp: QApplication) -> None:
     assert mw._current_data_loader_worker() is None
 
 
+def test_chart_combination_switch_does_not_start_analysis_worker(qapp: QApplication) -> None:
+    mw = MainWindow()
+    page = mw.pages["圖表"]
+    page._display_features = ["Volume", "Area", "Height"]
+    page._sync_feature_combination_selector(preferred=("Volume", "Area", "Height"))
+    generation_before = mw._analysis_generation_id
+    worker_before = mw._analysis_worker
+
+    index = page.feature_combination_combo.findData("Volume|Height")
+    page.feature_combination_combo.setCurrentIndex(index)
+    qapp.processEvents()
+
+    assert page.get_ui_state_snapshot()["active_feature_combination"] == ["Volume", "Height"]
+    assert mw._analysis_generation_id == generation_before
+    assert mw._analysis_worker is worker_before
+
+
 class _FakeSignal:
     def __init__(self) -> None:
         self._callbacks: list[Any] = []
@@ -237,7 +254,7 @@ def test_sidebar_findability_groups_are_bounded(qapp: QApplication) -> None:
         "分析條件" if text.startswith("分析條件") else text
         for text in section_texts
     ]
-    assert normalized == ["流程", "分析條件", "特徵", "動作"]
+    assert normalized == ["流程", "分析條件", "分析特徵", "動作"]
     assert len(mw.navigation._step_buttons) == 7
     assert mw.control_panel.target_btn.text() == "下一步"
     assert mw.control_panel.refresh_btn.text() == "重新分析"

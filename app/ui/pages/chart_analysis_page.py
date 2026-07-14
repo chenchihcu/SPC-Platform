@@ -9,6 +9,7 @@ SPC 圖表頁：Dashboard 模式 — 圖表由上向下排列於捲動區，特�
 """
 import contextlib
 import logging
+from itertools import combinations
 from types import SimpleNamespace
 from typing import Optional, Any
 from app.ui.state.app_status_model import AppStatusModel
@@ -21,12 +22,11 @@ from PySide6.QtWidgets import (
     QPushButton,
     QFrame,
     QCheckBox,
+    QComboBox,
     QScrollArea,
     QSizePolicy,
-    QButtonGroup,
 )
 from PySide6.QtCore import Qt, Signal, QThread, QTimer
-from PySide6.QtCore import QEvent
 
 from app.analytics.chart_registry import (
     get_visual_charts_by_ui_group,
@@ -43,7 +43,7 @@ from app.analytics.chart_registry import (
     CHART_UI_GROUP_BY_ID,
 )
 from app.data.session_store import SessionStore
-from app.utils.constants import FILTER_ALL
+from app.utils.constants import FEATURE_DISPLAY_NAMES, FILTER_ALL
 from chart_router import ChartContext, get_condition_blocked_ids, ROUTER_TO_REGISTRY_ID
 from app.ui.tabs.distribution_capability_tab import DistributionCapabilityTab
 from app.ui.tabs.comparison_tab import ComparisonTab
@@ -81,13 +81,13 @@ from app.charts.lisa_chart import LisaChart
 from app.ui.theme.tokens import (
     SPACING_4,
     SPACING_8,
-    SPACING_SM,
     SPACING_16,
     CHART_MAIN_MIN_HEIGHT,
     CHART_SELECTOR_COMPACT_MAX_HEIGHT,
     CHART_SELECTOR_CONTENT_MARGIN,
     CHART_SELECTOR_GROUP_SPACING,
     CHART_SELECTOR_OPTION_COLUMNS,
+    CHART_COMBINATION_COMBO_MIN_WIDTH,
     CHART_CARD_HEADER_BUTTON_HEIGHT,
     RECO_CHIP_STRIP_HEIGHT,
     chart_group_style_key,
@@ -108,10 +108,10 @@ def _catalog_by_id():
 
 def _resolve_selection_override_ids(last_payload: dict, display_features: list[str]) -> tuple[set[str], set[str]]:
     """Return (dual_override_ids, triple_override_ids) for selector availability."""
-    payload_selected = (last_payload or {}).get("selected_features") or []
+    payload_selected = list((last_payload or {}).get("selected_features") or [])
     dual_override_ids: set[str] = set()
     triple_override_ids: set[str] = set()
-    if len(payload_selected) != 1:
+    if len(payload_selected) != 1 and not set(display_features).issubset(payload_selected):
         return dual_override_ids, triple_override_ids
 
     # Distribution/capability + normality + boxplot charts are rendered in multi-feature mode
@@ -210,6 +210,11 @@ class ChartAnalysisPage(QWidget):
     summary_mode_changed = Signal(str)  # emitted when user toggles manager/engineer mode
 
     _LOGICAL_TO_COL = {"height": "Height", "area": "Area", "volume": "Volume"}
+    _FEATURE_COMBINATION_NAMES = {
+        "Volume": "體積",
+        "Area": "面積",
+        "Height": "高度",
+    }
 
     _SINGLE_TO_TRIPLE_CHART_ID: dict[str, str] = {
         "imr": "imr_3f",
@@ -218,13 +223,9 @@ class ChartAnalysisPage(QWidget):
         "cusum": "cusum_3f",
         "boxplot": "boxplot_3f",
     }
-    _FEATURE_TAB_COUNTS: tuple[int, int, int] = (1, 2, 3)
-    _FEATURE_TAB_LABELS: dict[int, str] = {1: "單特徵", 2: "雙特徵", 3: "三特徵"}
-    _FEATURE_TAB_BASE_MIN_WIDTH = 68
-    _FEATURE_TAB_FIXED_HEIGHT = 41
-    _FEATURE_TAB_EXTRA_BUFFER = SPACING_8
+    _FEATURE_TAB_LABELS: dict[int, str] = {1: "單變量", 2: "雙變量", 3: "三變量"}
     _SELECTION_FEEDBACK_DURATION_MS = 900
-    _MODE_STEP_TEXT = "顯示模式"
+    _MODE_STEP_TEXT = "圖表檢視組合"
     _NORMALIZE_LABEL = "多特徵標準化"
     _STATUS_READY = "Ready"
     _STATUS_INCOMPATIBLE = "Incompatible"
@@ -236,7 +237,7 @@ class ChartAnalysisPage(QWidget):
         _STATUS_NODATA: "無資料",
         _STATUS_ERROR: "錯誤",
     }
-    _OPERATION_HINT_TEXT = "先選特徵與顯示模式，再勾選要檢視的圖表。"
+    _OPERATION_HINT_TEXT = "先選分析特徵與圖表檢視組合，再勾選要檢視的圖表。"
 
     def __init__(self, parent=None, status_model: Optional[AppStatusModel] = None) -> None:
         super().__init__(parent)
@@ -253,6 +254,7 @@ class ChartAnalysisPage(QWidget):
         self._last_single_feature_chart_preference_ids: list[str] = []
         self._display_features: list[str] = []   # multi-select (replaces _display_feature)
         self._normalize_multi: bool = False
+        self._active_feature_combination: tuple[str, ...] = ()
         self._active_feature_tab_count: int = 1
         self._autoswitch_reason: str = ""
         self._pending_autoswitch_reason: str = ""
@@ -272,7 +274,6 @@ class ChartAnalysisPage(QWidget):
         self._card_status_labels: dict[str, QLabel] = {}  # chart_id → status label
         self._card_reason_labels: dict[str, QLabel] = {}  # chart_id → reason label
         self._accordion_panels: dict[str, tuple] = {}     # group_label → (header_btn, content_w, content_layout)
-        self._feature_tab_buttons: dict[int, QPushButton] = {}
         self._details_label = QLabel("分析明細")
         self._details_label.setWordWrap(True)
         self._details_label.setProperty("class", "chartDetailsStrip")
@@ -282,6 +283,7 @@ class ChartAnalysisPage(QWidget):
             "active_features": [],
             "selected_chart_ids": [],
             "autoswitch_reason": "",
+            "active_feature_combination": [],
             "feature_tab_count": self._active_feature_tab_count,
             "render_status": {},
         }
@@ -298,7 +300,7 @@ class ChartAnalysisPage(QWidget):
         top_toolbar_layout.setContentsMargins(SPACING_8, SPACING_4, SPACING_8, SPACING_4)
         top_toolbar_layout.setSpacing(0)
 
-        # Tools row (single line, compact): 顯示模式 / 標準化顯示 / 單特徵 / 雙特徵 / 三特徵
+        # Tools row: explicit precomputed feature combination + optional normalization.
         # Feature selection (高度/面積/體積) has moved to the left sidebar ControlPanel.
         top_row = QHBoxLayout()
         top_row.setContentsMargins(0, 0, 0, 0)
@@ -307,32 +309,32 @@ class ChartAnalysisPage(QWidget):
         self._mode_step_label = self._make_toolbar_step_label(self._MODE_STEP_TEXT)
         top_row.addWidget(self._mode_step_label)
 
+        self.feature_combination_combo = QComboBox()
+        self.feature_combination_combo.setObjectName("featureCombinationCombo")
+        self.feature_combination_combo.setMinimumWidth(CHART_COMBINATION_COMBO_MIN_WIDTH)
+        self.feature_combination_combo.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed,
+        )
+        self.feature_combination_combo.setAccessibleName("圖表檢視組合")
+        self.feature_combination_combo.setToolTip("切換已預先計算的特徵組合，不會重新分析")
+        self.feature_combination_combo.currentIndexChanged.connect(
+            self._on_feature_combination_changed
+        )
+        top_row.addWidget(self.feature_combination_combo)
+
+        self._feature_combination_static = QLabel()
+        self._feature_combination_static.setProperty("class", "statusIndicator")
+        self._feature_combination_static.setVisible(False)
+        top_row.addWidget(self._feature_combination_static)
+
         self.chk_normalize = QCheckBox(self._NORMALIZE_LABEL)
-        self.chk_normalize.setMinimumHeight(self._FEATURE_TAB_FIXED_HEIGHT)
         self.chk_normalize.setToolTip("雙特徵/三特徵比較時，以 Z-score 對齊不同量綱")
         self.chk_normalize.setVisible(False)
         self.chk_normalize.toggled.connect(self._on_normalize_toggled)
         top_row.addWidget(self.chk_normalize)
 
-        # ── Feature split tabs (單特徵 / 雙特徵 / 三特徵) ───────────────
-        # Keep tabs in the same compact toolbar row to avoid a large middle gap.
-        self.feature_tab_group = QButtonGroup(self)
-        self.feature_tab_group.setExclusive(True)
-        for count in self._FEATURE_TAB_COUNTS:
-            label_text = self._FEATURE_TAB_LABELS.get(count, f"{count}F")
-            btn = QPushButton(label_text)
-            btn.setCheckable(True)
-            btn.setProperty("class", "secondary")
-            btn.setProperty("variant", "featureTab")
-            # Enlarge by ~20%: height 34->41, font 10.5->13; width is computed dynamically.
-            btn.setFixedHeight(self._FEATURE_TAB_FIXED_HEIGHT)
-            btn.setToolTip(label_text)
-            btn.clicked.connect(lambda _checked=False, c=count: self._on_feature_tab_clicked(c))
-            self.feature_tab_group.addButton(btn)
-            self._feature_tab_buttons[count] = btn
-            top_row.addWidget(btn)
         top_row.addStretch(1)
-        self._recompute_feature_tab_button_widths()
 
         top_toolbar_layout.addLayout(top_row)
         layout.addWidget(top_bar)
@@ -467,41 +469,12 @@ class ChartAnalysisPage(QWidget):
         self.root_cause_panel = SimpleNamespace(update_hints=self._update_details_hints)
 
         self.set_summary_mode(SUMMARY_MODE_ENGINEER)  # 統一使用完整工程模式
-        self._sync_feature_tab_buttons()
+        self._sync_feature_combination_selector(preferred=())
         self._refresh_chart_selector(None)
 
     def cancel(self) -> None:
         """Request cancellation of the in-flight task."""
         self._is_cancelled = True
-
-    def changeEvent(self, event: QEvent) -> None:
-        """Recompute tab widths when font/style changes affect text metrics."""
-        super().changeEvent(event)
-        if event.type() in (
-            QEvent.Type.FontChange,
-            QEvent.Type.ApplicationFontChange,
-            QEvent.Type.StyleChange,
-        ):
-            self._recompute_feature_tab_button_widths()
-
-    def _recompute_feature_tab_button_widths(self) -> None:
-        """Keep feature-tab buttons equal-width with DPI-safe minimum size."""
-        if not self._feature_tab_buttons:
-            return
-
-        text_widths: list[int] = []
-        for btn in self._feature_tab_buttons.values():
-            btn.ensurePolished()
-            text_widths.append(btn.fontMetrics().horizontalAdvance(btn.text()))
-        max_text_width = max(text_widths, default=0)
-        # Match secondary button horizontal padding (left+right) and add extra buffer
-        # to avoid crowding under high DPI / enlarged fonts.
-        required_width = max_text_width + (2 * SPACING_SM) + self._FEATURE_TAB_EXTRA_BUFFER
-        target_width = max(self._FEATURE_TAB_BASE_MIN_WIDTH, required_width)
-
-        for btn in self._feature_tab_buttons.values():
-            btn.setMinimumWidth(target_width)
-            btn.setFixedHeight(self._FEATURE_TAB_FIXED_HEIGHT)
 
     def _make_toolbar_step_label(self, text: str) -> QLabel:
         """Return a compact inline step label for the chart toolbar."""
@@ -525,6 +498,9 @@ class ChartAnalysisPage(QWidget):
             "active_features": list(self._ui_state.get("active_features", [])),
             "selected_chart_ids": list(self._ui_state.get("selected_chart_ids", [])),
             "autoswitch_reason": str(self._ui_state.get("autoswitch_reason", "")),
+            "active_feature_combination": list(
+                self._ui_state.get("active_feature_combination", [])
+            ),
             "feature_tab_count": int(self._ui_state.get("feature_tab_count", 1)),
             "render_status": dict(self._ui_state.get("render_status", {})),
         }
@@ -534,6 +510,8 @@ class ChartAnalysisPage(QWidget):
         self._ui_state["active_features"] = active_features
         self._ui_state["selected_chart_ids"] = list(self._selected_chart_ids)
         self._ui_state["autoswitch_reason"] = self._autoswitch_reason
+        self._ui_state["active_feature_combination"] = active_features
+        self._active_feature_tab_count = max(1, len(active_features))
         self._ui_state["feature_tab_count"] = self._active_feature_tab_count
         self._ui_state["render_status"] = dict(self._render_status_by_chart)
 
@@ -541,17 +519,16 @@ class ChartAnalysisPage(QWidget):
         if not self._selected_chart_ids:
             parts.append(self._OPERATION_HINT_TEXT)
         if active_features:
-            parts.append(" / ".join(active_features))
-        
-        mode_str = self._FEATURE_TAB_LABELS.get(self._active_feature_tab_count, f"{self._active_feature_tab_count}特徵")
-        parts.append(f"顯示模式: {mode_str}")
+            feature_text = " × ".join(self._feature_display_name(feature) for feature in active_features)
+            mode_str = self._FEATURE_TAB_LABELS.get(
+                len(active_features), f"{len(active_features)}F"
+            )
+            parts.append(f"圖表組合: {feature_text}（{mode_str}）")
         parts.append(f"已選圖表: {len(self._selected_chart_ids)} 張")
         
-        if self._active_feature_tab_count == 1:
-            norm_str = "待雙/三特徵模式"
-        else:
+        if len(active_features) > 1:
             norm_str = "開啟" if self._normalize_multi else "關閉"
-        parts.append(f"多特徵標準化: {norm_str}")
+            parts.append(f"多特徵標準化: {norm_str}")
         
         batch = self._last_payload.get("_ctx_batch")
         if batch:
@@ -604,11 +581,7 @@ class ChartAnalysisPage(QWidget):
         return f"特徵 {selected}，{mode_label}"
 
     def _mode_feedback_text(self) -> str:
-        mode_label = self._FEATURE_TAB_LABELS.get(
-            self._active_feature_tab_count,
-            f"{self._active_feature_tab_count}特徵",
-        )
-        return f"顯示模式 {mode_label}"
+        return f"圖表組合 {self._combination_display_text(self._get_active_tab_features())}"
 
     def _normalization_feedback_text(self) -> str:
         state = "開啟" if self._normalize_multi else "關閉"
@@ -618,6 +591,97 @@ class ChartAnalysisPage(QWidget):
         action = "加入" if checked else "移除"
         chart_name = get_chart_display_name(chart_id, lang="zh_only")
         return f"圖表{action} {chart_name}"
+
+    @staticmethod
+    def _combination_key(features: list[str] | tuple[str, ...]) -> str:
+        """Return a stable, locale-independent key for a feature combination."""
+        return "|".join(features)
+
+    @staticmethod
+    def _combination_from_key(key: object) -> tuple[str, ...]:
+        """Decode a combo item-data key without trusting display text."""
+        if not isinstance(key, str) or not key:
+            return ()
+        return tuple(part for part in key.split("|") if part)
+
+    @staticmethod
+    def _feature_display_name(feature: str) -> str:
+        return ChartAnalysisPage._FEATURE_COMBINATION_NAMES.get(
+            feature,
+            FEATURE_DISPLAY_NAMES.get(feature, feature),
+        )
+
+    def _combination_display_text(self, features: list[str] | tuple[str, ...]) -> str:
+        names = [self._feature_display_name(feature) for feature in features]
+        return " × ".join(names) if names else "—"
+
+    def _combination_label(self, features: tuple[str, ...]) -> str:
+        arity = self._FEATURE_TAB_LABELS.get(len(features), f"{len(features)}F")
+        return f"{arity}｜{self._combination_display_text(features)}"
+
+    def _available_feature_combinations(self) -> list[tuple[str, ...]]:
+        source = list(dict.fromkeys(self._display_features))
+        return [
+            tuple(combo)
+            for count in range(1, min(3, len(source)) + 1)
+            for combo in combinations(source, count)
+        ]
+
+    def _sync_feature_combination_selector(
+        self,
+        *,
+        preferred: tuple[str, ...] | list[str] | None = None,
+    ) -> None:
+        """Populate precomputed combinations and preserve a valid selection."""
+        available = self._available_feature_combinations()
+        preferred_tuple = tuple(preferred or self._active_feature_combination)
+        if preferred_tuple not in available:
+            preferred_tuple = tuple(self._display_features) if self._display_features else ()
+        if preferred_tuple not in available:
+            preferred_tuple = available[0] if available else ()
+
+        previous_blocked = self.feature_combination_combo.blockSignals(True)
+        try:
+            self.feature_combination_combo.clear()
+            for feature_combo in available:
+                self.feature_combination_combo.addItem(
+                    self._combination_label(feature_combo),
+                    self._combination_key(feature_combo),
+                )
+            if preferred_tuple:
+                index = self.feature_combination_combo.findData(
+                    self._combination_key(preferred_tuple)
+                )
+                self.feature_combination_combo.setCurrentIndex(index if index >= 0 else 0)
+        finally:
+            self.feature_combination_combo.blockSignals(previous_blocked)
+
+        selected = self._combination_from_key(self.feature_combination_combo.currentData())
+        self._active_feature_combination = selected if selected in available else preferred_tuple
+        self._active_feature_tab_count = max(1, len(self._active_feature_combination))
+
+        has_alternatives = len(available) > 1
+        self.feature_combination_combo.setVisible(has_alternatives)
+        self._feature_combination_static.setVisible(len(available) == 1)
+        self._feature_combination_static.setText(
+            self._combination_label(available[0]) if len(available) == 1 else ""
+        )
+
+    def _on_feature_combination_changed(self, index: int) -> None:
+        """Switch cached chart context without starting a new analysis."""
+        if index < 0:
+            return
+        selected = self._combination_from_key(
+            self.feature_combination_combo.itemData(index)
+        )
+        if selected not in self._available_feature_combinations():
+            return
+        if selected == self._active_feature_combination:
+            return
+        self._active_feature_combination = selected
+        self._active_feature_tab_count = len(selected)
+        self._sync_selection_ui(rebuild_selector=True)
+        self._show_selection_feedback(self._mode_feedback_text(), target="mode")
 
     def _selector_features_for_current_state(self) -> list[str]:
         """Return the feature slice that should drive selector availability."""
@@ -629,7 +693,6 @@ class ChartAnalysisPage(QWidget):
     def _sync_selection_ui(self, *, rebuild_selector: bool) -> None:
         """Synchronize chart-page selection controls, cards, and context text."""
         self._sync_normalize_visibility()
-        self._sync_feature_tab_buttons()
         if rebuild_selector:
             self._refresh_chart_selector(self._selector_features_for_current_state())
             return
@@ -639,29 +702,21 @@ class ChartAnalysisPage(QWidget):
         else:
             self._sync_ui_state()
 
-    def _sync_feature_tab_buttons(self) -> None:
-        available_count = max(1, min(3, len(self._display_features) if self._display_features else 1))
-        for count, btn in self._feature_tab_buttons.items():
-            btn.blockSignals(True)
-            try:
-                btn.setEnabled(count <= available_count)
-                btn.setChecked(count == self._active_feature_tab_count)
-            finally:
-                btn.blockSignals(False)
-
     def _set_active_feature_tab(
         self,
         count: int,
         *,
         refresh_selector: bool,
     ) -> None:
-        available_count = max(1, min(3, len(self._display_features) if self._display_features else 1))
-        safe_count = min(max(1, count), available_count)
-        if safe_count == self._active_feature_tab_count and not refresh_selector:
-            self._sync_feature_tab_buttons()
-            self._sync_ui_state()
+        matching = [combo for combo in self._available_feature_combinations() if len(combo) == count]
+        if not matching:
             return
-        self._active_feature_tab_count = safe_count
+        preferred = (
+            self._active_feature_combination
+            if self._active_feature_combination in matching
+            else matching[0]
+        )
+        self._sync_feature_combination_selector(preferred=preferred)
         self._sync_selection_ui(rebuild_selector=refresh_selector)
 
     def _on_feature_tab_clicked(self, count: int) -> None:
@@ -674,9 +729,10 @@ class ChartAnalysisPage(QWidget):
         source = self._display_features or list((self._last_payload or {}).get("selected_features") or [])
         if not source:
             return []
-        if self._active_feature_tab_count <= 1:
-            return [source[0]]
-        return list(source[: self._active_feature_tab_count])
+        active = tuple(self._active_feature_combination)
+        if active and all(feature in source for feature in active):
+            return list(active)
+        return list(source)
 
     def _set_autoswitch_reason(self, text: str) -> None:
         self._autoswitch_reason = text.strip()
@@ -692,7 +748,7 @@ class ChartAnalysisPage(QWidget):
         mode_label = self._FEATURE_TAB_LABELS.get(len(selected_features), f"{len(selected_features)}F")
         reason = get_incompatible_reason(from_ids[0], selected_features or []) or "特徵組合切換造成不相容"
         return (
-            f"已依顯示模式自動改選：{from_name} -> {to_name}。"
+            f"已依圖表組合自動改選：{from_name} -> {to_name}。"
             f"原因：目前為{mode_label}，{reason}"
         )
 
@@ -891,7 +947,8 @@ class ChartAnalysisPage(QWidget):
                         self._display_features,
                     )
                 self._selected_chart_ids = deduped
-        self._set_active_feature_tab(len(self._display_features), refresh_selector=True)
+        self._sync_feature_combination_selector(preferred=tuple(self._display_features))
+        self._sync_selection_ui(rebuild_selector=True)
         self._show_selection_feedback(self._feature_feedback_text(col), target="feature")
 
     def _on_normalize_toggled(self, checked: bool) -> None:
@@ -900,7 +957,7 @@ class ChartAnalysisPage(QWidget):
         self._show_selection_feedback(self._normalization_feedback_text(), target="mode")
 
     def _sync_normalize_visibility(self) -> None:
-        self.chk_normalize.setVisible(len(self._display_features) > 1)
+        self.chk_normalize.setVisible(len(self._get_active_tab_features()) > 1)
 
     # ── Dashboard card visibility ─────────────────────────────────────
 
@@ -976,13 +1033,14 @@ class ChartAnalysisPage(QWidget):
 
         # Fetch badge states from recommendation presenter
         from app.analytics.chart_recommendation_presenter import get_chart_recommendations
-        _reco = get_chart_recommendations(self._last_payload or {}, self._display_features)
+        _reco = get_chart_recommendations(
+            self._last_payload or {}, selected_features or []
+        )
         _chart_status = _reco.get("chart_status") or {}
 
-        # For n=1 analysis with precomputed dual/triple data, override availability
-        # so that selecting 2 or 3 display features enables the corresponding charts.
+        # Let cached dual/triple slices enable charts for the active view combination.
         _dual_override_ids, _triple_override_ids = _resolve_selection_override_ids(
-            self._last_payload or {}, self._display_features
+            self._last_payload or {}, selected_features or []
         )
 
         for group_label in CHART_UI_GROUPS_ORDER:
@@ -1189,6 +1247,7 @@ class ChartAnalysisPage(QWidget):
 
     def update_all_charts(self, payload: dict) -> None:
         """Refresh all chart panels with the current session data."""
+        previous_combination = tuple(self._active_feature_combination)
         self._payload = payload or {}
         self._last_payload = payload or {}
 
@@ -1198,25 +1257,16 @@ class ChartAnalysisPage(QWidget):
         dist_ctx = (self._last_payload.get("dist") or {}).get("analysis_context", {})
         new_col = dist_ctx.get("target_col") if isinstance(dist_ctx, dict) else None
 
-        if not params:
-            # n>=2: no per-feature parameters dict — mirror the analysis selection exactly
-            self._display_features = list(payload_selected)
-        elif not self._display_features:
-            # n==1, first init: start with analyzed feature(s) present in params
-            avail = [f for f in payload_selected if f in params]
-            self._display_features = avail or ([new_col] if new_col else [])
-        else:
-            # n==1, update: retain current display features still in params; add newly analyzed
-            retained = [f for f in self._display_features if f in params]
-            added = [f for f in payload_selected if f in params and f not in retained]
-            self._display_features = retained + added
-            if not self._display_features:
-                self._display_features = [new_col] if new_col else []
+        available_selected = [
+            feature for feature in payload_selected if not params or feature in params
+        ]
+        self._display_features = available_selected or ([new_col] if new_col else [])
 
-        # Selector availability should follow the current display feature count.
-        # This avoids keeping單特徵圖被勾選（或顯示舊的資料切片）
-        # when user has toggled multiple display features via shortcuts.
-        self._set_active_feature_tab(len(self._display_features) or 1, refresh_selector=True)
+        preferred = previous_combination
+        if not preferred or not all(feature in self._display_features for feature in preferred):
+            preferred = tuple(self._display_features)
+        self._sync_feature_combination_selector(preferred=preferred)
+        self._sync_selection_ui(rebuild_selector=True)
         self._refresh_recommendation_strip(payload)
         self._update_details_hints(payload)
 
@@ -1266,6 +1316,7 @@ class ChartAnalysisPage(QWidget):
 
     def _on_reco_chip_clicked(self, chart_id: str, feature_set: list) -> None:
         """Check the chart checkbox and scroll dashboard to the chart card."""
+        self._select_feature_combination(feature_set)
         cb = self._chart_id_to_checkbox.get(chart_id)
         if cb is not None and cb.isEnabled():
             if not cb.isChecked():
@@ -1282,6 +1333,7 @@ class ChartAnalysisPage(QWidget):
 
     def select_recommended_charts(self, chart_ids: list, feature_set: list) -> None:
         """Public: navigate to chart page chart(s); used by MainWindow for cross-page nav."""
+        self._select_feature_combination(feature_set)
         first_visible_checked = False
         for chart_id in chart_ids:
             cb = self._chart_id_to_checkbox.get(chart_id)
@@ -1294,6 +1346,18 @@ class ChartAnalysisPage(QWidget):
                         card.setVisible(True)
                         self.scroll_area.ensureWidgetVisible(card)
                     first_visible_checked = True
+
+    def _select_feature_combination(self, feature_set: list) -> bool:
+        """Select an analyzed combination requested by diagnostic navigation."""
+        requested = tuple(dict.fromkeys(str(feature) for feature in feature_set if feature))
+        if requested not in self._available_feature_combinations():
+            return False
+        if requested == self._active_feature_combination:
+            return True
+        self._sync_feature_combination_selector(preferred=requested)
+        self._sync_selection_ui(rebuild_selector=True)
+        self._show_selection_feedback(self._mode_feedback_text(), target="mode")
+        return True
 
     # ── Background hints ──────────────────────────────────────────────
 

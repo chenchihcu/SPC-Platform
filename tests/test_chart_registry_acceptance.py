@@ -17,8 +17,33 @@ from app.analytics.chart_registry import (
     get_payload_slice,
     is_text_summary_chart,
     resolve_chart_payload,
+    resolve_feature_contexts_for_chart,
 )
 from app.utils.constants import MSG_INCOMPATIBLE_AT_LEAST_ONE
+
+
+def test_report_feature_contexts_expand_features_pairs_and_matrix() -> None:
+    features = ["Volume", "Area", "Height"]
+    assert resolve_feature_contexts_for_chart(
+        "histogram_spec", selected_features=features, available_features=features
+    ) == [["Volume"], ["Area"], ["Height"]]
+    assert resolve_feature_contexts_for_chart(
+        "scatter_spec", selected_features=features, available_features=features
+    ) == [["Volume", "Area"], ["Volume", "Height"], ["Area", "Height"]]
+    assert resolve_feature_contexts_for_chart(
+        "correlation_matrix", selected_features=features, available_features=features
+    ) == [features]
+    assert resolve_feature_contexts_for_chart(
+        "hotelling_t2", selected_features=features, available_features=features
+    ) == [features]
+
+
+def test_report_feature_contexts_do_not_add_unselected_available_features() -> None:
+    assert resolve_feature_contexts_for_chart(
+        "scatter_spec",
+        selected_features=["Volume"],
+        available_features=["Volume", "Area", "Height"],
+    ) == []
 
 
 def test_get_payload_slice_returns_incompatible_placeholder_when_missing_chart_data():

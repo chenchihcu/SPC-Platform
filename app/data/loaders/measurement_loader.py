@@ -119,6 +119,12 @@ class MeasurementLoader:
 
         mapped_df = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
         mapped_df = self._finalize_mapped_measurements(mapped_df)
+        if "RefDes" in mapped_df.columns:
+            suffix = mapped_df["RefDes"].str.extract(r"[-_](\d+)$")[0]
+            mapped_df["BaseRefDes"] = mapped_df["RefDes"].str.replace(
+                r"[-_]\d+$", "", regex=True
+            )
+            mapped_df["ImageID"] = pd.to_numeric(suffix, errors="coerce").astype("Int64")
         is_valid, missing_cols = SchemaMapper.validate_measurement_schema(mapped_df)
         measurement_units = {"Volume": "mm", "Height": "mm", "Area": "mm"}
 
@@ -142,6 +148,7 @@ class MeasurementLoader:
             "vendor_profile": ZHEN_SHUN_FENG_TOP_PROFILE,
             "vendor_profile_activation": activation_source,
             "measurement_units": measurement_units,
+            "derived_columns": ["BaseRefDes", "ImageID"],
         }
         return mapped_df, self.last_metadata
 

@@ -49,7 +49,7 @@ QSS in `app/ui/theme/dark_stylesheet.py` references these tokens for `state` or 
 
 | Location | States used | How |
 |----------|-------------|-----|
-| Chart analysis selector | enabled, incompatible, selected | 圖表選擇區使用 `QCheckBox`；不相容項設 `state="incompatible"` 並 disabled；頁籤切換（1F/2F/3F）時依相容性重建。 |
+| Chart analysis selector | enabled, incompatible, selected | `圖表檢視組合` ComboBox 以穩定 feature key 選擇預算組合並重建圖表相容性；圖表選擇區使用 `QCheckBox`，不相容項設 `state="incompatible"` 並 disabled。只有一個合法組合時 ComboBox 隱藏並顯示靜態組合。 |
 | Chart analysis autoswitch hint | info | 特徵切換觸發自動改選時顯示 `autoswitch_reason`（來源圖/目標圖/原因），屬可追溯提示，不使用 alarm 色。 |
 | Chart analysis context strip | info | 圖表頁在 chart card 區上方常駐顯示 active features、1F/2F/3F 模式、選取圖表數、標準化狀態與 batch/PartType/RefDes filter，避免使用者只靠 tooltip 判讀。 |
 | Chart analysis card status | ready, incompatible, nodata, error | 每張圖卡顯示 `Ready/Incompatible/NoData/Error`；來源為 `render_status[chart_id]`，並帶原因文案；`QLabel[class="statusIndicator"][state=*]` 在 QSS 中提供不同邊框/背景/文字色。 |

@@ -10,11 +10,12 @@ from app.services import report_risk
 from app.utils.constants import FEATURE_COLUMNS
 from app.analytics.chart_registry import (
     CHART_ORDER,
+    MATRIX_CHART_IDS,
+    PAIR_EXPANSION_CHART_IDS,
+    SPATIAL_CHART_IDS,
     get_chart_display_name,
-    get_incompatible_reason,
-    get_incompatible_short_reason,
-    is_chart_available_for_selection,
-    resolve_features_for_chart,
+    get_required_feature_count,
+    resolve_feature_contexts_for_chart,
 )
 
 logger = logging.getLogger(__name__)
@@ -65,13 +66,13 @@ def _has_valid_coordinate_data(df: pd.DataFrame) -> bool:
     return not xy.empty
 
 
-def _resolve_chart_features_for_coverage(
+def _resolve_chart_feature_contexts_for_coverage(
     chart_id: str,
     *,
     selected_features: List[str],
     available_features: List[str],
-) -> List[str]:
-    return resolve_features_for_chart(
+) -> List[List[str]]:
+    return resolve_feature_contexts_for_chart(
         chart_id,
         selected_features=selected_features,
         available_features=available_features,
@@ -144,26 +145,22 @@ def build_chart_evidence_coverage(
     selected_set = {str(cid).strip() for cid in selected_chart_ids if str(cid).strip()}
     items: List[Dict[str, Any]] = []
     for chart_id in CHART_ORDER:
-        features = _resolve_chart_features_for_coverage(
+        feature_contexts = _resolve_chart_feature_contexts_for_coverage(
             chart_id,
             selected_features=selected_features,
             available_features=available_features,
         )
         selected = chart_id in selected_set
-        available = is_chart_available_for_selection(chart_id, selected_features)
+        available = bool(feature_contexts)
         reason = ""
         status = "待輸出" if selected and available else "本次排除"
-        if chart_id == "spatial_heatmap" and not has_coordinate_data:
+        if chart_id in SPATIAL_CHART_IDS and not has_coordinate_data:
             available = False
             status = "未納入"
             reason = "缺座標資料"
         elif not available:
             status = "不相容"
-            reason = (
-                get_incompatible_short_reason(chart_id, selected_features)
-                or get_incompatible_reason(chart_id, selected_features)
-                or "特徵條件不符"
-            )
+            reason = f"需 {get_required_feature_count(chart_id)} 特徵"
         elif not selected:
             reason = "未勾選匯出"
 
@@ -173,7 +170,17 @@ def build_chart_evidence_coverage(
                 "chart_name": get_chart_display_name(chart_id, lang="zh_only"),
                 "selected": selected,
                 "available": available,
-                "features": features,
+                "features": feature_contexts[0] if feature_contexts else [],
+                "feature_contexts": feature_contexts,
+                "expansion_kind": (
+                    "pair" if chart_id in PAIR_EXPANSION_CHART_IDS
+                    else "matrix" if chart_id in MATRIX_CHART_IDS
+                    else "feature" if get_required_feature_count(chart_id) == 1
+                    else "fixed"
+                ),
+                "pair_expansion": chart_id in PAIR_EXPANSION_CHART_IDS,
+                "expanded_pairs": feature_contexts if chart_id in PAIR_EXPANSION_CHART_IDS else [],
+                "expanded_features": [ctx[0] for ctx in feature_contexts if len(ctx) == 1],
                 "status": status,
                 "reason": reason,
             }

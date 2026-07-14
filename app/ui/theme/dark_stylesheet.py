@@ -332,10 +332,6 @@ def get_app_stylesheet() -> str:
     QPushButton[class="secondary"]:pressed {{
         background-color: {SURFACE_ACTIVE};
     }}
-    QPushButton[variant="featureTab"] {{
-        font-size: {FONT_SIZE_SECTION}pt;
-        font-weight: {FONT_WEIGHT_BOLD};
-    }}
     QPushButton[class="tertiary"] {{
         background-color: transparent;
         border-color: {BORDER};

@@ -136,7 +136,7 @@ docs/
 
 - `MainWindow` 啟動背景 `AnalysisWorker`。
 - 多圖分析 payload 之**純計算單一來源**為 `app/viewmodels/chart_analysis_viewmodel.py::compute_analysis_payload(...)`（`ChartAnalysisViewModel.analyze` 委派至此）；完成後由 `app/analytics/analysis_payload_finalize.py` 補上 `statistical_signals`、`diagnosis_engine`、`process_risk`、`knowledge_inference` 與 `diagnostic_evidence_matrix`，再由 orchestrator／`SessionStore` 寫回上下文與快取。
-- 分析 payload 對外 shape 維持相容：`parameters`、`dual_parameters`、`triple_parameters` 與既有 top-level keys 不移除不改名。單特徵主 payload 與全參數 payload 共用已計算的 selected-feature bundle，避免同一 feature 重複跑能力/摘要/圖表資料組裝。
+- 分析 payload 對外 shape 維持相容：`parameters`、`dual_parameters`、`triple_parameters` 與既有 top-level keys 不移除不改名。`dual_parameters` 在 2F 保存所選配對、3F 保存三個配對，供圖表檢視組合零重算切換；2F top-level 與配對快取共用已計算結果。單特徵主 payload 與全參數 payload 共用已計算的 selected-feature bundle，避免同一 feature 重複跑能力/摘要/圖表資料組裝。
 
 # 6. 圖表契約架構
 
@@ -175,8 +175,10 @@ docs/
 - 匯出 PPTX（**工程報告**單一結構）；實際寫檔由背景 worker 執行，匯出期間停用匯出按鈕並透過既有 progress/status 顯示狀態，避免 UI thread reentry。
 - 圖表清單微調（checkbox；首次載入套用工程建議預設勾選）
 - 若所選圖表可渲染，PPTX 於第 8 節後自動插入 `5A. Chart Evidence Gallery`（2x2 圖表證據頁，可多頁）。
+- 報告展開契約由 `resolve_feature_contexts_for_chart()` 統一處理：1F 圖依全部選定特徵逐張輸出；`scatter_spec`、`quadrant`、`bivariate_outlier` 輸出所有 2F 配對；Correlation Matrix/Heatmap 維持一張全選定特徵矩陣；3F 圖維持一張三特徵輸出。舊的 `resolve_features_for_chart()` 保留並回傳第一個 context 以維持相容。
+- Boxplot/Pareto 的 Pad／Image 結果在分析階段預先計算至 `_group_variants`，UI 以 stable key (`default`/`pad`/`image`) 即時切換且不重算；PPTX 自動展開存在且有效的分組變體。
 - PPTX 會輸出資料來源/未納入證據/章節可信狀態，並以圖表證據覆蓋表列出每張圖的使用特徵、狀態與原因。
-- 若本批分析資料沒有有效 `X/Y` 欄位，`spatial_heatmap` 在匯出清單與 PPTX 覆蓋表標示為「未納入：缺座標資料」，空間章節只輸出未納入狀態，不輸出座標匹配率、空間點數或熱圖作為有效證據。
+- 若本批分析資料沒有有效 `X/Y` 欄位，`spatial_heatmap` 與 `lisa` 在匯出清單與 PPTX 覆蓋表標示為「未納入：缺座標資料」，空間章節只輸出未納入狀態，不輸出座標匹配率、空間點數或熱圖作為有效證據。
 - 預覽補充匯出範圍摘要（已選/可用/不相容 + 建議未選示例）以提升缺圖可解釋性。
 - 另存 PPTX 於選路徑後，新增「唯讀匯出清單確認」步驟（圖表名稱、張數、預估畫廊頁數與分布分析敘事頁固定包含提示）；確認後才觸發實際寫檔。
 

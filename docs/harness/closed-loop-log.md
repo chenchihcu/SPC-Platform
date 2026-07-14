@@ -83,3 +83,19 @@ Root cause: Density metadata was outside the failure sum, the resolver preferred
 Fix: Convert density modes and pair identity into named semantic checks, require exact pair labels and aligned X/Y points, prefer the matching precomputed pair density, route output/setup failures through a safe machine-readable ERROR fallback, enforce the analytics invalid contract and SPC sample guard, derive matrix exit status from rows, and extend the harness with executable/parser and mirror/path assertions.
 Harness update needed: yes
 Destination: `tests/`, `scripts/validate_db_chart_semantics.py`, `scripts/harness_check.ps1`, `.codex/rules/project.rules`, `.cursor/rules/agents_gateway.mdc`, and mirrored SPC skills.
+
+## Entry: Report expansion, renderer parity, and grouped-view payload integrity
+
+Date: 2026-07-14
+Task: Expand engineering PPTX evidence across all selected features and feature pairs, complete Hotelling T²/Radar/LISA renderers, and add Pad/Image grouped views.
+Changes: Introduced explicit per-chart feature contexts; expanded single-feature, pair, and Pad/Image evidence deterministically; completed the report renderer registry; kept grouping variants precomputed behind stable selector keys; and separated Radar payload completeness from its display-series cap.
+Impact: A report no longer silently emits only the first feature or first pair, every registered report chart has a renderer, Pad/Image switching does not rerun analytics, and dense Radar output remains readable without discarding statistical series from the payload.
+Verification: Focused tests 99 passed; full pytest 921 passed / 1 skipped; ruff, mypy, `check_launch.py`, Qt audit, harness check, DB semantic replay, 129/129 matrix validation, PPTX render/overflow audit, and 100%/125%/150% DPI inspection passed.
+Residual risk: Report page count grows combinatorially with selected features and grouping variants; current three-feature scope passed runtime and output-size gates.
+Next action: Any new report chart must add registry-context tests, renderer-parity coverage, and a real-artifact render check in the same change.
+Debug/RCA (when applicable):
+Observed: Reports used only the first compatible feature context; Hotelling T²/Radar/LISA were registered but lacked report renderers; valid LISA payloads lacked aligned coordinates for rendering; and limiting Radar at the payload layer broke semantic completeness.
+Root cause: Feature compatibility, report expansion, payload semantics, and display capacity were represented as one implicit selection path instead of separate contracts.
+Fix: Make feature contexts explicit and authoritative, require renderer parity for the chart registry, include renderer-required aligned fields in valid payloads, precompute group variants, and cap only the Radar drawing layer while preserving the full payload.
+Harness update needed: yes (this entry and regression tests)
+Destination: `docs/harness/closed-loop-log.md`, chart/report registry tests, DB semantic validation, matrix validation, and PPTX artifact QA.

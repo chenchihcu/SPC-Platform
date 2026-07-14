@@ -7,11 +7,10 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication, QCheckBox, QGridLayout
-from PySide6.QtCore import QEvent
-
 from app.analytics.chart_registry import TEXT_SUMMARY_CHART_IDS
 from app.ui.pages.chart_analysis_page import ChartAnalysisPage
 from app.ui.state.app_status_model import AppStatusModel, STATE_ANALYZING, STATE_SUCCESS
+from app.ui.theme.tokens import CHART_COMBINATION_COMBO_MIN_WIDTH
 from app.ui.widgets.status_bar import StatusBarWidget
 
 
@@ -32,14 +31,15 @@ def test_chart_page_header_title_and_top_right_status_are_removed(qapp: QApplica
 
 
 def test_chart_page_toolbar_controls_are_on_single_row_in_order(qapp: QApplication) -> None:
-    # Feature buttons (高度/面積/體積) moved to sidebar; toolbar now shows
-    # only display-mode controls: step label, normalize, and tab buttons.
+    # Analysis features live in the sidebar; the chart toolbar selects one
+    # precomputed display combination and optional normalization.
     page = ChartAnalysisPage()
     page.resize(1600, 900)
     page.show()
     qapp.processEvents()
 
     page._display_features = ["Height", "Area"]
+    page._sync_feature_combination_selector(preferred=("Height", "Area"))
     page._sync_normalize_visibility()
     qapp.processEvents()
     assert page.chk_normalize.isVisible()
@@ -51,12 +51,10 @@ def test_chart_page_toolbar_controls_are_on_single_row_in_order(qapp: QApplicati
 
     controls = [
         page._mode_step_label,
+        page.feature_combination_combo,
         page.chk_normalize,
-        page._feature_tab_buttons[1],
-        page._feature_tab_buttons[2],
-        page._feature_tab_buttons[3],
     ]
-    y_positions = [w.mapTo(page, w.rect().topLeft()).y() for w in controls]
+    center_y_positions = [w.mapTo(page, w.rect().center()).y() for w in controls]
     x_positions = [w.mapTo(page, w.rect().topLeft()).x() for w in controls]
     right_edges = [w.mapTo(page, w.rect().topRight()).x() for w in controls]
     adjacent_gaps = [
@@ -64,7 +62,7 @@ def test_chart_page_toolbar_controls_are_on_single_row_in_order(qapp: QApplicati
         for i in range(len(controls) - 1)
     ]
 
-    assert max(y_positions) - min(y_positions) <= 2
+    assert max(center_y_positions) - min(center_y_positions) <= 2
     assert x_positions == sorted(x_positions)
     # Guard against accidental middle stretch reintroduction.
     assert max(adjacent_gaps) <= page.width() // 8
@@ -98,58 +96,31 @@ def test_chart_page_uses_compact_selector_and_card_header(qapp: QApplication) ->
     assert max(option.geometry().bottom() for option in options) <= content.rect().bottom()
 
 
-def test_chart_page_feature_tabs_use_dynamic_equal_min_width(qapp: QApplication) -> None:
+def test_chart_page_combination_selector_uses_tokenized_min_width(qapp: QApplication) -> None:
     page = ChartAnalysisPage()
-    page.resize(1600, 900)
-    page.show()
-    qapp.processEvents()
-
-    buttons = [page._feature_tab_buttons[1], page._feature_tab_buttons[2], page._feature_tab_buttons[3]]
-    min_widths = [btn.minimumWidth() for btn in buttons]
-
-    assert all(width >= ChartAnalysisPage._FEATURE_TAB_BASE_MIN_WIDTH for width in min_widths)
-    assert len(set(min_widths)) == 1
-    # Dynamic sizing should avoid fixed-width lock (min=max=68).
-    assert all(btn.maximumWidth() > ChartAnalysisPage._FEATURE_TAB_BASE_MIN_WIDTH for btn in buttons)
+    assert page.feature_combination_combo.minimumWidth() == CHART_COMBINATION_COMBO_MIN_WIDTH
+    assert not hasattr(page, "_feature_tab_buttons")
 
 
-def test_chart_page_feature_tabs_recompute_can_expand_min_width(qapp: QApplication) -> None:
+def test_chart_page_combination_selector_lists_all_three_feature_combinations(
+    qapp: QApplication,
+) -> None:
     page = ChartAnalysisPage()
-    page.resize(1600, 900)
-    page.show()
-    qapp.processEvents()
+    page._display_features = ["Volume", "Area", "Height"]
+    page._sync_feature_combination_selector(preferred=("Volume", "Area", "Height"))
 
-    base_width = page._feature_tab_buttons[1].minimumWidth()
-    page._feature_tab_buttons[1].setStyleSheet("font-size: 24pt; font-weight: 700;")
-    page._recompute_feature_tab_button_widths()
-    qapp.processEvents()
-
-    expanded_width = page._feature_tab_buttons[1].minimumWidth()
-    assert expanded_width > base_width
-    assert all(
-        btn.minimumWidth() == expanded_width
-        for btn in (page._feature_tab_buttons[1], page._feature_tab_buttons[2], page._feature_tab_buttons[3])
-    )
+    assert page.feature_combination_combo.count() == 7
+    assert page.feature_combination_combo.findData("Volume|Height") >= 0
+    assert page.feature_combination_combo.currentData() == "Volume|Area|Height"
 
 
-def test_chart_page_change_event_triggers_feature_tab_width_recompute(qapp: QApplication) -> None:
+def test_chart_page_single_combination_uses_static_label(qapp: QApplication) -> None:
     page = ChartAnalysisPage()
-    page.resize(1600, 900)
-    page.show()
-    qapp.processEvents()
+    page._display_features = ["Height"]
+    page._sync_feature_combination_selector(preferred=("Height",))
 
-    called = {"count": 0}
-    original = page._recompute_feature_tab_button_widths
-
-    def spy() -> None:
-        called["count"] += 1
-        original()
-
-    page._recompute_feature_tab_button_widths = spy
-    page.changeEvent(QEvent(QEvent.Type.StyleChange))
-    qapp.processEvents()
-
-    assert called["count"] >= 1
+    assert page.feature_combination_combo.isHidden()
+    assert page._feature_combination_static.text() == "單變量｜高度"
 
 
 def test_chart_page_operation_hint_is_folded_into_context_strip(qapp: QApplication) -> None:
@@ -196,10 +167,10 @@ def test_chart_page_selection_feedback_highlights_context_then_clears(qapp: QApp
     page.show()
     qapp.processEvents()
 
-    page._show_selection_feedback("顯示模式 雙特徵", target="mode")
+    page._show_selection_feedback("圖表組合 體積 × 面積", target="mode")
     qapp.processEvents()
 
-    assert "更新: 顯示模式 雙特徵" in page._chart_context_strip.text()
+    assert "更新: 圖表組合 體積 × 面積" in page._chart_context_strip.text()
     assert page._chart_context_strip.property("interactionState") == "changed"
     assert page._mode_step_label.property("interactionState") == "changed"
 
@@ -214,7 +185,7 @@ def test_chart_page_selection_feedback_highlights_context_then_clears(qapp: QApp
 def test_chart_page_normalize_toggle_uses_mode_feedback(qapp: QApplication) -> None:
     page = ChartAnalysisPage()
     page._display_features = ["Height", "Area"]
-    page._active_feature_tab_count = 2
+    page._sync_feature_combination_selector(preferred=("Height", "Area"))
 
     page.chk_normalize.setChecked(True)
     qapp.processEvents()

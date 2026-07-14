@@ -28,6 +28,7 @@ _RADAR_PALETTE = [
     CHART_PALETTE_OFFSET_Y_FILL,
     CHART_PALETTE_OFFSET_R_FILL,
 ]
+_MAX_RENDERED_SERIES = 8
 
 
 class RadarChart(BaseChart):
@@ -69,7 +70,8 @@ class RadarChart(BaseChart):
 
         data = engine_output.get("data", {})
         categories = data.get("categories", [])
-        series_list = data.get("series", [])
+        all_series = data.get("series", [])
+        series_list = all_series[:_MAX_RENDERED_SERIES]
 
         if not categories or not series_list:
             self._show_placeholder("Radar 圖資料不足")
@@ -94,6 +96,15 @@ class RadarChart(BaseChart):
 
         self.ax.set_xticks(angles[:-1])
         self.ax.set_xticklabels(categories, fontsize=CHART_FONT_ANNOTATION)
+        if len(all_series) > len(series_list):
+            self.ax.text(
+                0.5, -0.12,
+                f"顯示前 {len(series_list)} / {len(all_series)} 群組",
+                transform=self.ax.transAxes,
+                ha="center",
+                va="top",
+                fontsize=CHART_FONT_ANNOTATION,
+            )
 
         # Polar grid: lighter styling
         self.ax.grid(True, color=CHART_GRID, linestyle="-", linewidth=0.5, alpha=0.6)

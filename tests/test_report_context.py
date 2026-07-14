@@ -180,11 +180,16 @@ def test_chart_evidence_coverage_tracks_three_feature_counts_and_missing_xy() ->
         has_coordinate_data=True,
     )
     assert coverage_with_xy["summary"]["total"] == 36
-    assert coverage_with_xy["summary"]["available"] == 23
-    assert coverage_with_xy["summary"]["incompatible"] == 13
+    assert coverage_with_xy["summary"]["available"] == 36
+    assert coverage_with_xy["summary"]["incompatible"] == 0
     assert coverage_with_xy["summary"]["excluded"] == 0
     by_id_with_xy = {item["chart_id"]: item for item in coverage_with_xy["items"]}
-    assert by_id_with_xy["scatter_spec"]["status"] == "不相容"
+    assert by_id_with_xy["scatter_spec"]["status"] == "待輸出"
+    assert by_id_with_xy["scatter_spec"]["pair_expansion"] is True
+    assert by_id_with_xy["scatter_spec"]["expanded_pairs"] == [
+        ["Volume", "Area"], ["Volume", "Height"], ["Area", "Height"]
+    ]
+    assert by_id_with_xy["histogram_spec"]["expanded_features"] == ["Volume", "Area", "Height"]
 
     coverage_without_xy = build_chart_evidence_coverage(
         selected_chart_ids=CHART_ORDER,
@@ -193,8 +198,9 @@ def test_chart_evidence_coverage_tracks_three_feature_counts_and_missing_xy() ->
         has_coordinate_data=False,
     )
     by_id = {item["chart_id"]: item for item in coverage_without_xy["items"]}
-    assert coverage_without_xy["summary"]["available"] == 23
-    assert coverage_without_xy["summary"]["incompatible"] == 12
-    assert coverage_without_xy["summary"]["excluded"] == 1
+    assert coverage_without_xy["summary"]["available"] == 34
+    assert coverage_without_xy["summary"]["incompatible"] == 0
+    assert coverage_without_xy["summary"]["excluded"] == 2
     assert by_id["spatial_heatmap"]["status"] == "未納入"
     assert by_id["spatial_heatmap"]["reason"] == "缺座標資料"
+    assert by_id["lisa"]["status"] == "未納入"
