@@ -1,6 +1,6 @@
 ---
 name: run-spc
-description: 啟動與驗證 SPC Platform 的 Windows/PySide6 應用程式。Use this skill 當要啟動 app、檢查啟動流程、驗證 Qt offscreen 啟動、選擇 Python runtime,或確認 check_launch.py 通過時。觸發詞包含「啟動」「launch app」「check_launch」「Qt offscreen」「startup」「驗證啟動」。
+description: "啟動與驗證 SPC Platform Windows/PySide6 應用（check_launch、Qt offscreen、Python runtime）。Use when 啟動本專案 app、檢查啟動流程或確認 check_launch.py。Do NOT use for UI 佈局/theme（改用 smt-spi-ui-conventions 或 configure-qt-layout-theme）、UI 走測 QA（改用 qa-auto-engineer）或矩陣驗證（改用 spc-validation-matrix）。"
 version: 1.0.0
 ---
 

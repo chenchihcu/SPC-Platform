@@ -1,7 +1,6 @@
 ---
 name: spc-db-chart-semantics-validator
-allowed-tools: Read, Grep, Glob, Bash
-description: SPC Platform DB-backed chart semantics validator — 用真實 SQLite session、量測檔、座標檔與 active spec 驗證圖表統計語意。Use this skill 當使用者要檢查各圖表輸出統計值是否正確、修正 chart payload/registry/resolver、驗證 density/dual/triple feature 語意、或將圖表統計問題反饋為 durable harness gate。
+description: "用真實 SQLite session、量測/座標檔與 active spec 驗證 SPC 圖表統計語意。Use when 在本 repo 檢查圖表統計值、修正 chart payload/registry/resolver 或 density/dual/triple feature 語意。Do NOT use for 組合式矩陣掃描（改用 spc-validation-matrix）、通用 schema（改用 design-database-schema）或 analytics 引擎契約（改用 analytics-engine-contract）。"
 ---
 
 # SPC DB Chart Semantics Validator
@@ -48,3 +47,6 @@ The script opens SQLite with URI read-only mode plus `PRAGMA query_only=ON`, loa
 - `statistical_semantic_failure_count > 0`: compare the named check to the engine's documented valid-sample and ordering definition before changing code.
 
 Finish by recording whether this gate should become part of the route for the changed surface.
+# Selected semantic checks
+
+Use `--checks resolver,single,pair,three,density` as one comma-separated selector. Default `all` preserves the full gate; choose only invalidated groups for V1/V2.
