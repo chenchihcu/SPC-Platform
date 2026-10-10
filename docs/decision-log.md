@@ -6,6 +6,7 @@
 - Scope: workflow、`.gitignore`、上述種子資料、本條紀錄；不改程式碼與統計邏輯。`spc_master.db`、各 registry、`stencil_assignments.json` 等執行期資料仍不追蹤。
 - Reason: CI 裝到 PySide6 6.12 後，ubuntu-latest 缺 `libEGL.so.1`，多數測試模組 collection 失敗；`data/` 被忽略導致 CI 無 IPC pillar 與 SPI KB 種子，7 個測試失敗、1 個靜默 skip。
 - Verification: CI 診斷步驟以 `ldd` 檢查 QtCore/QtGui/QtWidgets、offscreen platform plugin 與 PySide6 binding，僅安裝 `libegl1` 後無 `not found`，`QApplication` 以 `offscreen` 啟動成功；本機在無 `data/` 時重現 7 個失敗，加入種子資料後全數通過。
+- Follow-up: CI 恢復實際跑測後揭露兩個環境/過期問題，一併修正：`test_change_router::test_complete_harness` 只容許「Codex CLI not available」這一個 skip（CI 無 Codex CLI）；`tests/baseline_images/density_chart_default.png` 自 2026-06-07 未更新，figure 背景仍是舊主題 `#F5F5F7`（現行 `CHART_FIGURE_BG` = `#F8FAFC`），資料幾何不變，改用 CI Ubuntu 實際渲染結果重建。workflow 另加失敗時上傳 pytest PNG 的 artifact 步驟，供下次比對。
 - Risk: 種子資料改由 git 追蹤後，以 `scripts/import_spi_process_kb_xlsx.py` 重新匯入時需一併 commit；CI runtime 相依仍未固定（見上條）。
 - Rollback: 回退本條所列檔案即可。
 
