@@ -1,14 +1,15 @@
 pyside6
 pandas
-pandas-stubs
+pandas-stubs==3.0.0.260204
 numpy
 scipy
 matplotlib
 pyqtgraph
 pytest
 playwright
-ruff
-mypy
+# Lint/type gates are pinned so CI and local results match; bump deliberately (see decision-log).
+ruff==0.15.9
+mypy==1.20.0
 python-pptx
 openpyxl
 openai
