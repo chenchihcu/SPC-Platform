@@ -40,6 +40,16 @@ jobs:
       - name: Run tests
         run: python -m pytest -q
 
+      # PNG baseline mismatches leave actual/diff images in pytest's tmp dir.
+      - name: Upload chart baseline images on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chart-baseline-images
+          path: /tmp/pytest-of-runner/**/*.png
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Run Qt UI audit
         run: python scripts/qt_audit.py app/
 

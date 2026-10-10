@@ -176,7 +176,18 @@ class ChangeRouterTests(unittest.TestCase):
     def test_complete_harness(self):
         for engine in ENGINES:
             with self.subTest(engine=engine):
-                self.assertIn("Harness check passed.", self.run_script(engine, ROOT / "scripts/harness_check.ps1"))
+                output = self.run_script(engine, ROOT / "scripts/harness_check.ps1")
+                if "Harness check passed." in output:
+                    continue
+                # CI runners have no Codex CLI; that is the only skip tolerated here.
+                lines = output.splitlines()
+                self.assertIn("Harness check passed with skips:", lines, output)
+                skips = lines[lines.index("Harness check passed with skips:") + 1:]
+                self.assertEqual(
+                    skips,
+                    ["- Codex CLI not available; execpolicy parser check not executed."],
+                    output,
+                )
 
 
 if __name__ == "__main__":
