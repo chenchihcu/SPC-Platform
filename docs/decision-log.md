@@ -1,5 +1,15 @@
 # Decision Log
 
+## 2026-10-10 Lint/Type Toolchain Pinning
+
+- Decision: `pyproject.toml` 的 `[tool.ruff.lint]` 明確寫出 `select = ["E4", "E7", "E9", "F"]`（等同 ruff 0.15.9 預設），並在 `docs/reference/requirements.txt` 固定 `ruff==0.15.9`、`mypy==1.20.0`、`pandas-stubs==3.0.0.260204`；另修正 2 處在新版 stubs 下才會報錯的型別問題（`reference_page.py` child 可能為 None、`report_context.py` 改用 positional argmin/argmax，保留 idxmin/idxmax 首次出現語意）。
+- Scope: `pyproject.toml`、`docs/reference/requirements.txt`、`app/ui/pages/reference_page.py`、`app/services/report_context.py`、本條紀錄；不改規則語意與統計輸出。
+- Reason: CI（`pip install -r requirements.txt`）未固定版本，於 2026-10-10 裝到 ruff 0.17.0；0.17.0 的預設 `select` 擴大到 UP/I/BLE/RUF/B/SIM/PL 等族群（`ruff check --show-settings` 實測確認），同一份設定本機 0.15.9 通過、CI 報 2272 個錯誤，`main` 自此每個 commit 的 `ci-quality` 都失敗。
+- Impact: 規則集不再隨 ruff 預設值漂移；lint/type 升版改為刻意動作，需在同一 PR 內處理新規則。採用 UP/I 等新族群屬另一個有意識的遷移 PR（全庫 `--fix`），不在本條範圍。
+- Verification: ruff 0.15.9 與 0.17.0 在新設定下對全庫 `ruff check .` 皆 PASS；mypy 1.20.0 `mypy app` PASS；CI 實測 PySide6 6.12.0 + pandas-stubs 3.0.5 下 mypy 報的 2 個錯誤已修正，argmin/argmax 與 idxmin/idxmax 在重複值與混合日期格式下結果一致。
+- Risk: runtime 相依（pyside6、pandas、numpy、matplotlib 等）仍未固定（PySide6 的型別隨套件本體發佈，CI 已裝到 6.12.0），CI 仍可能因上游版本變動而行為不一致；建議後續以 lock/constraints 檔處理。
+- Rollback: 回退本條所列檔案即可恢復原狀；不涉及資料或 schema。
+
 ## 2026-10-10 SPI Statistical Application Fixes (DPMO-Board / EWMA / CUSUM / Nelson / Xbar-R)
 
 - Decision: 修正 6 項經數值重現證明的統計應用錯誤:(1) `dpmo_combined_board` 分子改為「含缺陷的相異板數」(原為缺陷 pad 列數,對板數分母可得 >10⁶ 的不可能值);(2) EWMA 首筆觀測值不再被丟棄(z₀=μ₀ 先於 x₁);(3) Xbar-R 不再把子群 n 截斷為 10,n>10 以數值積分求精確 d2/d3,不等 n 用 σ̂=mean(Rᵢ/d2(nᵢ)) 與逐子群界限;(4) Nelson 規則區帶 σ 改用 I-MR 的 MR̄/d2(Rule 1 = I-MR UCL/LCL);(5) EWMA/CUSUM σ 改用 MR̄/d2;(6) SPC_RULES §9.1 / data_contract 對齊程式,Cpk CI 下限不截斷 0。
