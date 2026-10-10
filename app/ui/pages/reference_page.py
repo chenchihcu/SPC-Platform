@@ -422,7 +422,9 @@ class ReferencePage(QWidget):
 
         tree.expandItem(root_node)
         for i in range(root_node.childCount()):
-            tree.expandItem(root_node.child(i))
+            child = root_node.child(i)
+            if child is not None:
+                tree.expandItem(child)
 
         root.addWidget(tree, 1)
         return tab
