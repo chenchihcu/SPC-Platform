@@ -280,7 +280,7 @@ class _PasteSpecForm(QWidget):
 
         self._limit_fields: Dict[str, QLineEdit] = {}
 
-        header = QLabel("請設定體積/面積目標與上下限，以及高度上下限")
+        header = QLabel("設定體積/面積目標與上下限、高度上下限")
         header.setProperty("class", "caption")
         form.addRow("規格管制：", header)
 
@@ -1464,7 +1464,7 @@ class MeasurementLibraryPage(QWidget):
         if not confirm_double_delete(
             self,
             f"確定要刪除記錄「{fname}」嗎？\n（本機量測檔案不會被刪除）",
-            second_message="此動作無法復原，您真的確定要刪除此記錄嗎？",
+            second_message="此動作無法復原，確定刪除此記錄？",
         ):
             return
         session_id = session.get("id")
@@ -1596,7 +1596,7 @@ class MeasurementLibraryPage(QWidget):
         if not confirm_double_delete(
             self,
             f"確定要刪除座標記錄「{os.path.basename(str(v['file_path']))}」嗎？",
-            second_message="此動作無法復原，您真的確定要刪除此座標記錄嗎？",
+            second_message="此動作無法復原，確定刪除此座標記錄？",
         ):
             return
         if delete_coordinate_version(int(v["id"])):
@@ -1966,7 +1966,7 @@ class MeasurementLibraryPage(QWidget):
         if not confirm_double_delete(
             self,
             f"確定要刪除產品「{product_name}」的此筆規格記錄嗎？\n（同時移除錫膏與鋼板兩側）",
-            second_message="此動作無法復原，您真的確定要刪除此規格記錄嗎？",
+            second_message="此動作無法復原，確定刪除此規格記錄？",
         ):
             return
         deleted_any = False
@@ -2112,7 +2112,7 @@ class MeasurementLibraryPage(QWidget):
                 f"確定要刪除供應商「{record.get('supplier_code')} / {record.get('supplier_name')}」"
                 f"的鋼板「{record.get('steel_plate_no')}」資料嗎？"
             ),
-            second_message="此動作無法復原，您真的確定要刪除此供應商資料嗎？",
+            second_message="此動作無法復原，確定刪除此供應商資料？",
         ):
             return
         try:

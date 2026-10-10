@@ -7,6 +7,7 @@ import pandas as pd
 
 from app.data.session_store import SessionStore
 from app.services import report_risk
+from app.services.report_copy import TRUST_CHART, TRUST_DIRECT, TRUST_INFERENCE, TRUST_MISSING
 from app.utils.constants import FEATURE_COLUMNS
 from app.analytics.chart_registry import (
     CHART_ORDER,
@@ -126,10 +127,10 @@ def build_data_scope(
         "excluded_evidence": excluded_evidence,
         "filters": filters,
         "section_trust": {
-            "statistics": "可信：資料直接計算",
-            "charts": "可信：圖表證據",
-            "inference": "需複核：規則推論",
-            "spatial": "可信：資料直接計算" if has_coordinate_data else "未納入：資料缺失",
+            "statistics": TRUST_DIRECT,
+            "charts": TRUST_CHART,
+            "inference": TRUST_INFERENCE,
+            "spatial": TRUST_DIRECT if has_coordinate_data else TRUST_MISSING,
         },
     }
 

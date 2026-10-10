@@ -874,7 +874,7 @@ class ChartAnalysisPage(QWidget):
                 reason = get_incompatible_reason(chart_id, active_features) or ""
             elif not self._last_payload:
                 status = self._STATUS_NODATA
-                reason = "尚未執行分析，僅顯示解讀框架。"
+                reason = "尚未執行分析。"
             else:
                 status = self._STATUS_READY
                 reason = ""
@@ -893,13 +893,9 @@ class ChartAnalysisPage(QWidget):
                 sections_for_dialog[0]["illustration_pixmap"] = px
                 sections_for_dialog[0].pop("illustration", None)
         chart_name = get_chart_display_name(chart_id, lang="zh_only")
-        context_lines = [
-            "互動模式：預設隱藏說明，按鈕開啟完整解讀視窗。",
-        ]
         self._interpretation_dialog.open_for_chart(
             chart_name=chart_name,
             sections=sections_for_dialog,
-            context_lines=context_lines,
         )
 
     # ── Accordion toggle ──────────────────────────────────────────────

@@ -324,7 +324,7 @@ def confirm_double_delete(
     first_message: str,
     *,
     first_title: str = "確認刪除",
-    second_message: str = "此動作無法復原，您真的確定要刪除嗎？",
+    second_message: str = "此動作無法復原，確定刪除？",
 ) -> bool:
     """Data Deletion Safety (AGENTS.md): two sequential Yes/No confirmations.
 

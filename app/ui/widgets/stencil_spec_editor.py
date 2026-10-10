@@ -96,7 +96,7 @@ class StencilSpecEditor(QWidget):
             title.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
             card_lay.addWidget(title)
 
-            desc = QLabel("設定鋼板類型與厚度參數。階梯鋼板可指定精密區域元件。")
+            desc = QLabel("階梯鋼板可指定精密區域元件。")
             desc.setProperty("class", "caption")
             desc.setWordWrap(True)
             desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)

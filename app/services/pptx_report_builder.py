@@ -71,6 +71,15 @@ from app.ui.theme.tokens import (
     TEXT_PRIMARY,
     TEXT_SECONDARY,
 )
+from app.services.report_copy import (
+    EVIDENCE_TYPE_STAT_RULE,
+    NO_CHART_TEXT,
+    PRINT_CHECK_ADVICE,
+    TRUST_CHART,
+    TRUST_DIRECT,
+    TRUST_INFERENCE,
+    TRUST_MISSING,
+)
 from app.utils.numeric_utils import safe_float, coerce_int
 
 logger = logging.getLogger(__name__)
@@ -707,7 +716,7 @@ def _build_slide_chart_evidence_gallery(
     _add_slide_title(
         slide,
         f"5A. Chart Evidence Gallery / 數據與圖表證據{suffix}",
-        "數據特徵診斷證據頁面 (Process Analytics Evidence)",
+        "",
     )
 
     grid_top = MARGIN_TOP + Mm(28)
@@ -855,10 +864,10 @@ def _trust_status_lines(report_context: Dict[str, Any]) -> List[str]:
     if not isinstance(statuses, dict):
         return []
     return [
-        f"統計/能力：{statuses.get('statistics', '可信：資料直接計算')}",
-        f"圖表證據：{statuses.get('charts', '可信：圖表證據')}",
-        f"根因/對策：{statuses.get('inference', '需複核：規則推論')}",
-        f"空間分析：{statuses.get('spatial', '未納入：資料缺失')}",
+        f"統計/能力：{statuses.get('statistics', TRUST_DIRECT)}",
+        f"圖表證據：{statuses.get('charts', TRUST_CHART)}",
+        f"根因/對策：{statuses.get('inference', TRUST_INFERENCE)}",
+        f"空間分析：{statuses.get('spatial', TRUST_MISSING)}",
     ]
 
 
@@ -1923,8 +1932,8 @@ def _build_slide_process_capability_v2(
     notes = [
         "• 能力充足 (Cpk > 1.33)：製程寬量足夠，容許輕微波動。",
         "• 能力邊緣 (Cpk 1.0~1.33)：需加強穩定性監控，防止不合格產出。",
-        "• 能力不足 (Cpk < 1.00)：規格寬度不足 or 製程分布過寬，建議檢討 Spec 或改善製程。",
-        "• Cpk 與 Ppk 顯著差異 (>10%)：表示存在顯著的長期變異 (Long-term drift)。"
+        "• 能力不足 (Cpk < 1.00)：規格過窄或分布過寬，檢討規格或改善製程。",
+        "• Cpk 與 Ppk 差異 >10%：存在長期變異。"
     ]
     if dashboard_layers:
         notes.extend(pptx_kpi_capability_lines(dashboard_layers)[:2])
@@ -1977,7 +1986,7 @@ def _build_slide_process_stability(
     # 3. Stability Guidance
     _add_textbox(slide, MARGIN_LEFT, y_panel + Mm(55), Mm(60), Mm(6), "【控制策略建議】", size_pt=9, bold=True, color=CLR_SUBTITLE)
     guidance = [
-        "• 失控/警示：建議檢查印刷機參數、刮刀、鋼網與錫膏狀態。",
+        f"• 失控/警示：{PRINT_CHECK_ADVICE}",
         "• 趨勢/漂移：可能為錫膏乾涸或環境溫度變化，需確認刮刀壓力。",
         "• 受控：建議維持現行管制圖寬度，常規監控即可。"
     ]
@@ -2056,21 +2065,11 @@ def _build_slide_process_risk_v2(
     _set_cell_text(tbl.cell(1,0), str(error_count), size_pt=10, bold=True, color=CLR_BAD, alignment=PP_ALIGN.CENTER)
     _set_cell_text(tbl.cell(1,1), str(warning_count), size_pt=10, bold=True, color=CLR_WARNING, alignment=PP_ALIGN.CENTER)
     _set_cell_text(tbl.cell(1,2), str(high_priority), size_pt=10, bold=True, color=CLR_ACCENT, alignment=PP_ALIGN.CENTER)
-    _add_textbox(
-        slide,
-        MARGIN_LEFT + Mm(6),
-        ry + Mm(17),
-        CONTENT_WIDTH - Mm(12),
-        Mm(6),
-        text=f"高優先訊號：{high_priority}",
-        size_pt=8,
-        color=CLR_SUBTITLE,
-    )
     trust_lines = _trust_status_lines(report_context or {})
     if not trust_lines:
         trust_lines = [
-            "統計/能力：可信：資料直接計算",
-            "根因/對策：需複核：規則推論",
+            f"統計/能力：{TRUST_DIRECT}",
+            f"根因/對策：{TRUST_INFERENCE}",
         ]
     _add_textbox(
         slide,
@@ -2450,22 +2449,22 @@ def _build_slide_diagnostic(
     chart_bytes = diagnostic.get("chart_bytes")
     chart_title = _ellipsize(diagnostic.get("chart_title", "") or "相關圖表", 64)
     chart_missing_reason = _ellipsize(
-        diagnostic.get("chart_missing_reason", "") or "此異常目前無可用圖表輸出。",
+        diagnostic.get("chart_missing_reason", "") or NO_CHART_TEXT,
         72,
     )
     observable_charts = [_ellipsize(item, 32) for item in (diagnostic.get("observable_charts", []) or [])[:2]]
     evidence_lines = [_ellipsize(item, 42) for item in (diagnostic.get("evidence_lines", []) or [])[:3]]
     ipc_lines = [_ellipsize(item, 52) for item in (diagnostic.get("ipc_lines", []) or [])[:2]]
-    evidence_type = _ellipsize(diagnostic.get("evidence_type", "") or "統計計算 / 規則推論", 48)
+    evidence_type = _ellipsize(diagnostic.get("evidence_type", "") or EVIDENCE_TYPE_STAT_RULE, 48)
     action_lines = [
         _ellipsize(item, 40)
-        for item in ((diagnostic.get("recommended_actions", []) or ["依本頁證據與圖表進行現場複核。"])[:2])
+        for item in ((diagnostic.get("recommended_actions", []) or ["依本頁證據現場複核。"])[:2])
     ]
 
     if title_text:
         _add_slide_title(slide, title_text, subtitle_text)
     else:
-        _add_slide_title(slide, f"異常診斷詳細分析 / Anomaly Detail Analysis ({slide_index})", "單項特徵現象與建議")
+        _add_slide_title(slide, f"異常診斷詳細分析 / Anomaly Detail Analysis ({slide_index})")
 
     content_top = MARGIN_TOP + Mm(28)
     left_w = Mm(120)
@@ -2795,21 +2794,17 @@ def build_pptx_report(
         timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if not diagnostics:
             diagnostics = [{
-                "summary": "目前未觸發異常診斷規則；本批資料未發現需要額外開立異常頁的高風險訊號。",
+                "summary": "目前未觸發異常診斷規則，未發現高風險訊號。",
                 "severity": "info",
                 "chart_title": "異常診斷狀態",
                 "chart_bytes": None,
                 "observable_charts": [],
-                "evidence_lines": [
-                    "狀態：未觸發異常規則 (anomaly rule)",
-                    "輸出策略：核心 12 章節 + 圖表證據擴充頁",
-                ],
+                "evidence_lines": [],
                 "ipc_lines": [],
                 "recommended_actions": [
-                    "若需更細部證據，請於匯出頁勾選相關圖表後重新匯出 PPTX。",
                     "持續觀察 Cpk、Yield 與趨勢圖是否出現新漂移。",
                 ],
-                "evidence_type": "統計計算 / 規則推論",
+                "evidence_type": EVIDENCE_TYPE_STAT_RULE,
             }]
         analysis_payload = analysis_payload or {}
         report_context = report_context or {}
@@ -3054,7 +3049,7 @@ def build_pptx_report(
                 page_num=_next_pn(),
                 total_pages=total_pages,
                 title_text=f"異常診斷詳頁 ({idx}/{len(diagnostics)}) — Anomaly Diagnosis",
-                subtitle_text="異常診斷與建議",
+                subtitle_text="",
             )
 
         # ── P6: Distribution Analysis (evidence zone) ────────────────────────
@@ -3065,9 +3060,9 @@ def build_pptx_report(
         if dist_diag:
             dist_lines.append(f"分布診斷：{_ellipsize(dist_diag.get('summary', '—'), 96)}")
             dist_lines.extend([str(line) for line in (dist_diag.get("evidence_lines") or [])[:4]])
+            dist_lines.append("若非常態，建議改用非常態能力分析或分層評估。")
         else:
-            dist_lines.append("目前無顯著分布異常告警；請仍確認常態假設適用性。")
-        dist_lines.append("若非常態，建議改用非常態能力分析或分層評估。")
+            dist_lines.append("無顯著分布異常。")
         _build_slide_bullet_section(
             prs,
             title_text="分布分析 / Distribution Analysis",
@@ -3102,12 +3097,10 @@ def build_pptx_report(
         if not has_coordinate_scope:
             spatial_lines = [
                 "本批資料未提供座標欄位，空間分析未納入判讀。",
-                "章節狀態：未納入：資料缺失",
                 "證據類型：未納入",
-                "不輸出任何座標匹配率、空間點數或空間熱圖作為有效證據。",
             ]
         else:
-            spatial_lines = ["目標：定位 PCB / Pad / Component 的偏差群聚與熱區。"]
+            spatial_lines = []
             if dashboard_layers_for_slides:
                 raw_l4 = dashboard_layers_for_slides.get("layer_4_defect_structure")
                 l4s: Dict[str, Any] = raw_l4 if isinstance(raw_l4, dict) else {}
@@ -3138,10 +3131,9 @@ def build_pptx_report(
                     spatial_lines.append(f"空間圖限制：{missing_reason}")
             else:
                 spatial_lines.append("目前無空間異常提示；建議定期輸出熱圖做區域比對。")
-            spatial_lines.append("輸出建議：PCB 熱圖 + Pad 分布 + Component 排名。")
         _build_slide_bullet_section(
             prs,
-            title_text="空間分析 / Spatial Analysis (PCB / Pad / Component)",
+            title_text="空間分析 / Spatial Analysis",
             subtitle_text="熱區 · 群聚 · 邊緣異常",
             lines=spatial_lines[:7],
             timestamp_str=timestamp_str,
@@ -3228,7 +3220,7 @@ def build_pptx_report(
             "A. Data Source：量測資料、工單、規格、分析 payload",
             "B. 指標定義：Cp/Cpk/Pp/Ppk、Yield、PPM、OOC",
             "C. 檢定方法：常態性、趨勢與異常規則",
-            "D. 圖表清單：見圖表證據覆蓋表（狀態含已輸出/不相容/無資料/本次排除/渲染失敗）",
+            "D. 圖表清單：見圖表證據覆蓋表",
             "E. 追蹤項目：VERIFY / UNKNOWN 欄位補完",
         ]
         available_features = [name for name in ("Volume", "Area", "Height") if name in per_measure]

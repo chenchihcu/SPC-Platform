@@ -14,6 +14,7 @@ from app.analytics.dashboard_layers_display import (
     value_state_label_zh,
 )
 from app.services.diagnostic_evidence_matrix import build_readable_diagnostic_tabs
+from app.services.report_copy import REPORT_TITLE
 from app.ui.theme.tokens import (
     ACCENT_ERROR,
     ACCENT_SUCCESS,
@@ -214,9 +215,9 @@ def _add_diagnostic_matrix_sheets(wb: Workbook, payload: dict[str, Any]) -> None
                 {
                     "title": "目前無可判讀內容",
                     "result_zh": "資料不足/不可判讀",
-                    "reason_zh": "此分頁目前沒有足夠資料形成白話判讀。",
+                    "reason_zh": "—",
                     "evidence_zh": "—",
-                    "next_action_zh": "補齊資料或重跑分析後再查看。",
+                    "next_action_zh": "補齊資料後重跑分析。",
                     "source_zh": tab_key,
                 }
             ]
@@ -264,7 +265,7 @@ def export_diagnostic_summary_xlsx(payload: dict[str, Any], output_path: str | P
 
     ws.merge_cells("A1:F1")
     title_cell = ws["A1"]
-    title_cell.value = "SMT SPI 製程統計分析報告"
+    title_cell.value = REPORT_TITLE
     title_cell.fill = _HEADER_FILL
     title_cell.font = _HEADER_FONT
     title_cell.alignment = _CENTER
