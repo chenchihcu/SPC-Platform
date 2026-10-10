@@ -1,5 +1,15 @@
 # Decision Log
 
+## 2026-10-10 Lint/Type Toolchain Pinning
+
+- Decision: `pyproject.toml` 的 `[tool.ruff.lint]` 明確寫出 `select = ["E4", "E7", "E9", "F"]`（等同 ruff 0.15.9 預設），並在 `docs/reference/requirements.txt` 固定 `ruff==0.15.9`、`mypy==1.20.0`。
+- Scope: `pyproject.toml`、`docs/reference/requirements.txt`、本條紀錄；不改任何程式碼與規則語意。
+- Reason: CI（`pip install -r requirements.txt`）未固定版本，於 2026-10-10 裝到 ruff 0.17.0；0.17.0 的預設 `select` 擴大到 UP/I/BLE/RUF/B/SIM/PL 等族群（`ruff check --show-settings` 實測確認），同一份設定本機 0.15.9 通過、CI 報 2272 個錯誤，`main` 自此每個 commit 的 `ci-quality` 都失敗。
+- Impact: 規則集不再隨 ruff 預設值漂移；lint/type 升版改為刻意動作，需在同一 PR 內處理新規則。採用 UP/I 等新族群屬另一個有意識的遷移 PR（全庫 `--fix`），不在本條範圍。
+- Verification: ruff 0.15.9 與 0.17.0 在新設定下對全庫 `ruff check .` 皆 PASS；mypy 1.20.0 `mypy app` PASS。
+- Risk: 其餘相依（pyside6、pandas、pandas-stubs、numpy、matplotlib 等）仍未固定，CI 仍可能因上游版本變動而行為不一致；建議後續以 lock/constraints 檔處理。
+- Rollback: 回退本條所列兩個設定檔即可恢復原狀；不涉及資料或 schema。
+
 ## 2026-07-13 DB-backed Chart Semantic Gate Hardening
 
 - Decision: 將 DB semantic gate 從「記錄 density mode」提升為可阻擋的語意檢查，修正單特徵預算 payload 的雙特徵 density resolver，並讓跨組合 matrix 對所有 arity 執行且在任何 blocking status 時回傳非零。
