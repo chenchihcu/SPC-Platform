@@ -27,6 +27,8 @@ python scripts/run_final_audit_suite.py --repo-root . --profile full
 python scripts/run_final_audit_suite.py --repo-root . --profile quick
 ```
 
+Profile 契約：`quick` 以統計、圖表交叉、release-validation、效能等 targeted packs 提供快速分相證據；`full` 執行 `ruff`、`mypy app`、完整 `pytest -q` 與 Qt policy audit。完整 pytest 已包含所有 targeted packs，因此 full 不在其後重跑相同子集，避免重複 release-closeout 成本；兩種 profile 都執行 exception policy scan。
+
 發行前精簡驗證（`ruff`、`mypy app`、`tests/release_validation` 含 **P** 效能回歸）與 JSON 報告：
 
 ```bash
@@ -55,7 +57,9 @@ Golden／`tests/release_validation` 對照表：`docs/specs/release_validation_c
 | `qt_policy` | PySide/Qt UI 工程衛生（建議） | `code-audit` | `shell_command` + `filesystem` | advisory：`qt_audit.py` finding 需完成分流 |
 | `static_scan` | broad/silent exception 風險控管 | `spc-code-audit` + `code-audit` | `filesystem` | finding 已分流或修復 |
 
-## 4. `run_final_audit_suite.py` 內建測試包
+## 4. Targeted test pack catalog
+
+Quick profile 直接執行統計、圖表交叉、release-validation 與效能 packs；UI runtime tests 與所有其餘測試由 full profile 的完整 `pytest -q` 一次涵蓋。
 
 - 統計正確性：
   - `tests/test_spc_engine.py`

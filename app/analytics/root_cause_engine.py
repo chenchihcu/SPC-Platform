@@ -229,7 +229,10 @@ def infer_root_cause_hints(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
                 evidence={
                     "ooc_count":  len(cusum_ooc),
                     "total_n":    cusum_n,
-                    "ooc_ratio":  round(ooc_ratio, 4),
+                    # 6 dp (not 4): the PPTX evidence line renders this as a
+                    # 1-dp percent, and rounding to 4 dp first double-rounds
+                    # e.g. 0.571519 → 0.5715 → "57.1%" instead of "57.2%".
+                    "ooc_ratio":  round(ooc_ratio, 6),
                     "threshold":  "ooc_ratio ≥ 10 %",
                 },
                 confidence=min(0.95, 0.6 + ooc_ratio),
@@ -247,7 +250,10 @@ def infer_root_cause_hints(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
                 evidence={
                     "ooc_count":  len(cusum_ooc),
                     "total_n":    cusum_n,
-                    "ooc_ratio":  round(ooc_ratio, 4),
+                    # 6 dp (not 4): the PPTX evidence line renders this as a
+                    # 1-dp percent, and rounding to 4 dp first double-rounds
+                    # e.g. 0.571519 → 0.5715 → "57.1%" instead of "57.2%".
+                    "ooc_ratio":  round(ooc_ratio, 6),
                     "threshold":  "0 < ooc_ratio < 10 %",
                 },
                 confidence=min(0.85, 0.45 + ooc_ratio),
@@ -307,12 +313,21 @@ def infer_root_cause_hints(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
                 if (usl is not None and lsl is not None) else "規格未知"
             )
             cp_str = f"，Cp={cp:.3f}" if cp else ""
-            _append(
-                hint=(
+            # When the capability engine flags a unit/scale mismatch, do not
+            # present Cpk as a real process finding — lead with the caveat and
+            # drop the confidence so downstream trust labels stay honest.
+            scale_mismatch = bool(meta.get("scale_mismatch"))
+            scale_note = str(meta.get("scale_mismatch_reason") or "").strip()
+            if scale_mismatch and scale_note:
+                hint = f"⚠ [疑單位/尺度不符] {scale_note}（Cpk={cpk:.3f}{cp_str}，{spec_str2}，僅供參考）"
+            else:
+                hint = (
                     f"製程能力不足：Cpk = {cpk:.3f}{cp_str}（{level}）。"
                     f"均值={mean_v:.3f}，{sigma_str}，{spec_str2}。"
                     f"{'Cpk < 1.0 表示製程規格外產出率顯著偏高。' if cpk < 1.0 else 'Cpk 介於 1.0–1.33 屬邊界狀態，建議持續改善。'}"
-                ),
+                )
+            _append(
+                hint=hint,
                 rule_id="cpk_below_threshold",
                 severity="error" if cpk < 1.0 else "warning",
                 evidence={
@@ -320,9 +335,10 @@ def infer_root_cause_hints(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
                     "cp":       round(cp, 4) if cp else None,
                     "mean":     round(mean_v, 4) if mean_v else None,
                     "sigma_st": round(sigma_st, 4) if sigma_st else None,
+                    "scale_mismatch": scale_mismatch,
                     "threshold": "Cpk < 1.33（合格）；< 1.0（不合格）",
                 },
-                confidence=min(0.98, 0.70 + max(0.0, 1.33 - cpk) * 0.5),
+                confidence=(0.30 if scale_mismatch else min(0.98, 0.70 + max(0.0, 1.33 - cpk) * 0.5)),
                 priority="high" if cpk < 1.0 else "medium",
                 observable_charts=["製程能力圖 (Capability)", "直方圖 (Histogram)", "常態機率圖 (Normality)"],
             )

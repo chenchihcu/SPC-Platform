@@ -93,3 +93,34 @@ def test_usl_equals_lsl_has_error_message():
 def test_zero_std_returns_invalid():
     result = CapabilityEngine.compute_capability(pd.Series([100.0] * 20), usl=120.0, lsl=80.0)
     assert result["metadata"]["is_valid"] is False
+
+
+# ── REGRESSION: unit/scale-mismatch sentinel ──────────────────────────────────
+def test_scale_mismatch_flag_present_and_false_for_normal_process():
+    """A well-scaled process must not be flagged as a unit/scale mismatch."""
+    result = CapabilityEngine.compute_capability(_valid_data(), usl=120.0, lsl=80.0)
+    assert result["metadata"]["scale_mismatch"] is False
+    assert result["metadata"]["scale_mismatch_reason"] == ""
+
+
+def test_scale_mismatch_flag_set_for_mm_data_vs_percent_spec():
+    """mm-scale data (mean ~0.06) against a percent spec [50,170] yields an
+    impossibly large |Cpk|; the engine must flag it instead of presenting the
+    index as directly-computed capability fact (root cause of the SPI report bug).
+    """
+    rng = np.random.default_rng(7)
+    mm_data = pd.Series(rng.normal(0.06, 0.015, 200))  # Height in mm
+    result = CapabilityEngine.compute_capability(mm_data, usl=170.0, lsl=50.0)
+    assert result["metadata"]["is_valid"] is True  # still renders
+    assert result["metadata"]["scale_mismatch"] is True
+    assert abs(result["statistics"]["cpk"]) > 50
+    assert "單位" in result["metadata"]["scale_mismatch_reason"]
+
+
+def test_scale_mismatch_cleared_when_spec_converted_to_measurement_units():
+    """Same mm data against correctly converted mm limits (percent × 0.060mm
+    stencil thickness) is a real, capable process — no mismatch flag."""
+    rng = np.random.default_rng(7)
+    mm_data = pd.Series(rng.normal(0.06, 0.005, 200))
+    result = CapabilityEngine.compute_capability(mm_data, usl=1.70 * 0.06, lsl=0.50 * 0.06)
+    assert result["metadata"]["scale_mismatch"] is False

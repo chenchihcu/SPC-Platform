@@ -4,6 +4,8 @@ Last full verification: 2026-05-25
 
 Targeted command-policy and skill-mirror update: 2026-07-13
 
+Targeted local routing and optional-rule retirement update: 2026-09-06. This does not refresh the full vendor or live-client verification above.
+
 This file is the repo-local compatibility register for Codex, Claude Code, Cursor, and Google Antigravity. It is a control document for AI-agent operation, not an SPC/SPI formula specification.
 
 ## Claim Type
@@ -53,10 +55,10 @@ This file is the repo-local compatibility register for Codex, Claude Code, Curso
 | Claude adapter | `CLAUDE.md` | `local-observed` | Context adapter | Import `@AGENTS.md`; keep only Claude-specific notes. |
 | Claude theme rule | `.claude/rules/ui_theme.md` | `local-observed` | Path/topic context | Keep UI/theme details narrower than `AGENTS.md`. |
 | Cursor adapter | `.cursor/rules/agents_gateway.mdc` | `local-observed` | Prompt context | Always-on gateway pointing to `AGENTS.md`. |
-| Cursor optional tool reference | `.cursor/rules/vibe-tools.mdc` | `local-observed` | Optional context | Must not be always-on; request only when external model/tool lookup is needed. |
 | Antigravity adapter | `.agents/rules/agents_gateway.md` | `local-observed` | Prompt context | Workspace gateway pointing to `AGENTS.md`; prefer New Worktree Mode. |
 | Harness check | `scripts/harness_check.ps1` | `local-observed` | Deterministic local check | Verify gateway presence, source register, claim types, and completion format. |
-| Routed validation skill mirrors | `.claude/skills` → `.agents/skills` for `spc-change-router`, `spc-db-chart-semantics-validator`, and `spc-validation-matrix` | `local-observed` | Cross-assistant routing contract | Keep these three enforced mirrors identical after removing Claude-only `allowed-tools`; other skill pairs are outside this targeted mirror gate. |
+| Routed validation skill mirrors | `.agents/skills` → `.claude/skills` for `spc-change-router`, `spc-db-chart-semantics-validator`, and `spc-validation-matrix` | `local-observed` | Cross-assistant routing contract | Keep these three enforced mirrors identical after removing Claude-only `allowed-tools`; other skill pairs are outside this targeted mirror gate. |
+| Change routing data | `.agents/skills/spc-change-router/route-table.json` → `.claude/skills/spc-change-router/route-table.json` | `local-observed` | Canonical data and runtime projection | Harness validates JSON structure, regexes, document targets, gate conditions, and exact projection parity. The hook reads the Claude projection and only advises; live client loading requires separate evidence. |
 | Source baseline manifest | `docs/harness/source-baseline-manifest.md` | `local-observed` | Source-control audit register | Record Git root, tracked/untracked/ignored status, baseline readiness, candidate lists, and role review. |
 
 ## Source Control Boundary
@@ -74,12 +76,11 @@ This file is the repo-local compatibility register for Codex, Claude Code, Curso
 | --- | --- | --- | --- | --- |
 | Git root exists, but tracked count was 1 before this pass. | `local-observed` | Only `README.md` had been committed/tracked as the repository baseline. | Most source and governance files can be changed by AI tools without normal diff discipline. | Keep one writer per worktree until a reviewed source baseline commit exists. |
 | `.gitignore` did not exclude several generated/runtime surfaces. | `local-observed` | Output directories, DB/runtime data, generated documents, and nested Claude worktrees were not fully ignored. | `git status` noise can hide real source changes; blind add can capture output or data files. | Ignore generated output/data/worktree paths before staging source. |
-| `vibe-tools.mdc` was a large always-on Cursor rule before this pass. | `local-observed` | Cursor rule metadata loaded the tool reference globally. | Long optional tool instructions can dilute core repo policy and increase hallucination surface. | Make the rule optional and keep `agents_gateway.mdc` as the always-on gateway. |
 | Initial source baseline is not committed. | `local-observed` | This pass did not create a broad baseline commit. | Parallel agents still lack a clean handoff point. | Create a reviewed source baseline commit after generated paths are ignored. |
 | Baseline candidate lists are not yet approved. | `local-observed` | `docs/harness/source-baseline-manifest.md` now classifies files, but no human approval has converted the list into a commit. | Automation or another AI could treat untracked source as disposable or accidentally omit governance files. | Treat the manifest as an audit register, not approval to stage. |
 | Root `--help` file exists. | `local-observed` | A zero-byte command-like filename is present at repo root. | Shell commands, status reviews, or baseline path lists can mis-handle it if not quoted/literal. | Keep it in `needs-user-decision-list`; do not delete automatically. |
 | SPC/SPI contracts are domain-critical. | `audit-inference` | Statistical rules, reports, and UI contracts have separate docs and tests. | Cross-tool edits can bypass the expected statistical verification path. | Keep `AGENTS.md`, `docs/governance/SPC_RULES.md`, and verification gates as mandatory references. |
-| Oversized always-on rules reduce instruction efficiency. | `audit-inference` | Long rules consume context and make high-priority instructions harder to isolate. | Optional tool instructions can crowd out SPC/SPI policy. | Keep `vibe-tools.mdc` optional and enforce the Instruction Size Budget in `scripts/harness_check.ps1`. |
+| Oversized always-on rules reduce instruction efficiency. | `audit-inference` | Long rules consume context and make high-priority instructions harder to isolate. | Optional tool instructions can crowd out SPC/SPI policy. | Keep optional CLI references outside the mandatory project gate and enforce the Instruction Size Budget in `scripts/harness_check.ps1`. |
 
 ## Multi-AI Switching Protocol
 
@@ -103,7 +104,7 @@ This file is the repo-local compatibility register for Codex, Claude Code, Curso
 | Check | Type | Status |
 | --- | --- | --- |
 | Automation execution mode | `local-observed` | Keep `local` until the source baseline is reviewed. |
-| Automation prompt | `audit-inference` | Must inspect `docs/harness/source-baseline-manifest.md`, `.gitignore`, four gateway layers, `vibe-tools.mdc`, and its own TOML. |
+| Automation prompt | `audit-inference` | Must inspect `docs/harness/source-baseline-manifest.md`, `.gitignore`, four gateway layers, routing data parity, and its own TOML. |
 | Worktree automation | `audit-inference` | Not ready until a reviewed baseline commit exists and the user approves switching execution mode. |
 
 ## Verification

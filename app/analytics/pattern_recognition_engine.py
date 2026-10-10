@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict
+from app.analytics.spc_engine import SPCEngine
 from app.analytics.statistical_utils import invalid_chart_payload
 
 import numpy as np
@@ -69,8 +70,10 @@ class PatternRecognitionEngine:
         values = valid.to_numpy(dtype=float)
         indices = list(valid.index)
         mean = float(np.mean(values))
-        sigma = float(np.std(values, ddof=1))
-        if sigma <= 0:
+        # Rule zones use the I-MR CL/sigma (SPC_RULES §10): sigma = MR_bar / d2,
+        # so Rule 1 matches the I-MR chart's UCL/LCL exactly.
+        sigma = float(np.mean(np.abs(np.diff(values))) / SPCEngine.I_MR_D2)
+        if not np.isfinite(sigma) or sigma <= 0:
             return invalid_chart_payload("PatternRecognition", "標準差為 0，無法做規則判讀。", target_col)
 
         hits: list[dict[str, Any]] = []

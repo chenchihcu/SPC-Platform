@@ -1,7 +1,7 @@
 
-from app.charts.base_chart import BaseChart
+from app.charts.base_chart import BaseChart, _apply_mpl_app_style, get_feature_color
 from typing import Dict, Any
-from app.ui.theme.tokens import CHART_SERIES, TEXT_SECONDARY
+from app.ui.theme.tokens import CHART_FONT_LABEL, CHART_SERIES, TEXT_SECONDARY
 
 
 class DensityChart(BaseChart):
@@ -20,12 +20,18 @@ class DensityChart(BaseChart):
     def clear(self) -> None:
         """Clear chart canvas and reset to empty state."""
         self._safe_remove_artist("cbar")
+        if len(self.figure.axes) > 1:
+            # Leaving 3F subplot mode: drop the extra axes before single-axis drawing.
+            self.figure.clear()
+            self.ax = self.figure.add_subplot(111)
         super().clear()
 
     def draw_chart(self, engine_output: Dict[str, Any]) -> bool:
         """Render the chart with the given payload data."""
         if not super().draw_chart(engine_output):
             return False
+        if engine_output.get("_multi_feature") and engine_output.get("_feature_data"):
+            return self._draw_multi_feature(engine_output)
         data = engine_output.get("data", {})
         stats = engine_output.get("statistics", {})
         mode = str(data.get("mode", "")).strip().lower()
@@ -63,3 +69,38 @@ class DensityChart(BaseChart):
         self.canvas.draw()
         return True
 
+    def _draw_multi_feature(self, engine_output: Dict[str, Any]) -> bool:
+        """Render one univariate KDE subplot per feature (3F density semantics)."""
+        features = list(engine_output.get("_features") or [])
+        feature_data = engine_output.get("_feature_data") or {}
+        self._safe_remove_artist("cbar")
+        self.figure.clear()
+        n = len(features)
+        if n == 0:
+            self.ax = self.figure.add_subplot(111)
+            _apply_mpl_app_style(self.figure, self.ax)
+            self._show_placeholder("無多特徵資料")
+            self.canvas.draw()
+            return False
+        drawn = False
+        for i, feat in enumerate(features):
+            ax = self.figure.add_subplot(1, n, i + 1)
+            _apply_mpl_app_style(self.figure, ax)
+            data = (feature_data.get(feat) or {}).get("data", {})
+            x_grid = data.get("x_grid", [])
+            y_density = data.get("density", [])
+            ax.set_title(str(feat), fontsize=CHART_FONT_LABEL)
+            ax.set_xlabel(str(data.get("col") or feat))
+            ax.set_ylabel("Density" if i == 0 else "")
+            if str(data.get("mode", "")).strip().lower() != "univariate" or not x_grid or not y_density:
+                ax.text(0.5, 0.5, f"{feat}\n無資料", ha="center", va="center", transform=ax.transAxes)
+                continue
+            color, _edge = get_feature_color(str(feat), i)
+            ax.plot(x_grid, y_density, color=color, linewidth=1.8)
+            ax.fill_between(x_grid, y_density, color=color, alpha=0.18)
+            drawn = True
+        # figure.clear() invalidated the old axes; keep self.ax valid for BaseChart.clear().
+        self.ax = self.figure.axes[0]
+        self._show_canvas()
+        self.canvas.draw()
+        return drawn

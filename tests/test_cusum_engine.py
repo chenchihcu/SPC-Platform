@@ -85,3 +85,13 @@ def test_equal_spec_returns_invalid():
     result = CUSUMEngine.compute_cusum(_data(), usl=100.0, lsl=100.0)
     assert result["metadata"]["is_valid"] is False
     assert result["metadata"]["error"] == "USL 與 LSL 相同。"
+
+
+def test_sigma_uses_moving_range_not_overall_std():
+    """SPC_RULES §10.1: a sustained shift inflates the overall std; sigma = MR_bar / d2."""
+    rng = np.random.default_rng(1)
+    data = pd.Series(np.concatenate([rng.normal(100, 1, 100), rng.normal(101.5, 1, 100)]))
+    result = CUSUMEngine.compute_cusum(data, usl=110.0, lsl=90.0)
+    expected = float(data.diff().abs().mean() / 1.128)
+    assert abs(result["statistics"]["sigma"] - expected) < 1e-12
+    assert result["statistics"]["sigma"] < float(data.std(ddof=1))

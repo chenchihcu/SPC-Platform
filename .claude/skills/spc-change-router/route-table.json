@@ -1,51 +1,102 @@
 {
-  "_authority": "SPC Platform 路由表機器可讀正本。消費者: .claude/hooks/changed-path-advisor.ps1 (執行期讀取)。人類可讀鏡像: .claude/skills/spc-change-router/SKILL.md 的 Route Table — 改路由時兩者同批更新。pathRegex 為 PowerShell -match 語法, 比對正規化(/ 轉 \\)後的 touched path。",
+  "_authority": "Canonical: .agents/skills/spc-change-router/route-table.json; Claude projection is consumed by changed-path-advisor.ps1. V0-V3 selection follows SKILL.md and AGENTS.md.",
   "surfaces": [
     {
       "key": "ui-theme",
       "label": "UI/theme/chart visuals",
-      "pathRegex": "(?i)(^|\\\\)app\\\\ui\\\\|(^|\\\\)app\\\\charts\\\\|AI_RULES\\.md$",
-      "docs": ["AI_RULES.md", "docs/specs/ui_state_semantics.md"],
+      "pathRegex": "(?i)(^|[\\\\/])app[\\\\/]ui[\\\\/]|(^|[\\\\/])app[\\\\/]charts[\\\\/]|ui_theme\\.mdc?$",
+      "docs": [
+        ".claude/rules/ui_theme.md",
+        "docs/specs/ui_state_semantics.md"
+      ],
       "reviewer": "qt-ui-token-auditor",
       "gates": [
-        { "cmd": ".venv/Scripts/python.exe scripts/qt_audit.py app/", "when": "" },
-        { "cmd": ".venv/Scripts/python.exe scripts/check_launch.py", "when": "" }
+        {
+          "cmd": ".venv/Scripts/python.exe scripts/qt_audit.py app/",
+          "when": ""
+        },
+        {
+          "cmd": ".venv/Scripts/python.exe scripts/check_launch.py",
+          "when": "when bootstrap, entrypoint, shared initialization, runtime dependencies, shared theme, window lifecycle, or release are invalidated (AGENTS.md H3)"
+        }
       ],
       "notes": []
     },
     {
       "key": "analytics",
       "label": "Analytics/statistics/chart registry",
-      "pathRegex": "(?i)(^|\\\\)app\\\\analytics\\\\|chart_registry\\.py|chart_analysis_viewmodel\\.py|validate_db_chart_semantics\\.py|docs\\\\governance\\\\SPC_RULES\\.md$",
-      "docs": ["docs/governance/SPC_RULES.md", ".claude/skills/analytics-engine-contract/SKILL.md", ".claude/skills/spc-db-chart-semantics-validator/SKILL.md"],
+      "pathRegex": "(?i)(^|[\\\\/])app[\\\\/]analytics[\\\\/]|chart_registry\\.py|chart_analysis_viewmodel\\.py|validate_db_chart_semantics\\.py|docs[\\\\/]governance[\\\\/]SPC_RULES\\.md$",
+      "docs": [
+        "docs/governance/SPC_RULES.md",
+        ".claude/skills/analytics-engine-contract/SKILL.md",
+        ".claude/skills/spc-db-chart-semantics-validator/SKILL.md"
+      ],
       "reviewer": "spc-stat-contract-reviewer",
       "gates": [
-        { "cmd": ".venv/Scripts/python.exe -m pytest -q", "when": "" },
-        { "cmd": ".venv/Scripts/python.exe .claude/skills/spc-validation-matrix/scripts/run_matrix.py --quick", "when": "when chart routing changes" },
-        { "cmd": ".venv/Scripts/python.exe scripts/validate_db_chart_semantics.py --db data/spc_master.db --latest-session --output Outputs/db_chart_semantics_current --quiet", "when": "when chart statistics, payload slicing, density, pair, or triple-feature semantics change and real DB data is available" }
+        {
+          "cmd": "V1 affected-engine test",
+          "when": "choose the affected engine test and selected semantic checks"
+        },
+        {
+          "cmd": ".venv/Scripts/python.exe -m pytest -q",
+          "when": "full pytest is V3 only: >=4 production files, >=2 subsystems, public/statistical contract, release, weak/unknown oracle, or V1/V2 failure"
+        },
+        {
+          "cmd": ".venv/Scripts/python.exe .claude/skills/spc-validation-matrix/scripts/run_matrix.py --quick",
+          "when": "V2 selected matrix when chart routing changes"
+        },
+        {
+          "cmd": ".venv/Scripts/python.exe scripts/validate_db_chart_semantics.py --db data/spc_master.db --latest-session --output Outputs/db_chart_semantics_current --quiet --checks <affected-checks>",
+          "when": "when chart statistics, payload slicing, density, pair, or triple-feature semantics change and real DB data is available; select valid semantic checks from --help for V1"
+        }
       ],
-      "notes": ["Preserve engine payload shape: chart_type, data, statistics, metadata.", "Contract/renderability PASS is not proof of statistical correctness; independently recompute against joined DB-backed data when semantics change."]
+      "notes": [
+        "Preserve engine payload shape: chart_type, data, statistics, metadata.",
+        "Contract/renderability PASS is not proof of statistical correctness; independently recompute against joined DB-backed data when semantics change."
+      ]
     },
     {
       "key": "report-export",
       "label": "Reports/PPTX/Excel exports",
-      "pathRegex": "(?i)(^|\\\\)app\\\\services\\\\report_|pptx_report_builder\\.py|diagnostic_excel_exporter\\.py",
-      "docs": ["README.md", "docs/specs/project_architecture.md"],
+      "pathRegex": "(?i)(^|[\\\\/])app[\\\\/]services[\\\\/]report_|pptx_report_builder\\.py|diagnostic_excel_exporter\\.py",
+      "docs": [
+        "README.md",
+        "docs/specs/project_architecture.md"
+      ],
       "reviewer": "report-export-parity-reviewer",
       "gates": [
-        { "cmd": ".venv/Scripts/python.exe -m pytest -q", "when": "" },
-        { "cmd": ".venv/Scripts/python.exe scripts/check_launch.py", "when": "" }
+        {
+          "cmd": "V1 focused export test; V2 export consumer pack",
+          "when": "choose by affected export function or shared consumer"
+        },
+        {
+          "cmd": ".venv/Scripts/python.exe -m pytest -q",
+          "when": "full pytest is V3 only: >=4 production files, >=2 subsystems, public/statistical contract, release, weak/unknown oracle, or V1/V2 failure"
+        },
+        {
+          "cmd": ".venv/Scripts/python.exe scripts/check_launch.py",
+          "when": "when bootstrap, entrypoint, shared initialization, runtime dependencies, shared theme, window lifecycle, or release are invalidated (AGENTS.md H3)"
+        }
       ],
-      "notes": ["Check UI/report/PPTX/Excel evidence parity before completion."]
+      "notes": [
+        "Check UI/report/PPTX/Excel evidence parity before completion."
+      ]
     },
     {
       "key": "docs-harness",
       "label": "Docs/harness/Claude automation",
-      "pathRegex": "(?i)(^|\\\\)docs\\\\|AGENTS\\.md$|CLAUDE\\.md$|\\.claude\\\\|scripts\\\\harness_check\\.ps1",
-      "docs": ["AGENTS.md", "docs/harness/README.md"],
+      "pathRegex": "(?i)(^|[\\\\/])docs[\\\\/]|AGENTS\\.md$|CLAUDE\\.md$|\\.(agents|claude|cursor|codex)[\\\\/]|scripts[\\\\/]harness_check\\.ps1",
+      "docs": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "docs/harness/README.md"
+      ],
       "reviewer": "",
       "gates": [
-        { "cmd": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/harness_check.ps1", "when": "" }
+        {
+          "cmd": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/harness_check.ps1",
+          "when": ""
+        }
       ],
       "notes": []
     },
@@ -53,12 +104,20 @@
       "key": "release",
       "label": "Release validation/performance",
       "pathRegex": "(?i)(release|validation|golden_dataset|run_release_gate|release_check)",
-      "docs": ["docs/open-questions.md"],
+      "docs": [
+        "docs/open-questions.md",
+        "README.md"
+      ],
       "reviewer": "release-gate-triager",
       "gates": [
-        { "cmd": ".venv/Scripts/python.exe scripts/run_release_gate.py", "when": "only when release scope requires it" }
+        {
+          "cmd": ".venv/Scripts/python.exe scripts/run_release_gate.py",
+          "when": "only when release scope requires it"
+        }
       ],
-      "notes": ["Keep Watchlist #7 numbering stable."]
+      "notes": [
+        "Keep Watchlist #7 numbering stable."
+      ]
     }
   ]
 }

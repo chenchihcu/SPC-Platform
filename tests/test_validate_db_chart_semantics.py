@@ -350,3 +350,89 @@ def test_error_contract_survives_unavailable_fallback(monkeypatch, capsys):
     assert output["summary"] is None
     assert output["error"]["type"] == "ValueError"
     assert output["summary_error"]["type"] == "ValueError"
+def test_checks_default_and_canonical_selection():
+    from scripts.validate_db_chart_semantics import _parse_checks, parse_args
+
+    assert parse_args([]).checks == "all"
+    assert _parse_checks("all") == ["resolver", "single", "pair", "three", "density"]
+    assert _parse_checks("density,resolver,density") == ["resolver", "density"]
+
+
+def test_checks_reject_empty_unknown_and_mixed_all():
+    import pytest
+    from scripts.validate_db_chart_semantics import _parse_checks
+
+    for value in ("", "resolver,,density", "unknown", "all,density"):
+        with pytest.raises(ValueError):
+            _parse_checks(value)
+
+
+def test_run_validation_builds_only_selected_payloads_and_excludes_unselected_failures(monkeypatch):
+    from argparse import Namespace
+    from contextlib import contextmanager
+
+    @contextmanager
+    def fake_connection(_path):
+        yield object()
+
+    built: list[int] = []
+    monkeypatch.setattr(validator, "_connect_readonly", fake_connection)
+    monkeypatch.setattr(validator, "_fetch_session", lambda *_: {"id": 1, "product_id": 1})
+    monkeypatch.setattr(validator, "_active_coordinate", lambda *_: {})
+    monkeypatch.setattr(validator, "_active_specs", lambda *_: ({}, {}, {}))
+    monkeypatch.setattr(
+        validator,
+        "_load_joined_frame",
+        lambda *_: (pd.DataFrame({"Volume": [1.0], "Area": [2.0], "Height": [3.0]}), {}, {}, {}),
+    )
+    monkeypatch.setattr(validator, "_build_payload", lambda _df, features, _spec: built.append(len(features)) or {})
+    monkeypatch.setattr(validator, "_validate_single_feature_semantics", lambda *_: [{"status": "FAIL"}])
+    monkeypatch.setattr(validator, "_validate_density_semantics", lambda *_: ({}, []))
+
+    args = Namespace(db="data/spc_master.db", session_id=None, checks="density", output="Outputs/test", quiet=True)
+    summary = validator.run_validation(args)
+
+    assert built == [1, 2, 3]
+    assert summary["requested_checks"] == "density"
+    assert summary["selected_checks"] == ["density"]
+    assert summary["statistical_semantic_failure_count"] == 0
+
+
+def test_run_validation_single_builds_only_one_arity(monkeypatch):
+    from argparse import Namespace
+    from contextlib import contextmanager
+
+    @contextmanager
+    def fake_connection(_path):
+        yield object()
+
+    built: list[int] = []
+    monkeypatch.setattr(validator, "_connect_readonly", fake_connection)
+    monkeypatch.setattr(validator, "_fetch_session", lambda *_: {"id": 1, "product_id": 1})
+    monkeypatch.setattr(validator, "_active_coordinate", lambda *_: {})
+    monkeypatch.setattr(validator, "_active_specs", lambda *_: ({}, {}, {}))
+    monkeypatch.setattr(validator, "_load_joined_frame", lambda *_: (pd.DataFrame({"Volume": [1.0], "Area": [2.0], "Height": [3.0]}), {}, {}, {}))
+    monkeypatch.setattr(validator, "_build_payload", lambda _df, features, _spec: built.append(len(features)) or {"parameters": {}})
+    monkeypatch.setattr(validator, "_validate_single_feature_semantics", lambda *_: [])
+
+    summary = validator.run_validation(Namespace(db="data/spc_master.db", session_id=None, checks="single", output="Outputs/test", quiet=True))
+
+    assert built == [1]
+    assert summary["selected_checks"] == ["single"]
+
+
+def test_main_returns_failure_exit_code_for_selected_failure(monkeypatch, tmp_path: Path):
+    summary_path = tmp_path / "summary.json"
+    monkeypatch.setattr(validator, "_resolve_output_dir", lambda _raw: tmp_path)
+    monkeypatch.setattr(
+        validator,
+        "run_validation",
+        lambda _args: {
+            "available_resolver_mismatch_count": 0,
+            "pair_expansion_failure_count": 0,
+            "statistical_semantic_failure_count": 1,
+        },
+    )
+    monkeypatch.setattr(validator, "_write_summary", lambda _dir, _summary: summary_path)
+
+    assert validator.main(["--checks", "single", "--quiet"]) == 1

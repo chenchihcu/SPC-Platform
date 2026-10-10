@@ -243,8 +243,9 @@ RefDes
 - Combined 級（跨特徵）：
   - `DPMO(Combined-Event) = combined_defect_event_count / (n_complete_rows * feature_count) * 1,000,000`
   - `DPMO(Combined-Board) = combined_defect_board_count / board_n * 1,000,000`
+    - `combined_defect_board_count` = 至少含一個缺陷事件的**相異板數**(依 `BoardNo` / `PanelId`),與分母 `board_n` 同為板單位;無板欄位時兩者皆退回以列計。
 - `Zbench(ST/LT)`：以 ST/LT 對應缺陷率路徑反推，維持 ST/LT 雙口徑語意。
-- `Cpk 95% CI`：採 **Bissell 近似式**（NIST/AIAG 常見口徑）估計兩側 95% 區間；下限最小截斷為 `0`。統計規則定義見 `docs/governance/SPC_RULES.md`。
+- `Cpk 95% CI`：採 **Bissell 近似式**（NIST/AIAG 常見口徑）估計兩側 95% 區間；下限**不**截斷為 `0`（Cpk 可為負，截斷會使區間顛倒）。統計規則定義見 `docs/governance/SPC_RULES.md`。
 
 ## 12.3 無效值處理
 
@@ -467,3 +468,55 @@ Moran's I LISA 空間自相關圖 Payload。Chart type 固定為 `"MoranI_LISA"`
 | `statistics.permutations` | int | 置換次數 |
 | `statistics.is_significant` | bool | p < 0.05 |
 | `metadata.method` | str | 方法描述 |
+
+# 20. 鋼板開窗名義值與分析資料域
+
+## 20.1 開窗來源與版本快照
+
+直接開窗幾何來源支援 Gerber RS-274X/X2 單檔、受控 legacy `.pho`、Gerber ZIP、
+ODB++Design archive、IPC-2581 XML 與 DXF 有界子集；`.pho` 只接受可明確判定為
+SMD/Paste 且 Side 可判定的 layer，TXT/Legend/reference layer 不屬於開窗來源。完整格式、
+Side 選層與拒絕策略以
+`docs/reference/stencil_aperture_format_compatibility.md` 為準。所有格式解析後一律輸出 mm
+polygon，使用同一套 Pad 匹配與名義值流程。格式子集外的幾何必須整份拒絕，不得以部分
+結果繼續分析。
+
+`stencil_document_versions.gerber_path`／`gerber_sha256` 是既有 SQLite 相容欄位；對新版本
+其語意擴充為「受管 aperture source 路徑／雜湊」，欄位不改名且不做 schema migration。
+匯入快照的 `validation_summary_json` 另含：
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| `aperture_format` | str | 穩定格式 ID：`gerber`、`gerber_zip`、`odbpp`、`ipc2581`、`dxf` |
+| `aperture_format_label` | str | 顯示用格式／版本名稱 |
+| `aperture_source_layer` | str | 實際選定的檔名或 Paste layer |
+| `aperture_warnings` | list[str] | 單位覆寫、Side metadata 缺失、legacy PHO 正規化計數等必須揭露的 VERIFY 訊息 |
+
+`parser_version` 保存 aperture loader 與關鍵解析相依版本。格式解析成功仍不得略過既有
+疊圖人工確認與完整覆蓋啟用條件。
+
+## 20.2 Pad 對照與分析資料域
+
+Pad CSV 必要欄位固定為 `RefDes,Pad,X,Y,Width,Height,Rotation,Side`，匯入時明確選擇
+`mm` 或 `inch`；`Pad` 全程為字串。現用文件按 `product + Side` 唯一，量測資料以
+`BaseRefDes + Pad` 對應 `stencil_pad_nominals.refdes + pad`。
+
+分析 payload 的 `stencil_analysis` 欄位：
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| `value_domain` | str | `percent`、`raw` 或 legacy session 的 `legacy` |
+| `stencil_version_id` | int/null | 本次使用的現用開窗版本 |
+| `stencil_revision` | str | Revision |
+| `side` | str | `TOP` / `BOTTOM` |
+| `matched` / `total` | int | 篩選後量測列的匹配數與總數 |
+| `coverage` | float | `matched / total`，範圍 0..1 |
+| `verify` | bool | 規格型統計是否必須阻擋 |
+| `verify_reasons` | list[str] | 未啟用版本、缺 Side/單位、未匹配 Pad 等原因 |
+| `unmatched_pads` | list[str] | 不得靜默排除的 `RefDes/Pad` 鍵 |
+| `original_units` | dict | 原始 Volume/Area/Height 單位揭露 |
+
+`coverage == 1.0` 且名義面積、厚度與理論體積皆為正值時，三特徵才以百分比
+dataframe 分析。否則 dataframe 維持 raw；I-MR、Run、EWMA、CUSUM 可用，但 capability、
+yield/OOS、spec histogram/scatter、quadrant、pass/fail 的 payload 必須 `is_valid=false`、
+`verify=true` 並含明確原因。PPTX 與 XLSX 使用同一欄位揭露版本、Side、公式、覆蓋率與樣本數。

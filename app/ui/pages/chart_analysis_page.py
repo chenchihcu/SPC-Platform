@@ -457,8 +457,6 @@ class ChartAnalysisPage(QWidget):
 
         # Standard empty state (Audit Item 33)
         self._empty_hint = empty_state_label("請選擇圖表")
-        # Backward-compatible alias: older code references `_empty_label`.
-        self._empty_label = self._empty_hint
         self.dashboard_layout.addWidget(self._empty_hint) # Added to dashboard_layout for correct placement
         self._empty_hint.setVisible(True)
 
@@ -874,7 +872,7 @@ class ChartAnalysisPage(QWidget):
                 reason = get_incompatible_reason(chart_id, active_features) or ""
             elif not self._last_payload:
                 status = self._STATUS_NODATA
-                reason = "尚未執行分析，僅顯示解讀框架。"
+                reason = "尚未執行分析。"
             else:
                 status = self._STATUS_READY
                 reason = ""
@@ -893,13 +891,9 @@ class ChartAnalysisPage(QWidget):
                 sections_for_dialog[0]["illustration_pixmap"] = px
                 sections_for_dialog[0].pop("illustration", None)
         chart_name = get_chart_display_name(chart_id, lang="zh_only")
-        context_lines = [
-            "互動模式：預設隱藏說明，按鈕開啟完整解讀視窗。",
-        ]
         self._interpretation_dialog.open_for_chart(
             chart_name=chart_name,
             sections=sections_for_dialog,
-            context_lines=context_lines,
         )
 
     # ── Accordion toggle ──────────────────────────────────────────────
@@ -976,7 +970,7 @@ class ChartAnalysisPage(QWidget):
 
     def _update_empty_state(self) -> None:
         has_visible = any(not card.isHidden() for card in self._dashboard_cards.values())
-        self._empty_label.setVisible(not has_visible)
+        self._empty_hint.setVisible(not has_visible)
 
     # ── Checkbox handler ──────────────────────────────────────────────
 

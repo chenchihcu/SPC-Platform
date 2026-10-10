@@ -156,31 +156,3 @@ class NavigationPanel(QWidget):
             if btn.property("state") != "locked":
                 btn.setProperty("state", "selected" if is_current else "")
         self._refresh_step_style()
-
-    def set_step_locked(self, nav_index: int, locked: bool, reason: str = "") -> None:
-        """鎖定或解鎖指定導覽步驟（稽核修正 A-02：防止用戶跳過前置條件未完成的步驟）。
-
-        Args:
-            nav_index: 導覽索引 0..N。
-            locked: True = 鎖定（disabled + locked 樣式），False = 解鎖。
-            reason: 鎖定原因，顯示於 tooltip（如「請先完成資料設定與工單規格」）。
-        """
-        if nav_index < 0 or nav_index >= len(self._step_buttons):
-            return
-        btn = self._step_buttons[nav_index]
-        btn.setEnabled(not locked)
-        if locked:
-            btn.setProperty("state", "locked")
-            tip = reason or "請先完成前置步驟"
-            btn.setToolTip(f"已鎖定：{tip}")
-        else:
-            # 解鎖後回到一般狀態（is_current 決定是否 selected）
-            is_current = btn.property("dataStackIndex") == self._current_stack_index
-            btn.setProperty("state", "selected" if is_current else "")
-            # 恢復原始 tooltip
-            idx = btn.property("dataStackIndex")
-            if idx < len(NAV_STEP_TOOLTIPS):
-                btn.setToolTip(NAV_STEP_TOOLTIPS[idx])
-            else:
-                btn.setToolTip("")
-        self._refresh_step_style()

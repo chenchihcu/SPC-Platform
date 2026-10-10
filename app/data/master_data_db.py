@@ -288,6 +288,50 @@ def _create_schema(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_stencil_assignments_product
             ON stencil_assignments(product_id);
 
+        CREATE TABLE IF NOT EXISTS stencil_document_versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            stencil_no TEXT NOT NULL DEFAULT '',
+            revision TEXT NOT NULL,
+            side TEXT NOT NULL CHECK(side IN ('TOP', 'BOTTOM')),
+            gerber_path TEXT NOT NULL,
+            pad_csv_path TEXT NOT NULL,
+            gerber_sha256 TEXT NOT NULL,
+            pad_csv_sha256 TEXT NOT NULL,
+            coordinate_transform_json TEXT NOT NULL DEFAULT '{}',
+            validation_summary_json TEXT NOT NULL DEFAULT '{}',
+            parser_version TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            is_active INTEGER NOT NULL DEFAULT 0 CHECK(is_active IN (0, 1)),
+            FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE RESTRICT
+        );
+        CREATE INDEX IF NOT EXISTS idx_stencil_document_product_side
+            ON stencil_document_versions(product_id, side, created_at DESC);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_stencil_document_active_unique
+            ON stencil_document_versions(product_id, side)
+            WHERE is_active = 1;
+
+        CREATE TABLE IF NOT EXISTS stencil_pad_nominals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            version_id INTEGER NOT NULL,
+            refdes TEXT NOT NULL,
+            pad TEXT NOT NULL,
+            side TEXT NOT NULL CHECK(side IN ('TOP', 'BOTTOM')),
+            opening_count INTEGER NOT NULL DEFAULT 0,
+            nominal_area_mm2 REAL,
+            resolved_thickness_mm REAL,
+            nominal_volume_mm3 REAL,
+            match_status TEXT NOT NULL,
+            unmatched_reason TEXT NOT NULL DEFAULT '',
+            preview_geometry_json TEXT NOT NULL DEFAULT '{}',
+            FOREIGN KEY(version_id) REFERENCES stencil_document_versions(id) ON DELETE CASCADE,
+            UNIQUE(version_id, side, refdes, pad)
+        );
+        CREATE INDEX IF NOT EXISTS idx_stencil_pad_nominals_version
+            ON stencil_pad_nominals(version_id);
+        CREATE INDEX IF NOT EXISTS idx_stencil_pad_nominals_lookup
+            ON stencil_pad_nominals(version_id, side, refdes, pad);
+
         CREATE TABLE IF NOT EXISTS audit_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             entity_type TEXT NOT NULL,
@@ -327,6 +371,132 @@ def _ensure_stencil_thickness_columns(conn: sqlite3.Connection) -> None:
         )
     if "height_denominator_mm" not in cols:
         conn.execute("ALTER TABLE stencil_thickness_versions ADD COLUMN height_denominator_mm REAL")
+
+
+def _ensure_stencil_document_fk_contract(conn: sqlite3.Connection) -> None:
+    """Rebuild the new stencil tables when an early DB used product CASCADE.
+
+    SQLite does not alter an existing foreign key through ``CREATE TABLE IF NOT
+    EXISTS``.  The migration is transactional, preserves ids/rows, rebuilds the
+    dependent nominal table, and restores foreign-key enforcement before return.
+    """
+    foreign_keys = conn.execute(
+        "PRAGMA foreign_key_list('stencil_document_versions')"
+    ).fetchall()
+    product_fk = next(
+        (
+            row
+            for row in foreign_keys
+            if str(row[2]) == "products" and str(row[3]) == "product_id"
+        ),
+        None,
+    )
+    if product_fk is None or str(product_fk[6]).upper() != "CASCADE":
+        return
+
+    conn.commit()
+    conn.execute("PRAGMA foreign_keys = OFF")
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            "ALTER TABLE stencil_pad_nominals RENAME TO stencil_pad_nominals_old"
+        )
+        conn.execute(
+            "ALTER TABLE stencil_document_versions "
+            "RENAME TO stencil_document_versions_old"
+        )
+        conn.execute(
+            """
+            CREATE TABLE stencil_document_versions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                product_id INTEGER NOT NULL,
+                stencil_no TEXT NOT NULL DEFAULT '',
+                revision TEXT NOT NULL,
+                side TEXT NOT NULL CHECK(side IN ('TOP', 'BOTTOM')),
+                gerber_path TEXT NOT NULL,
+                pad_csv_path TEXT NOT NULL,
+                gerber_sha256 TEXT NOT NULL,
+                pad_csv_sha256 TEXT NOT NULL,
+                coordinate_transform_json TEXT NOT NULL DEFAULT '{}',
+                validation_summary_json TEXT NOT NULL DEFAULT '{}',
+                parser_version TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                is_active INTEGER NOT NULL DEFAULT 0 CHECK(is_active IN (0, 1)),
+                FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE RESTRICT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO stencil_document_versions
+            SELECT * FROM stencil_document_versions_old
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE stencil_pad_nominals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                version_id INTEGER NOT NULL,
+                refdes TEXT NOT NULL,
+                pad TEXT NOT NULL,
+                side TEXT NOT NULL CHECK(side IN ('TOP', 'BOTTOM')),
+                opening_count INTEGER NOT NULL DEFAULT 0,
+                nominal_area_mm2 REAL,
+                resolved_thickness_mm REAL,
+                nominal_volume_mm3 REAL,
+                match_status TEXT NOT NULL,
+                unmatched_reason TEXT NOT NULL DEFAULT '',
+                preview_geometry_json TEXT NOT NULL DEFAULT '{}',
+                FOREIGN KEY(version_id) REFERENCES stencil_document_versions(id)
+                    ON DELETE CASCADE,
+                UNIQUE(version_id, side, refdes, pad)
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO stencil_pad_nominals
+            SELECT * FROM stencil_pad_nominals_old
+            """
+        )
+        conn.execute("DROP TABLE stencil_pad_nominals_old")
+        conn.execute("DROP TABLE stencil_document_versions_old")
+        conn.execute(
+            """
+            CREATE INDEX idx_stencil_document_product_side
+            ON stencil_document_versions(product_id, side, created_at DESC)
+            """
+        )
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX idx_stencil_document_active_unique
+            ON stencil_document_versions(product_id, side)
+            WHERE is_active = 1
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX idx_stencil_pad_nominals_version
+            ON stencil_pad_nominals(version_id)
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX idx_stencil_pad_nominals_lookup
+            ON stencil_pad_nominals(version_id, side, refdes, pad)
+            """
+        )
+        violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+        if violations:
+            raise sqlite3.IntegrityError(
+                f"stencil document migration foreign-key violations: {violations}"
+            )
+        conn.commit()
+    except sqlite3.Error:
+        conn.rollback()
+        raise
+    finally:
+        conn.execute("PRAGMA foreign_keys = ON")
 
 
 def _ensure_measurement_sessions_table(conn: sqlite3.Connection) -> None:
@@ -804,6 +974,7 @@ def init_db() -> None:
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA foreign_keys = ON")
             _create_schema(conn)
+            _ensure_stencil_document_fk_contract(conn)
             _ensure_measurement_sessions_table(conn)
             _ensure_supplier_records_table(conn)
             _ensure_spec_height_columns(conn)

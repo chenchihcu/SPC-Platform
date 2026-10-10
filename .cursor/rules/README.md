@@ -55,7 +55,7 @@
 ## 5. 本 repo 之取捨（效率 vs 覆蓋率）
 
 - **`cross-platform-repo-baseline.mdc`**：`alwaysApply: true` — 跨平台（UTF-8/LF）、`AGENTS.md` 權威、驗證指令與 `pyproject.toml` 工具設定入口。
-- **`agent-residence-minimal.mdc`**：`alwaysApply: false` + 完整 **`description`**（符合 Intelligent 與 FAQ 要求）。若須**每次對話必載入**，請於 Cursor **Rules** 將該條設為 **Always Apply**（`alwaysApply: true`）。
+- **`agent-residence-minimal.mdc`**：`alwaysApply: true`，每次對話載入 L1/L2 分級與 Scope、Evidence、RCA、Blast、Verify 閘門；詳細流程仍留在 `docs/specs/`，控制上下文成本。
 - **`backend-python-quality.mdc`**：`globs` 涵蓋 `app/`、`tests/`、`pyproject.toml` — Python 後端與品質工具約束。
 - **`frontend-react-vite-prototype.mdc`**：`globs` 涵蓋 `Outputs/industrial-data-setup-ui/` — React/Vite 原型之 TS strict、ESLint、Vitest/MSW。
 - **其餘 `*.mdc`**：以 **`globs`** 限定 `app/ui`、`app/charts` 等，對應 **Apply to Specific Files**，減少無關檔案編輯時之上下文。

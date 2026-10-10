@@ -418,7 +418,8 @@ def _capability_expected(series: pd.Series, spec: dict[str, float], subgroup_ids
 def _cusum_expected(series: pd.Series, spec: dict[str, float]) -> dict[str, Any]:
     valid = _finite_series(series)
     mean_val = float(valid.mean())
-    sigma = float(valid.std(ddof=1))
+    # SPC_RULES §10.1: individuals sigma = MR_bar / d2 (d2 = 1.128).
+    sigma = float(valid.diff().abs().mean() / 1.128)
     mu0 = spec["target"]
     mu0_source = "spec_target"
     fallback = False
@@ -472,7 +473,8 @@ def _validate_single_feature_semantics(
         _add_check(checks, f"{feature}.run_chart.n", run_actual.get("n"), int(len(valid)))
 
         ewma_actual = (bundle.get("ewma") or {}).get("statistics") or {}
-        sigma_ewma = float(valid.std(ddof=1)) * math.sqrt(0.2 / (2 - 0.2))
+        # SPC_RULES §10.1: individuals sigma = MR_bar / d2 (d2 = 1.128).
+        sigma_ewma = float(valid.diff().abs().mean() / 1.128) * math.sqrt(0.2 / (2 - 0.2))
         _add_check(checks, f"{feature}.ewma.cl", ewma_actual.get("cl"), float(valid.mean()))
         _add_check(checks, f"{feature}.ewma.sigma_ewma", ewma_actual.get("sigma_ewma"), sigma_ewma)
         _add_check(checks, f"{feature}.ewma.n", ewma_actual.get("n"), int(len(valid)))
@@ -956,31 +958,34 @@ def run_validation(args: argparse.Namespace) -> dict[str, Any]:
     if len(features) < 3:
         raise ValueError(f"expected at least 3 measurement features, found {features}")
 
-    payloads = {
-        1: _build_payload(joined_df, features[:1], workorder_spec),
-        2: _build_payload(joined_df, features[:2], workorder_spec),
-        3: _build_payload(joined_df, features[:3], workorder_spec),
-    }
-    resolver_rows, resolver_mismatches = _build_resolver_rows(payloads, features)
+    selected_checks = _parse_checks(args.checks)
+    arity_map = {"resolver": {1, 2, 3}, "single": {1}, "pair": {1, 2, 3}, "three": {3}, "density": {1, 2, 3}}
+    required_arities = set().union(*(arity_map[name] for name in selected_checks))
+    payloads = {arity: _build_payload(joined_df, features[:arity], workorder_spec) for arity in sorted(required_arities)}
+    resolver_rows, resolver_mismatches = ([], [])
+    if "resolver" in selected_checks:
+        resolver_rows, resolver_mismatches = _build_resolver_rows(payloads, features)
     pair_rows: list[dict[str, Any]] = []
     pair_failures: list[dict[str, Any]] = []
-    for dimension, pair_features in ((1, features), (2, features[:2]), (3, features[:3])):
-        rows, failures = _build_pair_expansion_rows(
-            payloads[dimension],
-            pair_features,
-            analysis_dimension=dimension,
-        )
-        pair_rows.extend(rows)
-        pair_failures.extend(failures)
+    if "pair" in selected_checks:
+        for dimension, pair_features in ((1, features), (2, features[:2]), (3, features[:3])):
+            rows, failures = _build_pair_expansion_rows(payloads[dimension], pair_features, analysis_dimension=dimension)
+            pair_rows.extend(rows)
+            pair_failures.extend(failures)
 
     checks = []
-    checks.extend(_validate_single_feature_semantics(joined_df, payloads[1], features, workorder_spec))
-    checks.extend(_validate_pair_semantics(joined_df, payloads[1], features, name_prefix="1f."))
-    checks.extend(_validate_pair_semantics(joined_df, payloads[2], features[:2], name_prefix="2f."))
-    checks.extend(_validate_pair_semantics(joined_df, payloads[3], features[:3], name_prefix="3f."))
-    checks.extend(_validate_three_feature_semantics(joined_df, payloads[3], features[:3]))
-    density_modes, density_checks = _validate_density_semantics(payloads, features)
-    checks.extend(density_checks)
+    if "single" in selected_checks:
+        checks.extend(_validate_single_feature_semantics(joined_df, payloads[1], features, workorder_spec))
+    if "pair" in selected_checks:
+        checks.extend(_validate_pair_semantics(joined_df, payloads[1], features, name_prefix="1f."))
+        checks.extend(_validate_pair_semantics(joined_df, payloads[2], features[:2], name_prefix="2f."))
+        checks.extend(_validate_pair_semantics(joined_df, payloads[3], features[:3], name_prefix="3f."))
+    if "three" in selected_checks:
+        checks.extend(_validate_three_feature_semantics(joined_df, payloads[3], features[:3]))
+    density_modes = {}
+    if "density" in selected_checks:
+        density_modes, density_checks = _validate_density_semantics(payloads, features)
+        checks.extend(density_checks)
     semantic_failures = [check for check in checks if check["status"] != "PASS"]
 
     return {
@@ -999,6 +1004,8 @@ def run_validation(args: argparse.Namespace) -> dict[str, Any]:
             "workorder_spec": _json_safe(workorder_spec),
         },
         "features": features,
+        "requested_checks": args.checks,
+        "selected_checks": selected_checks,
         "available_resolver_mismatch_count": len(resolver_mismatches),
         "pair_expansion_failure_count": len(pair_failures),
         "statistical_semantic_failure_count": len(semantic_failures),
@@ -1045,8 +1052,28 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Use the latest usable session with active coordinate/spec. This is the default when --session-id is omitted.",
     )
     parser.add_argument("--output", default="Outputs/db_chart_semantics_current", help="Output directory for summary.json.")
+    parser.add_argument("--checks", default="all", help="Comma-separated checks: all|resolver,single,pair,three,density.")
     parser.add_argument("--quiet", action="store_true", help="Only print the final PASS/FAIL line.")
     return parser.parse_args(argv)
+
+
+CHECK_ORDER = ("resolver", "single", "pair", "three", "density")
+
+
+def _parse_checks(raw: str) -> list[str]:
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError("--checks must be a non-empty comma-separated value")
+    requested = [item.strip().lower() for item in raw.split(",")]
+    if any(not item for item in requested):
+        raise ValueError("--checks contains an empty value")
+    if "all" in requested:
+        if len(requested) != 1:
+            raise ValueError("--checks=all cannot be combined with other values")
+        return list(CHECK_ORDER)
+    unknown = set(requested).difference(CHECK_ORDER)
+    if unknown:
+        raise ValueError(f"unknown --checks value(s): {', '.join(sorted(unknown))}")
+    return [item for item in CHECK_ORDER if item in requested]
 
 
 def main(argv: list[str] | None = None) -> int:

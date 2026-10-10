@@ -1,5 +1,40 @@
 # Decision Log
 
+## 2026-10-10 SPI Statistical Application Fixes (DPMO-Board / EWMA / CUSUM / Nelson / Xbar-R)
+
+- Decision: 修正 6 項經數值重現證明的統計應用錯誤:(1) `dpmo_combined_board` 分子改為「含缺陷的相異板數」(原為缺陷 pad 列數,對板數分母可得 >10⁶ 的不可能值);(2) EWMA 首筆觀測值不再被丟棄(z₀=μ₀ 先於 x₁);(3) Xbar-R 不再把子群 n 截斷為 10,n>10 以數值積分求精確 d2/d3,不等 n 用 σ̂=mean(Rᵢ/d2(nᵢ)) 與逐子群界限;(4) Nelson 規則區帶 σ 改用 I-MR 的 MR̄/d2(Rule 1 = I-MR UCL/LCL);(5) EWMA/CUSUM σ 改用 MR̄/d2;(6) SPC_RULES §9.1 / data_contract 對齊程式,Cpk CI 下限不截斷 0。
+- Scope: `summary_engine.py`、`ewma_engine.py`、`cusum_engine.py`、`pattern_recognition_engine.py`、`xbar_r_engine.py`、`scripts/validate_db_chart_semantics.py`(EWMA/CUSUM 獨立重算)、`SPC_RULES.md`(§5、§9.1、§10、新增 §10.1)、`data_contract.md` §12.2、對應測試。Cp/Cpk/Pp/Ppk 公式與門檻、payload 鍵結構不變(Xbar-R 新增 `sigma_hat` 統計鍵)。
+- Reason: 重現證據 — 2 板×100 pad、10 個缺陷 pad → DPMO-Board 5,000,000;首點 200 的 EWMA z₁ 為 103.19(應 122.56);25 板×500 pad 的 Xbar 半寬 1.84σ(應 0.134σ),整板 +1σ 偏移未判 OOC;板間階梯資料 I-MR 判 26 點 OOC 而 Nelson R1 判 0 點;1.5σ 持續偏移使整體 std 灌大 26%,EWMA OOC 6 點(應 31 點)。
+- Impact: EWMA/CUSUM/Nelson/Xbar-R 的 OOC 點數會增加(界限回到正確寬度);DPMO-Board 回到 ≤10⁶ 的合理範圍。
+- Rollback: 反向套用上列檔案 hunks;無資料庫 schema 或持久化資料變更。
+
+## 2026-07-13 Data-Units Drive Height Spec Resolution (mm → absolute)
+
+- Decision: 量測載入器回報的資料單位成為 Height 規格解析的權威依據。當 Height 資料為絕對長度單位（mm）時，`spec_resolver` 一律以 absolute 模式換算 Height 界線（denominator = 鋼板厚度），覆蓋可能過時的鋼板 `unit_mode='percent'` 旗標；Volume/Area 無每-pad 設計參考值，維持百分比並由既有 `scale_mismatch` sentinel 標記。
+- Scope: `spec_resolver.py`(新增 `_effective_unit_mode`/`_height_data_is_absolute`，`resolve_workorder_spec` 與 `resolve_height_spec_by_refdes` 新增可選 `measurement_units`)、`analysis_orchestrator.py`(由 `store.meas_meta['measurement_units']` 傳入)、測試。不修改 Cp/Cpk 公式、不改 registry schema、不寫入任何 production 規格資料。
+- Reason: 振順豐 TOP profile 的量測為 mm 絕對值（loader 硬編 `measurement_units={'Height':'mm'}`），但該產品鋼板規格 `unit_mode='percent'`，使 mm Height 資料對百分比規格 [50,170] 評分而失真。`unit_mode` 本質上是資料單位的重複宣告，會與 loader 真值漂移；以資料單位為準可從根本消除此類設定漂移，且不需修改使用者的版本控管規格資料。
+- Impact: VS80 Dual FPCA 的 Height 規格由 % [50,170]/target100 自動解析為 mm [0.030,0.102]/target0.06，Height 能力回到 **Cpk≈1.50 / Ppk≈0.73** 且不再觸發 scale_mismatch；連帶 Height CUSUM 的 μ₀ 也回到 mm 目標而有意義。Volume/Area 仍為 % vs mm，維持 scale_mismatch 標記（需補設計參考值方能修正）。未宣告單位的既有情境行為不變（沿用鋼板 `unit_mode`）。
+- Risk: 僅在 loader 明確宣告 Height 為 mm 時觸發（其他 loader `measurement_units={}` 不受影響）；absolute 換算需正值 denominator，既有解析已保證 >0。全測試 921 passed、mypy/ruff/check_launch 全過。
+- Rollback: `measurement_units` 為可選參數（預設 None＝舊行為）；反向套用 spec_resolver/orchestrator hunks 即回舊行為。
+
+## 2026-07-13 Within-Subgroup Short-Term Sigma (per-board MR reset)
+
+- Decision: 能力指標的短期 σ 改用「逐 rational subgroup（板/panel）重置的移動全距」：MR̄ 只取同一板內的移動全距，排除跨板邊界的 MR；無 subgroup 欄位時退回整條序列 MR（保留舊行為）。`CapabilityEngine.compute_capability` 新增可選 `subgroup_ids` 參數，`summary_engine` 與 `chart_analysis_viewmodel` 兩條路徑皆以共用 `detect_subgroup_col` 傳入同一板欄，維持雙路徑一致。
+- Scope: `capability_engine.py`(新增 `_short_term_sigma` 與 `subgroup_ids`)、`dataframe_utils.py`(`detect_subgroup_col`)、`summary_engine.py` 與 `chart_analysis_viewmodel.py`(傳入 subgroup ids)、`docs/governance/SPC_RULES.md`(§4 短期 σ 定義補述)、engine-contract 註記與測試。Cp/Cpk 公式本體與門檻不變；Pp/Ppk 仍用整體 sigma_total；不影響 chart ID / 路由 / 資料庫 schema。
+- Reason: 跨板彙整的 pad 資料無真正時間序，整條序列 MR 會把「跨板邊界跳變」的板間變異灌入短期（板內）估計而膨脹 σ_st。逐板重置後 σ_st 才是純板內變異，短期 σ 定義站得住腳（標準 AIAG：MR 不得跨 rational subgroup 邊界）。
+- Impact: 本工單三特徵短期 σ 略降（Volume −3.45%、Area −2.67%、Height −0.47%），Cpk 對應調整（Volume −23352→約 −24186 等）；效果小是因 38 板僅 37 個邊界 MR 佔比極低。兩條路徑仍完全一致（`match=True`）；無 subgroup 欄位的既有情境行為不變。此變更不改變「單位不符 → 尺度無意義」的結論，仍需 Height 設定為 absolute 才有真實能力值。
+- Risk: 影響所有含 BoardNo/PanelId 資料的能力數值（皆為正確化調整，非退化）；閾值/公式未動；全測試 919 passed、DB 語意驗證 failures=0。
+- Rollback: 反向套用本決策 hunks；`subgroup_ids` 為可選參數且預設 None（等同舊 whole-series），移除後即回舊行為。
+
+## 2026-07-13 SPI Report Number-Audit Fixes (dual-Cpk / CI / scale-mismatch)
+
+- Decision: 修正 `SPI_Analysis_Report` 逐數字比對發現的四項缺陷：(1) 同一特徵在能力表與異常診斷頁出現兩個 Cpk（順序相依的 MR 短期 σ 因 `BoardNo` 字典序 vs 自然載入序不一致）；(2) 負 Cpk 的信賴區間被 `max(0.0, …)` 夾成反向區間；(3) OOC 比率 `round(…,4)` 再以 1-dp 百分比顯示造成二次四捨五入（57.15%→57.1%）；(4) 單位/尺度不符（mm 資料 vs % 規格）時仍以「可信：資料直接計算」輸出 |Cpk|≈數千 的無意義能力值。
+- Scope: `app/utils/dataframe_utils.py`(新增 `sort_by_order_col` 自然排序)、`app/viewmodels/chart_analysis_viewmodel.py`(兩處排序改用自然序)、`app/analytics/summary_engine.py`(移除 CI 下界夾 0)、`app/analytics/root_cause_engine.py`(OOC ratio 6-dp、Cpk 規則加尺度不符警語與降信心)、`app/analytics/capability_engine.py`(新增 `scale_mismatch`/`scale_mismatch_reason` metadata sentinel，|Cpk|>50)、`app/services/report_context.py`(任一特徵尺度不符則將「統計/能力」信任標籤降為「需複核」)、engine-contract skill 與測試。不修改 Cp/Cpk/Pp/Ppk 公式或門檻、不新增 chart ID、無資料庫 schema 變更。
+- Reason: 兩條能力計算路徑對無時間序的跨板 pad 資料採不同排序，MR 短期 σ 因而分歧；CI 夾 0 對負 Cpk 失效；此工單量測為 mm 絕對值但套用百分比規格（產品鋼板規格 `unit_mode='percent'`），使能力/良率/穩定性全部失真且被標為高信心。
+- Impact: 診斷頁 Cpk 現與能力表一致（皆為自然序權威值，如 Volume −23352.436）；CI 例 `[-23596.176, -23108.696]` 正確且涵蓋點估計；OOC 比率顯示 57.2%；尺度不符時診斷改為「⚠ 疑單位/尺度不符…僅供參考」並降信心，報告信任列改標「需複核」。Height 的 %→mm 轉換能力已內建（`spec_resolver._height_limits_in_measurement_domain` 之 `unit_mode='absolute'`），將該產品鋼板規格改為 absolute（denominator=0.060mm）即得正確 Cpk≈1.50；Volume/Area 無每-pad 設計參考值，維持以 sentinel 標記。此屬**設定/資料**變更（版本控管規格，具二次確認與版本紀錄），不在本次程式修改內。
+- Risk: `scale_mismatch` 為 metadata 附加鍵（向後相容，消費端以 `.get` 讀取）；|Cpk|>50 閾值遠高於任何真實製程，無誤判風險。診斷頁 Cpk 數值因排序統一而改變（收斂到權威能力表值），屬預期修正。
+- Rollback: 反向套用本決策涵蓋檔的 hunks 即可；無資料庫 migration，engine payload top-level 結構不變。
+
 ## 2026-07-13 DB-backed Chart Semantic Gate Hardening
 
 - Decision: 將 DB semantic gate 從「記錄 density mode」提升為可阻擋的語意檢查，修正單特徵預算 payload 的雙特徵 density resolver，並讓跨組合 matrix 對所有 arity 執行且在任何 blocking status 時回傳非零。
@@ -1326,3 +1361,32 @@
 - Impact: 3F 分析新增三組 `dual_parameters` 預算快取，2F 快取重用既有 top-level 結果；組合切換只重建 UI selector 並解析快取，不啟動分析 worker。`feature_tab_count` 保留為由實際組合長度衍生的相容欄位。
 - Risk: 3F 初次分析增加三組雙變量引擎計算；以 validation matrix 的既有 timeout/memory gate 阻擋效能退化。
 - Rollback: 僅反向套用本決策 hunks，恢復數量按鈕與原 resolver；不得整檔 checkout，以免覆蓋同工作樹的報告與 Pad/Image 變更。
+
+## 2026-07-14 Active Risk Convergence (6 → 0)
+
+- Decision: 以當日可重驗證證據將 #1、#5、#7、#9、#10、#12 全部移出 active ledger；`Watchlist #7` 編號維持不變，performance/release gate 再失敗即用原編號重新啟用。
+- Scope: `docs/open-questions.md`、3F chart shared render lifecycle、legacy validator delegation 與回歸測試；不修改統計公式、門檻、資料庫 schema 或圖表視覺語意。
+- Evidence: lifecycle 18 tests PASS；5-run 100k blocking-metric CoV 4.59%–6.80%，performance/release gate PASS；home-less `_overlapped`/launch PASS；CJK/readability 11 tests 與 100%/125%/150% 原圖目視 PASS；D3 重構前後四張 PNG SHA-256 完全一致；D6 wrapper 與 `SchemaMapper` parity tests PASS。
+- Runtime convergence: full profile 不再於完整 pytest 後重跑相同 targeted subsets；總時間由 504.25 秒降至 351.79 秒（約 30.2%），仍完整執行 pytest、Ruff、Mypy、Qt audit 與 exception scan。若 full 或 `pytest_full=330.97s` 增加超過 20%，以 #5 重新啟用。
+- Rollback: 回退 `BaseChart` shared lifecycle 與四個 3F chart 呼叫點、validator wrappers/tests、ledger/docs hunks；無資料 migration。
+# 2026-07-16 — Invalidation-driven verification selection
+
+Adopt V0–V3 validation selection for SPC local work: focused and subsystem gates are selected from invalidated surfaces, while full gates remain V3-only. This follows the 2026-07-14 measured result that full runtime fell from 504.25s to 351.79s (-30.2%) with green gates; retain full gates when their impact conditions apply.
+
+## 2026-07-16 Multi-format stencil aperture import
+
+- Decision: 將既有單一 Paste Gerber 匯入擴充為 Gerber 單檔/ZIP、ODB++Design、IPC-2581 與 DXF 的 fail-closed aperture loader；Pad CSV 身分契約與人工疊圖啟用門檻維持不變。
+- Scope: aperture loader、stencil document service/library/import wizard、解析相依、格式/安全/UI 測試、README 與資料/UI 契約；不修改 SPC 公式、厚度規則、名義值公式或資料庫 schema。
+- Reason: 市售 SPI 與鋼板 CAM 的公開證據顯示 Gerber 是共同交集，但 ODB++、IPC-2581、DXF 也存在於設計資料交換或鋼板製造流程；只接受 Gerber 會造成可用資料必須人工轉檔且失去來源 provenance。
+- Impact: 解析結果統一為 mm polygon，快照新增格式、來源 layer 與警告；既有 `gerber_path`／`gerber_sha256` 欄位保留名稱但擴充為 aperture source 語意，舊版本與 consumer 不需 migration。
+- Risk: ODB++/IPC-2581/DXF 目前是明確子集；多 step、多有效 Paste layer、未知 feature、unitless/未閉合 DXF 會整份拒絕。真實廠商 recipe/model 尚無公開契約，不宣稱支援。
+- Rollback: 回退 aperture loader、四個整合檔、相依與對應測試/文件；SQLite 無 migration，既有 Gerber 文件仍可由舊流程讀取。
+
+## 2026-07-17 Bounded legacy PHO stencil import
+
+- Decision: 將 `.pho` 納入受控 Gerber/photoplotter adapter，但只接受檔名或 `%LN` 可明確判定為 SMD/Paste 且 TOP/BOTTOM 一致的 layer；TXT/Legend/reference layer 與角色不明檔案一律拒絕。
+- Scope: aperture loader、受管來源副檔名、匯入檔案選擇器、格式／storage／UI tests 與相關主動文件；不修改共用 Pad CSV、名義值公式、SQLite schema 或 SPC 統計契約。
+- Evidence: 現場 `SMDTOP.pho`／`SMDBOT.pho` 經 bounded normalizer 後分別得到 1,260／956 個 polygon（334.497007／836.071201 mm²）；`TXTTOP.pho`／`TXTBOT.pho` 的筆畫幾何與 layer name 均證明是參考文字層。
+- Impact: loader 只正規化實檔證實的短式 G/D、modal D、省略零值 I/J、空 AD 與舊 LN，並把各類計數寫入 `aperture_warnings`；正規化後任何其他 parser warning 仍阻擋載入。ZIP 同時含 SMD/TXT PHO 時只選符合 Side 的 SMD layer 並揭露被排除層。
+- Risk: SMD PHO 包含 panel 外框/tooling holes；這些幾何保留給既有疊圖 `EXTRA`／`NON_COMPONENT` 人工分類，不由 parser 猜測刪除。缺少同批 Pad CSV 時，尚不能宣稱版本可達 100% Pad 覆蓋並啟用。
+- Rollback: 回退 `.pho` adapter、suffix/filter、對應 tests/docs；無資料庫 migration，既有格式行為不變。

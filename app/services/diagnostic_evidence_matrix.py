@@ -221,14 +221,6 @@ def _is_applicable(chart_id: str, selected_features: Sequence[str]) -> bool:
     return len(selected_features) >= _chart_arity(chart_id)
 
 
-def _path_get(mapping: Mapping[str, Any], path: Sequence[str]) -> Any:
-    current: Any = mapping
-    for part in path:
-        if not isinstance(current, Mapping):
-            return None
-        current = current.get(part)
-    return current
-
 
 def _pair_keys(feature_set: Sequence[str]) -> List[str]:
     if len(feature_set) != 2:

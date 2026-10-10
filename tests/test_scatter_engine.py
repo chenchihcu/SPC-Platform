@@ -67,3 +67,13 @@ def test_empty_df_returns_invalid():
         pd.DataFrame({"Volume": [], "Area": []}), col_x="Volume", col_y="Area"
     )
     assert result["metadata"]["is_valid"] is False
+
+
+def test_non_finite_pair_rows_are_excluded():
+    df = pd.DataFrame(
+        {"Volume": [100.0, float("inf"), 102.0, 103.0], "Area": [200.0, 201.0, 204.0, 206.0]}
+    )
+    result = ScatterEngine.compute_scatter_spec(df, "Volume", "Area")
+    assert result["metadata"]["is_valid"] is True
+    assert result["statistics"]["n"] == 3
+    assert all(value != float("inf") for value in result["data"]["x"])

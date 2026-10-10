@@ -2,6 +2,7 @@
 Parallel coordinates engine: 3 columns as axes, each row a line.
 Phase 4 P1: triple-feature only.
 """
+import numpy as np
 import pandas as pd
 from typing import Dict, Any, List
 from app.analytics.statistical_utils import invalid_chart_payload
@@ -26,7 +27,7 @@ class ParallelCoordEngine:
         missing = [c for c in cols if c not in df.columns]
         if missing:
             return invalid_chart_payload("ParallelCoord", f"缺少欄位: {missing}.", cols[0] if cols else "")
-        valid = df[cols].dropna()
+        valid = df[cols].replace([np.inf, -np.inf], np.nan).dropna()
         if len(valid) < 2:
             return invalid_chart_payload("ParallelCoord", "有效筆數不足。", cols[0] if cols else "")
         n = len(valid)

@@ -113,9 +113,9 @@ class AnalysisWorker(QThread):
         generation_id: int,
         filtered_df: Any,
         selected_features: List[str],
-        usl: float,
-        lsl: float,
-        target: float,
+        usl: Optional[float],
+        lsl: Optional[float],
+        target: Optional[float],
         workorder_spec: Dict[str, Any],
         workorder_master: Optional[Dict[str, Any]] = None,
         parent: Optional[QThread] = None,
@@ -221,6 +221,9 @@ class MainWindow(QMainWindow):
         self.pages["資料"].start_analysis_requested.connect(self._on_data_setup_start_analysis)
         self.pages["資料"].spec_saved.connect(self._on_product_name_selected)
         self.pages["資料"].manage_specs_requested.connect(self._on_manage_specs_requested)
+        self.pages["資料"].manage_stencil_documents_requested.connect(
+            self._on_manage_stencil_documents_requested
+        )
 
         # Hook Measurement Library: 從資料庫選取量測檔載入分析
         # 注意：走專屬 handler，不重複寫入 DB
@@ -301,8 +304,10 @@ class MainWindow(QMainWindow):
         self.pages["診斷"].navigate_to_chart.connect(self._on_navigate_to_chart)
 
         # Debounce: Optional filters
-        # Keyboard shortcuts（Ctrl+1..8 對應左側可見 workflow 導覽）
+        # Keyboard shortcuts（Ctrl+1..7 對應左側可見 workflow 導覽，F5/Ctrl+R 重新分析，Ctrl+E 快速匯出）
         QShortcut(QKeySequence("Ctrl+R"), self, self.refresh_analysis)
+        QShortcut(QKeySequence("F5"), self, self.refresh_analysis)
+        QShortcut(QKeySequence("Ctrl+E"), self, self._on_export_shortcut_clicked)
         QShortcut(QKeySequence("Ctrl+Right"), self, self._on_next_step_clicked)
         for tab_i, stack_idx in enumerate(TAB_TO_STACK):
             QShortcut(
@@ -358,8 +363,6 @@ class MainWindow(QMainWindow):
                 combo.blockSignals(False)
             self._schedule_refresh_analysis(immediate=True)
 
-    def _on_spec_text_changed(self) -> None:
-        self._schedule_refresh_analysis(immediate=False)
 
     def _on_feature_shortcut_clicked(self, logical_name: str) -> None:
         """高度 / 面積 / 體積快捷：toggle 量測頁勾選並同步側欄按鈕狀態。"""
@@ -505,8 +508,11 @@ class MainWindow(QMainWindow):
             prep.usl,
             prep.lsl,
             prep.target,
-            store.workorder_spec,
-            workorder_master=dict(store.workorder_master or {}),
+            prep.workorder_spec,
+            workorder_master={
+                **dict(store.workorder_master or {}),
+                "_stencil_analysis": dict(prep.analysis_metadata or {}),
+            },
         )
         self._analysis_worker.progress_updated.connect(self.status_model.set_progress)
         self._analysis_worker.result_ready.connect(self._on_analysis_result_ready)  # (payload, success, gen_id, error_msg)
@@ -673,6 +679,17 @@ class MainWindow(QMainWindow):
             nav_i = STACK_TO_NAV.get(stack_index, 0)
             self.navigation.set_current_stack_index(nav_i)
             self._refresh_page_on_entry(stack_index)
+
+    def _go_to_workflow_tab(self, tab_index: int) -> None:
+        """Switch directly to a visible workflow tab index (0..len(VISIBLE_WORKFLOW_TABS)-1)."""
+        if 0 <= tab_index < len(TAB_TO_STACK):
+            stack_index = TAB_TO_STACK[tab_index]
+            self._go_to_page(stack_index)
+
+    def _on_export_shortcut_clicked(self) -> None:
+        """Ctrl+E shortcut: switch to Report Export page directly."""
+        self._go_to_page(3)  # 報告 stack_index is 3
+        self.statusBar().showMessage("已切換至報告匯出頁面 (Ctrl+E)", 2000)
 
     def _current_stack_index(self) -> int:
         """Return the internal stack index represented by the current visible tab."""
@@ -937,6 +954,12 @@ class MainWindow(QMainWindow):
         # 並切換至該頁的 Tab 3 (索引 2)
         library_page: MeasurementLibraryPage = self.pages["量測庫"]
         library_page.tabs.setCurrentIndex(2)
+
+    def _on_manage_stencil_documents_requested(self, product_name: str = "") -> None:
+        """導航至資料庫管理 > 規格管理 > 開窗文件，保留主 Tab 索引。"""
+        self._on_nav_step_clicked(1)
+        library_page: MeasurementLibraryPage = self.pages["量測庫"]
+        library_page.open_stencil_documents(product_name)
 
     def _sync_workorder_master_to_page(self):
         """Sync workorder_master fields from store to DataSetupPage."""

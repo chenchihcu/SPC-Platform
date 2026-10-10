@@ -3,6 +3,8 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $failures = [System.Collections.Generic.List[string]]::new()
+# Raw text is a per-invocation snapshot; every harness run starts fresh.
+$textCache = @{}
 $skips = [System.Collections.Generic.List[string]]::new()
 
 function Add-Failure {
@@ -18,6 +20,17 @@ function Add-Skip {
 function Join-RepoPath {
     param([string]$RelativePath)
     return (Join-Path $repoRoot $RelativePath)
+}
+
+function Get-CachedText {
+    param([string]$LiteralPath)
+
+    # Keep Get-Content's default encoding and empty-file behavior. Explicit
+    # encoding and line-oriented reads remain outside this raw-text cache.
+    if (-not $script:textCache.ContainsKey($LiteralPath)) {
+        $script:textCache[$LiteralPath] = Get-Content -LiteralPath $LiteralPath -Raw
+    }
+    return $script:textCache[$LiteralPath]
 }
 
 function Require-File {
@@ -52,7 +65,7 @@ function Require-Text {
         return
     }
 
-    $content = Get-Content -LiteralPath $path -Raw
+    $content = Get-CachedText -LiteralPath $path
     if (-not $content.Contains($Text)) {
         Add-Failure "Missing ${Label} in ${RelativePath}: $Text"
     }
@@ -70,7 +83,7 @@ function Require-NotText {
         return
     }
 
-    $content = Get-Content -LiteralPath $path -Raw
+    $content = Get-CachedText -LiteralPath $path
     if ($content.Contains($Text)) {
         Add-Failure "Forbidden ${Label} remains in ${RelativePath}: $Text"
     }
@@ -127,6 +140,52 @@ function Require-ExactFileMirror {
     }
 }
 
+function Require-RouteTable {
+    param([string]$RelativePath)
+    try {
+        $table = Get-Content -LiteralPath (Join-RepoPath $RelativePath) -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($table.surfaces -isnot [array] -or $table.surfaces.Count -eq 0) {
+            throw 'surfaces must be a non-empty array'
+        }
+        $keys = @{}
+        foreach ($surface in $table.surfaces) {
+            foreach ($field in @('key', 'label', 'pathRegex')) {
+                if ($surface.$field -isnot [string] -or [string]::IsNullOrWhiteSpace($surface.$field)) {
+                    throw "surface ${field} must be a non-empty string"
+                }
+            }
+            if ($keys.ContainsKey($surface.key)) { throw "duplicate surface key: $($surface.key)" }
+            $keys[$surface.key] = $true
+            [regex]::new($surface.pathRegex) | Out-Null
+            foreach ($field in @('docs', 'gates', 'notes')) {
+                if ($surface.$field -isnot [array]) { throw "$($surface.key).${field} must be an array" }
+            }
+            if ($surface.reviewer -isnot [string]) { throw 'reviewer must be a string' }
+            foreach ($doc in $surface.docs) {
+                if ($doc -isnot [string] -or -not (Test-Path -LiteralPath (Join-RepoPath $doc) -PathType Leaf)) {
+                    throw "missing route document: $doc"
+                }
+            }
+            foreach ($gate in $surface.gates) {
+                if ($gate.cmd -isnot [string] -or [string]::IsNullOrWhiteSpace($gate.cmd) -or $gate.when -isnot [string]) {
+                    throw 'gate requires a non-empty cmd and a string when'
+                }
+                if ($gate.cmd -match '-m\s+pytest\s+-q\s*(?:$|;)' -and $gate.when -notmatch '\bV3\b') {
+                    throw 'full pytest must declare its V3 condition'
+                }
+                if ($gate.cmd.Contains('check_launch.py') -and [string]::IsNullOrWhiteSpace($gate.when)) {
+                    throw 'check_launch must declare its invalidation condition'
+                }
+            }
+            foreach ($note in $surface.notes) {
+                if ($note -isnot [string]) { throw 'notes must contain strings' }
+            }
+        }
+    } catch {
+        Add-Failure "Invalid route table ${RelativePath}: $($_.Exception.Message)"
+    }
+}
+
 function Require-SourceBaselineManifest {
     param([string]$RelativePath)
     $requiredTexts = @(
@@ -163,7 +222,7 @@ function Require-CodexRuleExamples {
         return
     }
 
-    $content = Get-Content -LiteralPath $path -Raw
+    $content = Get-CachedText -LiteralPath $path
     $ruleCount = [regex]::Matches($content, "prefix_rule\(").Count
     $matchCount = [regex]::Matches($content, "(?m)^\s*match\s*=\s*\[").Count
     $notMatchCount = [regex]::Matches($content, "(?m)^\s*not_match\s*=\s*\[").Count
@@ -255,7 +314,7 @@ function Require-ByteBudget {
         Add-Failure "Cannot check ${Label}; missing file: $RelativePath"
         return
     }
-    $content = Get-Content -LiteralPath $path -Raw
+    $content = Get-CachedText -LiteralPath $path
     $byteCount = [System.Text.Encoding]::UTF8.GetByteCount($content)
     if ($byteCount -gt $MaxBytes) {
         Add-Failure "${Label} exceeds ${MaxBytes} bytes: ${RelativePath} has ${byteCount} bytes"
@@ -273,7 +332,7 @@ function Require-CharBudget {
         Add-Failure "Cannot check ${Label}; missing file: $RelativePath"
         return
     }
-    $content = Get-Content -LiteralPath $path -Raw
+    $content = Get-CachedText -LiteralPath $path
     if ($content.Length -gt $MaxChars) {
         Add-Failure "${Label} exceeds ${MaxChars} characters: ${RelativePath} has $($content.Length) characters"
     }
@@ -300,12 +359,12 @@ $requiredFiles = @(
     ".agents\rules\agents_gateway.md",
     ".cursor\rules\agents_gateway.mdc",
     ".cursor\rules\ui_theme.mdc",
-    ".cursor\rules\vibe-tools.mdc",
     ".claude\rules\ui_theme.md",
     ".codex\rules\project.rules",
     ".agents\skills\spc-db-chart-semantics-validator\SKILL.md",
     ".claude\skills\spc-db-chart-semantics-validator\SKILL.md",
     ".agents\skills\spc-change-router\SKILL.md",
+    ".agents\skills\spc-change-router\route-table.json",
     ".claude\skills\spc-change-router\SKILL.md",
     ".claude\skills\spc-change-router\route-table.json",
     ".agents\skills\spc-validation-matrix\SKILL.md",
@@ -367,7 +426,6 @@ Require-Text "CLAUDE.md" "@AGENTS.md" "Claude imports AGENTS policy"
 Require-Text ".cursor\rules\agents_gateway.mdc" "](../../AGENTS.md)" "Cursor gateway uses a repo-relative AGENTS link"
 Require-Text ".cursor\rules\agents_gateway.mdc" "alwaysApply: true" "Cursor gateway always-on"
 Require-NotText ".cursor\rules\agents_gateway.mdc" "SPC%20platform%20v2" "stale Cursor repository path"
-Require-Text ".cursor\rules\vibe-tools.mdc" "alwaysApply: false" "vibe-tools is not always-on"
 Require-Text ".agents\rules\agents_gateway.md" "AGENTS.md" "Antigravity gateway points to AGENTS"
 Require-Text ".agents\rules\agents_gateway.md" "New Worktree Mode" "Antigravity worktree preference"
 Require-Text ".agents\rules\agents_gateway.md" "Local Mode" "Antigravity local mode boundary"
@@ -448,10 +506,12 @@ Require-Text "docs\governance\AGENTS.md" "validate_db_chart_semantics.py" "gover
 Require-Text "docs\harness\README.md" "validate_db_chart_semantics.py" "harness DB semantic gate pointer"
 Require-Text "docs\specs\project_architecture.md" "validate_db_chart_semantics.py" "architecture DB semantic gate pointer"
 Require-Text ".claude\skills\spc-change-router\route-table.json" "validate_db_chart_semantics.py" "router DB semantic gate pointer"
-Require-Text ".claude\skills\spc-change-router\SKILL.md" ".venv/Scripts/python.exe -m pytest -q" "router full analytics pytest gate"
+Require-Text ".claude\skills\spc-change-router\SKILL.md" "V3 full pytest" "router V3 full pytest gate"
 Require-Text "CLAUDE.md" ".venv/Scripts/python.exe -m pytest -q" "Claude venv verification command"
 Require-NormalizedSkillMirror ".claude\skills\spc-db-chart-semantics-validator\SKILL.md" ".agents\skills\spc-db-chart-semantics-validator\SKILL.md" "DB semantic validator skill mirror"
 Require-NormalizedSkillMirror ".claude\skills\spc-change-router\SKILL.md" ".agents\skills\spc-change-router\SKILL.md" "change router skill mirror"
+Require-RouteTable ".agents\skills\spc-change-router\route-table.json"
+Require-ExactFileMirror ".agents\skills\spc-change-router\route-table.json" ".claude\skills\spc-change-router\route-table.json" "change router data mirror"
 Require-NormalizedSkillMirror ".claude\skills\spc-validation-matrix\SKILL.md" ".agents\skills\spc-validation-matrix\SKILL.md" "validation matrix skill mirror"
 Require-ExactFileMirror ".claude\skills\spc-validation-matrix\scripts\run_matrix.py" ".agents\skills\spc-validation-matrix\scripts\run_matrix.py" "validation matrix runner mirror"
 Require-ByteBudget "AGENTS.md" 32768 "Codex AGENTS.md size budget"

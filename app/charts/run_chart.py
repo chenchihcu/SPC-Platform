@@ -1,6 +1,12 @@
 from app.charts.base_chart import BaseChart, annotate_latest_point, draw_reference_line, resolve_target_col
 from typing import Dict, Any
 from app.ui.theme.tokens import CHART_ANNOTATION, CHART_SERIES, CHART_FONT_ANNOTATION, CHART_FONT_LEGEND
+
+# Above this many points a connecting line over oscillating data fills the axis
+# into an unreadable band; render translucent markers-only instead.
+_DENSE_SERIES_THRESHOLD = 300
+
+
 class RunChart(BaseChart):
     """Run chart: individual values in run order with center line."""
 
@@ -24,7 +30,13 @@ class RunChart(BaseChart):
         values = data.get("values", [])
         indices = data.get("indices", list(range(len(values))))
         center = stats.get("center_line", 0)
-        self.ax.plot(indices, values, color=CHART_SERIES, linestyle="-", linewidth=1, marker="o", markersize=3, label="個別值")
+        if len(values) > _DENSE_SERIES_THRESHOLD:
+            # Dense series: markers-only so oscillation doesn't fill the axis.
+            self.ax.plot(indices, values, color=CHART_SERIES, linestyle="none",
+                         marker="o", markersize=2, alpha=0.35, label="個別值")
+        else:
+            self.ax.plot(indices, values, color=CHART_SERIES, linestyle="-",
+                         linewidth=1, marker="o", markersize=3, label="個別值")
         annotate_latest_point(self.ax, indices, values, label="Latest", color=CHART_SERIES)
         draw_reference_line(self.ax, center, f"中心線: {center:.2f}", semantic="centerline")
         if stats.get("sampled_for_display"):
