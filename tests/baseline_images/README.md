@@ -4,7 +4,7 @@ Used by [`tests/test_chart_baseline_png.py`](../test_chart_baseline_png.py) with
 
 The pytest must use `matplotlib.pyplot.rc_context(...)` for DejaVu + dpi so **global** `rcParams` are not left on `DejaVu Sans` (that would flood later tests with CJK glyph warnings). The one-off regenerate snippet below runs in a fresh process, so `plt.rcParams.update` there is fine.
 
-## Regenerate (Python 3.12, CI parity)
+## Regenerate (Python 3.12, Windows, CI parity)
 
 From repo root, with `MPLBACKEND=Agg` and the same payload as the test:
 
@@ -26,4 +26,4 @@ print('updated density_chart_default.png')
 
 Then run `python -m pytest tests/test_chart_baseline_png.py -q`.
 
-CI/Linux keeps the strict canonical tolerance. Windows may need a wider local tolerance because constrained-layout and FreeType metrics shift the plot area even when the labels, colorbar, and plotted data are unchanged; keep the canonical baseline produced on **Ubuntu** to match GitHub Actions.
+The app and CI (`windows-latest`) run on **Windows**; the test uses the Windows tolerance there and the strict tolerance on other hosts. Regenerate the canonical baseline on Windows.

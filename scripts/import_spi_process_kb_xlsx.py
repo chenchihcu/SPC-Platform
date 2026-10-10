@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Import SPI_製程對應知識庫_v1.0.xlsx into data/spi_process_kb/v1/*.json
+Import SPI_製程對應知識庫_v1.0.xlsx into app/assets/reference_data/spi_process_kb/v1/*.json
 
 The **reference workbook** for v1 is ``SPI_製程對應知識庫_v1.0.xlsx`` (see
 ``app.services.spi_process_kb_loader.CANONICAL_SPI_KB_WORKBOOK_BASENAME``).
@@ -9,7 +9,7 @@ Requires: pandas, openpyxl (see docs/reference/requirements.txt)
 
 Example:
   python scripts/import_spi_process_kb_xlsx.py path/to/SPI_製程對應知識庫_v1.0.xlsx \\
-    --out data/spi_process_kb/v1
+    --out app/assets/reference_data/spi_process_kb/v1
 """
 from __future__ import annotations
 
@@ -254,7 +254,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument(
         "--out",
         type=Path,
-        default=_REPO_ROOT / "data" / "spi_process_kb" / "v1",
+        default=_REPO_ROOT / "app" / "assets" / "reference_data" / "spi_process_kb" / "v1",
         help="Output directory for JSON files",
     )
     # v1.0 workbook (repo-root SPI_製程對應知識庫_v1.0.xlsx) uses emoji-prefixed sheet

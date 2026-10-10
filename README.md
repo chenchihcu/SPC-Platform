@@ -26,7 +26,7 @@ SPI 製程統計分析桌面平台（PySide6）。
 ---
 
 ## 快速啟動 (Quick Start)
-- **SPI 製程對應知識庫**：人維護權威稿為 **`SPI_製程對應知識庫_v1.0.xlsx`**（見 `app/services/spi_process_kb_loader.py` 常數 `CANONICAL_SPI_KB_WORKBOOK_BASENAME`）；版本化 JSON 置於 `data/spi_process_kb/v1/`（四區塊：多訊號規則 R001–R030、三維對應、檢查門檻、圖表速查）；`multi_signal_diagnosis` 執行期載入並併入診斷 payload；以 `scripts/import_spi_process_kb_xlsx.py` 自該 xlsx 匯入更新。
+- **SPI 製程對應知識庫**：人維護權威稿為 **`SPI_製程對應知識庫_v1.0.xlsx`**（見 `app/services/spi_process_kb_loader.py` 常數 `CANONICAL_SPI_KB_WORKBOOK_BASENAME`）；版本化 JSON 置於 `app/assets/reference_data/spi_process_kb/v1/`（隨 repo 版控；根目錄 `/data/` 為 git-ignored 的執行期資料）（四區塊：多訊號規則 R001–R030、三維對應、檢查門檻、圖表速查）；`multi_signal_diagnosis` 執行期載入並併入診斷 payload；以 `scripts/import_spi_process_kb_xlsx.py` 自該 xlsx 匯入更新。
 - CI baseline 為 `lint -> type check -> tests -> qt_audit -> check_launch`。
 
 ## Current Architecture (2026-07-27)

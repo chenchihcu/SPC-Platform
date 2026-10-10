@@ -256,7 +256,7 @@ RefDes
 ## 12.4 SPI 製程對應知識庫（Excel 權威稿 → JSON 運行稿）
 
 - **人維護權威稿檔名**：`SPI_製程對應知識庫_v1.0.xlsx`（與程式常數 `app.services.spi_process_kb_loader.CANONICAL_SPI_KB_WORKBOOK_BASENAME` 一致）。
-- **匯入腳本**：`scripts/import_spi_process_kb_xlsx.py`，將工作表轉成 `data/spi_process_kb/v1/*.json`；`manifest.json` 可含 `source_xlsx_basename`、`source_xlsx_sha256`（匯入後寫入）。
+- **匯入腳本**：`scripts/import_spi_process_kb_xlsx.py`，將工作表轉成 `app/assets/reference_data/spi_process_kb/v1/*.json`；`manifest.json` 可含 `source_xlsx_basename`、`source_xlsx_sha256`（匯入後寫入）。
 - **執行期讀取**：僅讀 JSON bundle（`multi_signal_rules`、`dimension_abnormality_matrix`、`inspection_checklist`、`chart_signal_lookup`），不直接讀 xlsx。
 - **預設工作表名**（與 `SPI_製程對應知識庫_v1.0.xlsx` v1 版一致；匯入腳本 `--sheet-*` 預設已對齊）：`🔗 多訊號關聯規則`、`📊 訊號×異常×原因`、`🔧 製程原因檢查清單`、`⚡ 訊號速查矩陣`。第一列為標題列時使用 **`--header-row 1`**（預設）；舊版無標題列、工作表名為 `多訊號關聯診斷規則表` 等時，請改用 **`--header-row 0`** 並以 `--sheet-*` 覆寫工作表名。
 
