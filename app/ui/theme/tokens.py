@@ -437,6 +437,7 @@ RAIL_COLLAPSED_BTN_MARGIN  = 8
 PATH_LABEL_ELIDE_MIN_W     = 60
 EMPTY_COORD_SET            = "—"
 EMPTY_MEAS_FILE            = "—"
+EMPTY_CSV_PATH_TEXT        = "尚未選擇"  # CsvFileSelectorPane empty path (coord + meas)
 PATH_LABEL_ELIDE_MARGIN    = 6
 QT_MAX_WIDGET_DIM          = 16_777_215
 FORM_GRID_ROW_SPACING      = CONTROL_FORM_ROW_SPACING - 2
