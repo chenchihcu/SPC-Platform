@@ -1,0 +1,433 @@
+{
+  "entries": [
+    {
+      "rule_id": "R001",
+      "signal_a": "Heatmap(Volume) Cluster",
+      "signal_b": "SPC Violation 同位置重複",
+      "spatial_temporal_condition": "固定 pad 位置重複出現",
+      "trigger_description": "特定位置連續多批次 Volume 偏低且 Heatmap 高亮集中",
+      "process_type_classification": "Local Issue",
+      "cause_hypotheses": [
+        "① 鋼板堵孔",
+        "② 鋼板磨損（局部）",
+        "③ Pad 設計尺寸問題"
+      ],
+      "confidence_stars": 5,
+      "priority_inspection_items": "鋼板清潔記錄 / 目視檢查開口 / 開口尺寸量測"
+    },
+    {
+      "rule_id": "R002",
+      "signal_a": "CUSUM(Volume) Drift↓",
+      "signal_b": "Trend(Volume) 下降斜率 >0.3σ/100pcs",
+      "spatial_temporal_condition": "全板均勻下降，無空間集中",
+      "trigger_description": "全板 Volume 緩慢系統性下降",
+      "process_type_classification": "Global Drift",
+      "cause_hypotheses": [
+        "① 錫膏消耗未補充",
+        "② 刮刀壓力漸增",
+        "③ 錫膏黏度上升（老化）"
+      ],
+      "confidence_stars": 4,
+      "priority_inspection_items": "錫膏補充 Log / 刮刀壓力 Log / 錫膏使用時間"
+    },
+    {
+      "rule_id": "R003",
+      "signal_a": "SPC Violation(Volume) Shift",
+      "signal_b": "Histogram(Volume) 均值偏移",
+      "spatial_temporal_condition": "時間點對應換料/換班",
+      "trigger_description": "Volume 均值在特定時間點後整體偏移",
+      "process_type_classification": "Global Shift",
+      "cause_hypotheses": [
+        "① 換錫膏批次（黏度差異）",
+        "② 換班操作差異",
+        "③ 刮刀更換"
+      ],
+      "confidence_stars": 5,
+      "priority_inspection_items": "換料批號記錄 / IQC 黏度數據 / 班別對應時間軸"
+    },
+    {
+      "rule_id": "R004",
+      "signal_a": "Heatmap(Volume) 左右不對稱",
+      "signal_b": "Scatter(Volume vs X_position) 線性趨勢",
+      "spatial_temporal_condition": "左側或右側系統性偏低",
+      "trigger_description": "Volume 沿 X 方向呈線性梯度分佈",
+      "process_type_classification": "Variation Issue",
+      "cause_hypotheses": [
+        "① 刮刀左右壓力不均",
+        "② 刮刀傾角偏斜",
+        "③ PCB 固定夾具不平"
+      ],
+      "confidence_stars": 4,
+      "priority_inspection_items": "刮刀 L/R 壓力感測器差值 / 刮刀傾角校正記錄"
+    },
+    {
+      "rule_id": "R005",
+      "signal_a": "Heatmap(Volume) 前後不對稱",
+      "signal_b": "Scatter(Volume vs Y_position) 線性趨勢",
+      "spatial_temporal_condition": "前端或後端系統性偏低",
+      "trigger_description": "Volume 沿 Y 方向（印刷方向）呈梯度",
+      "process_type_classification": "Variation Issue",
+      "cause_hypotheses": [
+        "① 刮刀速度不均（加速/減速段）",
+        "② 印刷行程起終點壓力"
+      ],
+      "confidence_stars": 3,
+      "priority_inspection_items": "刮刀速度 Profile 記錄 / 印刷行程設定"
+    },
+    {
+      "rule_id": "R006",
+      "signal_a": "Scatter(Volume vs Height) 高正相關 r>0.8",
+      "signal_b": "Heatmap 全板均勻分佈",
+      "spatial_temporal_condition": "全板性，無空間集中",
+      "trigger_description": "Volume 與 Height 同步波動，無局部集中",
+      "process_type_classification": "Variation Issue",
+      "cause_hypotheses": [
+        "① 刮刀壓力設定偏低（錫膏轉印率不足）",
+        "② 刮刀磨損（刮刀面不均勻接觸）"
+      ],
+      "confidence_stars": 4,
+      "priority_inspection_items": "刮刀壓力設定值 / 刮刀磨耗目視 / 印刷壓力試驗"
+    },
+    {
+      "rule_id": "R007",
+      "signal_a": "SPC Violation(Volume) 高變異",
+      "signal_b": "Histogram(Volume) 變異增大（σ上升）",
+      "spatial_temporal_condition": "時間點對應作業中斷/環境變化",
+      "trigger_description": "製程能力 Cpk 下降但均值不變",
+      "process_type_classification": "Variation Issue",
+      "cause_hypotheses": [
+        "① 刮刀速度不穩定",
+        "② 鋼板固定鬆動",
+        "③ 錫膏局部乾燥"
+      ],
+      "confidence_stars": 3,
+      "priority_inspection_items": "刮刀速度 Log / 鋼板夾緊確認 / 錫膏表面觀察"
+    },
+    {
+      "rule_id": "R008",
+      "signal_a": "CUSUM(Volume) Drift↓",
+      "signal_b": "Heatmap 前端 pad 偏低",
+      "spatial_temporal_condition": "印刷起始端系統偏低",
+      "trigger_description": "刮刀到達前端時錫膏量不足",
+      "process_type_classification": "Local Issue",
+      "cause_hypotheses": [
+        "① 刮刀前端錫膏滾動量不足",
+        "② 錫膏補充位置偏後"
+      ],
+      "confidence_stars": 3,
+      "priority_inspection_items": "刮刀前端目視 / 錫膏補充量與位置"
+    },
+    {
+      "rule_id": "R009",
+      "signal_a": "Histogram(Volume) Bimodal",
+      "signal_b": "Scatter(Volume vs Position) 無空間規律",
+      "spatial_temporal_condition": "雙峰分佈，空間隨機",
+      "trigger_description": "Volume 出現兩種中心值，無固定位置",
+      "process_type_classification": "Variation Issue",
+      "cause_hypotheses": [
+        "① 兩種錫膏黏度混用（未充分攪拌）",
+        "② 錫膏新舊交接（剩餘+新補）"
+      ],
+      "confidence_stars": 4,
+      "priority_inspection_items": "攪拌時間記錄 / 錫膏補充時機 / 同批次黏度量測"
+    },
+    {
+      "rule_id": "R010",
+      "signal_a": "CUSUM(Volume) Drift↓",
+      "signal_b": "Trend(Volume) + 環境溫度上升同步",
+      "spatial_temporal_condition": "下午時段或高溫季節",
+      "trigger_description": "Volume 下降與溫度上升時間相關",
+      "process_type_classification": "Global Drift",
+      "cause_hypotheses": [
+        "① 錫膏黏度因溫度下降（流動性增加→轉印率下降）",
+        "② 錫膏乾燥加速"
+      ],
+      "confidence_stars": 3,
+      "priority_inspection_items": "環境溫濕度 Log / 錫膏使用時間 / 印刷間隔時間"
+    },
+    {
+      "rule_id": "R011",
+      "signal_a": "SPC Violation(Volume) 整體↓",
+      "signal_b": "Histogram 右尾截斷（偏態）",
+      "spatial_temporal_condition": "換新一批錫膏後出現",
+      "trigger_description": "均值偏低且分佈偏態，開啟新罐後出現",
+      "process_type_classification": "Global Shift",
+      "cause_hypotheses": [
+        "① 新批次錫膏黏度規格差異",
+        "② 錫膏儲存溫度不當（黏度偏高）"
+      ],
+      "confidence_stars": 4,
+      "priority_inspection_items": "IQC 黏度報告 / 儲存溫度記錄 / 批號差異比對"
+    },
+    {
+      "rule_id": "R012",
+      "signal_a": "Histogram(Volume) 高變異",
+      "signal_b": "Trend(Volume) 時序無規律波動",
+      "spatial_temporal_condition": "短時間內隨機大幅波動",
+      "trigger_description": "Volume 隨機高低波動，無趨勢",
+      "process_type_classification": "Variation Issue",
+      "cause_hypotheses": [
+        "① 錫膏攪拌不足（表面乾燥層）",
+        "② 錫膏接近使用壽命"
+      ],
+      "confidence_stars": 3,
+      "priority_inspection_items": "攪拌記錄 / 錫膏開封時間 / 每 2hr 黏度量測"
+    },
+    {
+      "rule_id": "R013",
+      "signal_a": "CUSUM(X-offset) Drift",
+      "signal_b": "CUSUM(Y-offset) 無變化",
+      "spatial_temporal_condition": "單一方向漂移",
+      "trigger_description": "X 方向對位系統性偏移，Y 方向正常",
+      "process_type_classification": "Global Drift",
+      "cause_hypotheses": [
+        "① PCB X 方向熱膨脹",
+        "② 視覺對位 X 軸補正漂移"
+      ],
+      "confidence_stars": 4,
+      "priority_inspection_items": "對位 Log X/Y 補正值 / 溫濕度 Log / PCB 材質膨脹係數"
+    },
+    {
+      "rule_id": "R014",
+      "signal_a": "CUSUM(X-offset) Drift",
+      "signal_b": "CUSUM(Y-offset) 同步 Drift",
+      "spatial_temporal_condition": "X/Y 雙向同步漂移",
+      "trigger_description": "對位在兩個方向均有系統性偏移",
+      "process_type_classification": "Global Drift",
+      "cause_hypotheses": [
+        "① 視覺系統基準點漂移",
+        "② PCB 整體熱膨脹（等向性）",
+        "③ 視覺 Calibration 過期"
+      ],
+      "confidence_stars": 5,
+      "priority_inspection_items": "視覺系統 Calibration 日期 / 基準 Fiducial 確認 / 重新對位校正"
+    },
+    {
+      "rule_id": "R015",
+      "signal_a": "Heatmap(X/Y offset) Cluster",
+      "signal_b": "特定 PCB 區域重複",
+      "spatial_temporal_condition": "固定 PCB 子區域",
+      "trigger_description": "特定角落或中央區域持續對位偏移",
+      "process_type_classification": "Local Issue",
+      "cause_hypotheses": [
+        "① PCB 翹曲（區域性）",
+        "② 鋼板局部變形",
+        "③ 特定 Fiducial 污染/損傷"
+      ],
+      "confidence_stars": 4,
+      "priority_inspection_items": "PCB 翹曲量測 / 鋼板目視 / Fiducial Mark 清潔確認"
+    },
+    {
+      "rule_id": "R016",
+      "signal_a": "SPC Violation(Area) Shift↓",
+      "signal_b": "Histogram(Area) 均值偏低",
+      "spatial_temporal_condition": "特定元件 Component 群組",
+      "trigger_description": "特定元件 Pad 面積轉印不足",
+      "process_type_classification": "Component Issue",
+      "cause_hypotheses": [
+        "① Pad 氧化（潤濕性下降）",
+        "② 鋼板開口對應位置堵塞",
+        "③ Pad 尺寸設計偏小"
+      ],
+      "confidence_stars": 4,
+      "priority_inspection_items": "Pad 表面處理確認 / 鋼板對應開口量測 / Gerber 設計核對"
+    },
+    {
+      "rule_id": "R017",
+      "signal_a": "Scatter(X-offset vs Batch) 週期性漂移",
+      "signal_b": "Trend(X-offset) 鋸齒波",
+      "spatial_temporal_condition": "以 PCB 批次或班別為週期",
+      "trigger_description": "對位偏移呈週期性規律",
+      "process_type_classification": "Global Drift",
+      "cause_hypotheses": [
+        "① PCB 夾持位置每批不一致",
+        "② 操作員每班重置習慣差異"
+      ],
+      "confidence_stars": 4,
+      "priority_inspection_items": "PCB 夾持 SOP 確認 / 每班首件對位記錄"
+    },
+    {
+      "rule_id": "R018",
+      "signal_a": "CUSUM(Offset) 突然 Shift",
+      "signal_b": "Trend 前後均值不同",
+      "spatial_temporal_condition": "特定時間點後持續偏移",
+      "trigger_description": "對位在某時間點後均值整體偏移",
+      "process_type_classification": "Global Shift",
+      "cause_hypotheses": [
+        "① 機台振動（附近設備啟動）",
+        "② 鋼板重新安裝後未歸零",
+        "③ 視覺系統斷線重連"
+      ],
+      "confidence_stars": 5,
+      "priority_inspection_items": "鋼板安裝記錄 / 視覺系統 Log / 鄰近設備運作記錄"
+    },
+    {
+      "rule_id": "R019",
+      "signal_a": "Trend(Volume) 日週期下降",
+      "signal_b": "溫濕度 Trend 同步",
+      "spatial_temporal_condition": "早班正常、下午偏低的日週期",
+      "trigger_description": "Volume 隨環境溫度週期性變化",
+      "process_type_classification": "Global Drift",
+      "cause_hypotheses": [
+        "① 錫膏黏度溫度敏感性高",
+        "② 廠房空調午後效能下降"
+      ],
+      "confidence_stars": 3,
+      "priority_inspection_items": "空調 Log / 印刷區溫濕度連續監控 / 錫膏溫度補正SOP"
+    },
+    {
+      "rule_id": "R020",
+      "signal_a": "SPC Violation(Volume) 高變異",
+      "signal_b": "SPC Violation(Offset) 高變異（同時期）",
+      "spatial_temporal_condition": "量、位置同時異常且無規律",
+      "trigger_description": "量與對位同時變差，無固定方向",
+      "process_type_classification": "Variation Issue",
+      "cause_hypotheses": [
+        "① 環境振動（地面振動源）",
+        "② 機台固定螺絲鬆動"
+      ],
+      "confidence_stars": 3,
+      "priority_inspection_items": "機台振動量測 / 固定螺絲確認 / 振動源排查"
+    },
+    {
+      "rule_id": "R021",
+      "signal_a": "CUSUM(Volume) Drift↓",
+      "signal_b": "Heatmap Cluster（靠鋼板邊緣）",
+      "spatial_temporal_condition": "邊緣 pad 偏低，中央正常",
+      "trigger_description": "靠鋼板框邊的 Pad 轉印不足",
+      "process_type_classification": "Local Issue",
+      "cause_hypotheses": [
+        "① 鋼板張力不足（邊緣翹曲）",
+        "② 鋼板貼合壓力不足"
+      ],
+      "confidence_stars": 3,
+      "priority_inspection_items": "鋼板張力量測 / 鋼板貼合確認 / 邊緣 Pad 目視"
+    },
+    {
+      "rule_id": "R022",
+      "signal_a": "Histogram(Height) Bimodal",
+      "signal_b": "Heatmap(Height) 兩區域各自集中",
+      "spatial_temporal_condition": "兩個高度中心值，空間有規律",
+      "trigger_description": "PCB 上兩個區域高度不同",
+      "process_type_classification": "Local Issue",
+      "cause_hypotheses": [
+        "① PCB 翹曲（中央鼓起）",
+        "② 兩種元件 Pad 高度設計差異"
+      ],
+      "confidence_stars": 4,
+      "priority_inspection_items": "PCB 翹曲 3D 量測 / 設計圖確認 Pad 高度規格"
+    },
+    {
+      "rule_id": "R023",
+      "signal_a": "SPC Violation(Volume) Shift↑",
+      "signal_b": "Histogram(Volume) 均值偏高",
+      "spatial_temporal_condition": "時間點對應新錫膏或新刮刀",
+      "trigger_description": "Volume 整體偏高（過量）",
+      "process_type_classification": "Global Shift",
+      "cause_hypotheses": [
+        "① 刮刀壓力設定過低（錫膏殘留過多）",
+        "② 新批次錫膏黏度偏低"
+      ],
+      "confidence_stars": 4,
+      "priority_inspection_items": "刮刀壓力設定 / 新錫膏黏度量測 / 轉印率計算"
+    },
+    {
+      "rule_id": "R024",
+      "signal_a": "Scatter(Volume vs Area) 正相關異常強",
+      "signal_b": "SPC Violation(Area) Shift↓",
+      "spatial_temporal_condition": "面積與體積同步偏低，特定位置",
+      "trigger_description": "開口面積與體積同步不足",
+      "process_type_classification": "Local Issue",
+      "cause_hypotheses": [
+        "① 鋼板開口堵塞（部分堵）",
+        "② 鋼板開口變形縮小"
+      ],
+      "confidence_stars": 5,
+      "priority_inspection_items": "鋼板開口顯微鏡檢查 / 開口尺寸量測 / 鋼板清洗後重測"
+    },
+    {
+      "rule_id": "R025",
+      "signal_a": "Trend(X-offset) 緩慢單向漂移",
+      "signal_b": "Trend(Volume) 正常",
+      "spatial_temporal_condition": "對位漂移但量正常，時間長",
+      "trigger_description": "慢速累積性對位偏移",
+      "process_type_classification": "Global Drift",
+      "cause_hypotheses": [
+        "① 機台導軌熱膨脹",
+        "② 長時間運行機械磨損累積"
+      ],
+      "confidence_stars": 3,
+      "priority_inspection_items": "機台溫度 Log / 導軌磨耗紀錄 / 定期 Calibration 週期"
+    },
+    {
+      "rule_id": "R026",
+      "signal_a": "Heatmap(Volume) 特定 Row 偏低",
+      "signal_b": "對應 Component 相同類型",
+      "spatial_temporal_condition": "同類元件 Pad 整列偏低",
+      "trigger_description": "特定元件類型 Pad 整列體積偏低",
+      "process_type_classification": "Component Issue",
+      "cause_hypotheses": [
+        "① 元件 Pad 設計開口比偏小（AR值不足）",
+        "② 同排鋼板開口角度問題"
+      ],
+      "confidence_stars": 4,
+      "priority_inspection_items": "開口比(AR) = 開口面積/孔壁面積計算 / 設計審查"
+    },
+    {
+      "rule_id": "R027",
+      "signal_a": "SPC Violation(Volume) 突然 Shift↓",
+      "signal_b": "SPC Violation(Height) 同步↓",
+      "spatial_temporal_condition": "某特定時間點後全面下降",
+      "trigger_description": "量與高度同步突降，非漸進",
+      "process_type_classification": "Global Shift",
+      "cause_hypotheses": [
+        "① 鋼板重新安裝位置偏移（印刷位置不對）",
+        "② 刮刀突然壓力異常"
+      ],
+      "confidence_stars": 5,
+      "priority_inspection_items": "鋼板安裝紀錄 / 刮刀壓力即時 Log / 首件確認記錄"
+    },
+    {
+      "rule_id": "R028",
+      "signal_a": "Scatter(Volume vs Board_ID) 特定 PCB 編號偏低",
+      "signal_b": "Heatmap 全面偏低（非局部）",
+      "spatial_temporal_condition": "特定批次 PCB 系統性偏低",
+      "trigger_description": "某幾片 PCB 全面體積偏低",
+      "process_type_classification": "Component Issue",
+      "cause_hypotheses": [
+        "① 特定 PCB 批次 Pad 表面處理不良",
+        "② PCB 板厚偏差（影響離板）"
+      ],
+      "confidence_stars": 4,
+      "priority_inspection_items": "PCB 批號追溯 / Pad 表面 IQC 報告 / 板厚量測"
+    },
+    {
+      "rule_id": "R029",
+      "signal_a": "CUSUM(Offset) + Trend(Offset) 同向",
+      "signal_b": "環境溫度 Trend 同向",
+      "spatial_temporal_condition": "對位漂移與溫度上升同步",
+      "trigger_description": "對位偏移與溫度具有相關性",
+      "process_type_classification": "Global Drift",
+      "cause_hypotheses": [
+        "① PCB/機台熱膨脹係數差異",
+        "② 視覺系統感測器溫漂"
+      ],
+      "confidence_stars": 3,
+      "priority_inspection_items": "溫度-偏移相關性分析 / 熱膨脹補正係數設定"
+    },
+    {
+      "rule_id": "R030",
+      "signal_a": "Heatmap(Volume) Random Noise",
+      "signal_b": "Histogram(Volume) Heavy Tail（厚尾）",
+      "spatial_temporal_condition": "隨機分散，無空間規律",
+      "trigger_description": "少量極端低值拉低 Cpk，主體正常",
+      "process_type_classification": "Variation Issue",
+      "cause_hypotheses": [
+        "① 偶發性鋼板離板不良（Peeling 不順）",
+        "② 偶發性氣泡/異物"
+      ],
+      "confidence_stars": 3,
+      "priority_inspection_items": "離板速度設定 / 鋼板底面清潔頻率 / 異物目視確認"
+    }
+  ]
+}

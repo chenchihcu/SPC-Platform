@@ -1,0 +1,244 @@
+{
+  "entries": [
+    {
+      "process_category": "🔲 Stencil（鋼板）",
+      "inspection_item": "開口堵塞程度",
+      "measurement_method": "顯微鏡目視 / 影像分析堵孔率",
+      "normal_threshold": "堵孔率 < 5%",
+      "priority_stars": 5,
+      "remarks": "週期性底面清潔"
+    },
+    {
+      "process_category": "🔲 Stencil（鋼板）",
+      "inspection_item": "開口尺寸精度",
+      "measurement_method": "光學量測儀量測開口 W/L",
+      "normal_threshold": "設計值 ± 5μm",
+      "priority_stars": 4,
+      "remarks": "新鋼板入廠 IQC 必測"
+    },
+    {
+      "process_category": "🔲 Stencil（鋼板）",
+      "inspection_item": "鋼板厚度磨損",
+      "measurement_method": "量規量測鋼板厚度",
+      "normal_threshold": "設計厚度 ± 10μm",
+      "priority_stars": 3,
+      "remarks": "使用壽命（印刷次數）追蹤"
+    },
+    {
+      "process_category": "🔲 Stencil（鋼板）",
+      "inspection_item": "鋼板張力",
+      "measurement_method": "張力計量測鋼板四角",
+      "normal_threshold": "> 40 N/cm（視材質）",
+      "priority_stars": 3,
+      "remarks": "不足時換框"
+    },
+    {
+      "process_category": "🔲 Stencil（鋼板）",
+      "inspection_item": "底面清潔頻率",
+      "measurement_method": "清潔 Log 記錄",
+      "normal_threshold": "每 N 片清潔 1 次（依產品設定）",
+      "priority_stars": 4,
+      "remarks": "與 Cpk 下降連動"
+    },
+    {
+      "process_category": "🔲 Stencil（鋼板）",
+      "inspection_item": "開口比 AR 值",
+      "measurement_method": "計算 AR = 開口面積/孔壁面積",
+      "normal_threshold": "AR ≥ 0.66（一般標準）",
+      "priority_stars": 5,
+      "remarks": "AR < 0.66 轉印率風險高"
+    },
+    {
+      "process_category": "🔨 Squeegee（刮刀）",
+      "inspection_item": "刮刀壓力設定",
+      "measurement_method": "讀取設備參數/壓力 Log",
+      "normal_threshold": "±0.1N 於設定值",
+      "priority_stars": 5,
+      "remarks": "每班首件確認"
+    },
+    {
+      "process_category": "🔨 Squeegee（刮刀）",
+      "inspection_item": "刮刀 L/R 壓力差",
+      "measurement_method": "雙側壓力感測器差值",
+      "normal_threshold": "差值 < 0.2N",
+      "priority_stars": 4,
+      "remarks": "超差→刮刀平整度確認"
+    },
+    {
+      "process_category": "🔨 Squeegee（刮刀）",
+      "inspection_item": "刮刀磨耗狀況",
+      "measurement_method": "目視/量測刮刀刃面磨耗量",
+      "normal_threshold": "磨耗量 < 0.3mm",
+      "priority_stars": 3,
+      "remarks": "依使用壽命（km）更換"
+    },
+    {
+      "process_category": "🔨 Squeegee（刮刀）",
+      "inspection_item": "印刷速度設定",
+      "measurement_method": "讀取設備參數",
+      "normal_threshold": "設定值 ± 5mm/s",
+      "priority_stars": 3,
+      "remarks": "影響轉印均勻性"
+    },
+    {
+      "process_category": "🔨 Squeegee（刮刀）",
+      "inspection_item": "刮刀攻角（角度）",
+      "measurement_method": "量測刮刀與鋼板夾角",
+      "normal_threshold": "45° ± 5°（視工藝）",
+      "priority_stars": 3,
+      "remarks": "角度影響錫膏滾動"
+    },
+    {
+      "process_category": "🧴 Paste（錫膏）",
+      "inspection_item": "黏度量測",
+      "measurement_method": "黏度計（Malcom 等）量測",
+      "normal_threshold": "依規格 ± 10%",
+      "priority_stars": 5,
+      "remarks": "每班/換料必測"
+    },
+    {
+      "process_category": "🧴 Paste（錫膏）",
+      "inspection_item": "使用時限追蹤",
+      "measurement_method": "開封時間記錄 Log",
+      "normal_threshold": "不超過廠商規定使用時限",
+      "priority_stars": 5,
+      "remarks": "貼標管控"
+    },
+    {
+      "process_category": "🧴 Paste（錫膏）",
+      "inspection_item": "儲存溫度記錄",
+      "measurement_method": "冰箱溫度 Log",
+      "normal_threshold": "2~10°C（視廠商規格）",
+      "priority_stars": 4,
+      "remarks": "超溫記錄 → 廢棄"
+    },
+    {
+      "process_category": "🧴 Paste（錫膏）",
+      "inspection_item": "回溫時間確認",
+      "measurement_method": "回溫開始時間記錄",
+      "normal_threshold": "依廠商規定（通常 2~4hr）",
+      "priority_stars": 5,
+      "remarks": "不足→黏度異常高"
+    },
+    {
+      "process_category": "🧴 Paste（錫膏）",
+      "inspection_item": "攪拌時間記錄",
+      "measurement_method": "攪拌機 Log 或人工記錄",
+      "normal_threshold": "依廠商規定（通常 30~60min）",
+      "priority_stars": 4,
+      "remarks": "攪拌不足→雙峰分佈"
+    },
+    {
+      "process_category": "🧴 Paste（錫膏）",
+      "inspection_item": "批號追溯",
+      "measurement_method": "批號與 IQC 報告對應",
+      "normal_threshold": "IQC Pass",
+      "priority_stars": 4,
+      "remarks": "批次差異分析"
+    },
+    {
+      "process_category": "🔌 PCB / Pad",
+      "inspection_item": "PCB 翹曲量測",
+      "measurement_method": "翹曲量測儀或平台量測",
+      "normal_threshold": "翹曲 < 0.75%（IPC 標準）",
+      "priority_stars": 5,
+      "remarks": "來料 IQC + 回流後確認"
+    },
+    {
+      "process_category": "🔌 PCB / Pad",
+      "inspection_item": "Pad 表面處理確認",
+      "measurement_method": "XRF / 目視 / 接觸角量測",
+      "normal_threshold": "依設計（ENIG/OSP 等）",
+      "priority_stars": 4,
+      "remarks": "氧化 Pad → 轉印面積↓"
+    },
+    {
+      "process_category": "🔌 PCB / Pad",
+      "inspection_item": "Pad 尺寸量測",
+      "measurement_method": "光學量測",
+      "normal_threshold": "設計值 ± 10μm",
+      "priority_stars": 3,
+      "remarks": "IQC 抽樣量測"
+    },
+    {
+      "process_category": "🔌 PCB / Pad",
+      "inspection_item": "板厚量測",
+      "measurement_method": "千分尺量測",
+      "normal_threshold": "設計值 ± 0.1mm",
+      "priority_stars": 3,
+      "remarks": "影響離板距離"
+    },
+    {
+      "process_category": "🔌 PCB / Pad",
+      "inspection_item": "Fiducial Mark 品質",
+      "measurement_method": "視覺系統辨識率確認",
+      "normal_threshold": "辨識成功率 > 99%",
+      "priority_stars": 5,
+      "remarks": "髒污→對位誤差"
+    },
+    {
+      "process_category": "🎯 Alignment（對位）",
+      "inspection_item": "視覺 Calibration 日期",
+      "measurement_method": "查閱 Calibration Log",
+      "normal_threshold": "依 PM 週期（通常每週/每月）",
+      "priority_stars": 5,
+      "remarks": "超期 → 立即校正"
+    },
+    {
+      "process_category": "🎯 Alignment（對位）",
+      "inspection_item": "X/Y 對位 Cpk",
+      "measurement_method": "SPC 計算對位 Cpk",
+      "normal_threshold": "Cpk ≥ 1.33",
+      "priority_stars": 5,
+      "remarks": "< 1.33 → 觸發調查"
+    },
+    {
+      "process_category": "🎯 Alignment（對位）",
+      "inspection_item": "對位補正值累積量",
+      "measurement_method": "讀取機台對位補正 Log",
+      "normal_threshold": "補正量 < ±50μm",
+      "priority_stars": 4,
+      "remarks": "累積大 → 重新 Calibration"
+    },
+    {
+      "process_category": "🎯 Alignment（對位）",
+      "inspection_item": "PCB 夾持重複性",
+      "measurement_method": "同片 PCB 重複放置後量測",
+      "normal_threshold": "重複性 < ±20μm",
+      "priority_stars": 4,
+      "remarks": "夾具磨損 → 更換"
+    },
+    {
+      "process_category": "🌡 Environment（環境）",
+      "inspection_item": "印刷區溫度",
+      "measurement_method": "溫度計/環境監控系統",
+      "normal_threshold": "23 ± 3°C（通常）",
+      "priority_stars": 4,
+      "remarks": "連續記錄，異常報警"
+    },
+    {
+      "process_category": "🌡 Environment（環境）",
+      "inspection_item": "印刷區濕度",
+      "measurement_method": "濕度計/環境監控系統",
+      "normal_threshold": "40~60% RH",
+      "priority_stars": 3,
+      "remarks": "過低→錫膏乾燥加速"
+    },
+    {
+      "process_category": "🌡 Environment（環境）",
+      "inspection_item": "機台振動量",
+      "measurement_method": "振動計量測機台底座",
+      "normal_threshold": "< 規格值（依機台廠商）",
+      "priority_stars": 3,
+      "remarks": "鄰近設備啟動時確認"
+    },
+    {
+      "process_category": "🌡 Environment（環境）",
+      "inspection_item": "靜置時間（印刷間隔）",
+      "measurement_method": "記錄上次印刷到本次間隔",
+      "normal_threshold": "< 30min（超過需確認錫膏狀態）",
+      "priority_stars": 4,
+      "remarks": "間隔長→錫膏乾燥"
+    }
+  ]
+}

@@ -1,0 +1,217 @@
+{
+  "entries": [
+    {
+      "chart_type": "CUSUM",
+      "observed_signal": "CUSUM(Volume) 持續往下穿越 H 線",
+      "likely_cause_1": "錫膏黏度上升/消耗",
+      "likely_cause_2": "刮刀壓力漸增",
+      "likely_cause_3": "鋼板開口累積堵塞",
+      "rule_ids": [
+        "R001",
+        "R002"
+      ],
+      "process_type": "Global Drift",
+      "urgency": "🔴 高"
+    },
+    {
+      "chart_type": "CUSUM",
+      "observed_signal": "CUSUM(Offset) 持續往一側穿越 H 線",
+      "likely_cause_1": "視覺對位漂移",
+      "likely_cause_2": "PCB 熱膨脹",
+      "likely_cause_3": "鋼板安裝偏差",
+      "rule_ids": [
+        "R013",
+        "R014"
+      ],
+      "process_type": "Global Drift",
+      "urgency": "🔴 高"
+    },
+    {
+      "chart_type": "SPC",
+      "observed_signal": "SPC 連續 7 點在均值單側",
+      "likely_cause_1": "換料批次差異",
+      "likely_cause_2": "換班操作差異",
+      "likely_cause_3": "環境條件改變",
+      "rule_ids": [
+        "R003",
+        "R011"
+      ],
+      "process_type": "Global Shift",
+      "urgency": "🟡 中"
+    },
+    {
+      "chart_type": "SPC",
+      "observed_signal": "SPC σ 突然增大（Cpk 下降）",
+      "likely_cause_1": "刮刀不穩定",
+      "likely_cause_2": "錫膏黏度不均",
+      "likely_cause_3": "鋼板鬆動",
+      "rule_ids": [
+        "R007",
+        "R030"
+      ],
+      "process_type": "Variation Issue",
+      "urgency": "🟡 中"
+    },
+    {
+      "chart_type": "SPC",
+      "observed_signal": "SPC 單點超出 3σ（偶發）",
+      "likely_cause_1": "偶發性離板不良",
+      "likely_cause_2": "偶發性異物",
+      "likely_cause_3": "—",
+      "rule_ids": [
+        "R030"
+      ],
+      "process_type": "Variation Issue",
+      "urgency": "🟢 低"
+    },
+    {
+      "chart_type": "Histogram",
+      "observed_signal": "Histogram Volume 雙峰（Bimodal）",
+      "likely_cause_1": "錫膏黏度混用",
+      "likely_cause_2": "攪拌不足",
+      "likely_cause_3": "—",
+      "rule_ids": [
+        "R009",
+        "R012"
+      ],
+      "process_type": "Variation Issue",
+      "urgency": "🔴 高"
+    },
+    {
+      "chart_type": "Histogram",
+      "observed_signal": "Histogram Volume 均值整體右移（↑）",
+      "likely_cause_1": "刮刀壓力過低",
+      "likely_cause_2": "新批次錫膏黏度低",
+      "likely_cause_3": "—",
+      "rule_ids": [
+        "R023"
+      ],
+      "process_type": "Global Shift",
+      "urgency": "🟡 中"
+    },
+    {
+      "chart_type": "Histogram",
+      "observed_signal": "Histogram Volume 均值整體左移（↓）",
+      "likely_cause_1": "換料批次差異",
+      "likely_cause_2": "刮刀更換",
+      "likely_cause_3": "鋼板清潔後差異",
+      "rule_ids": [
+        "R003"
+      ],
+      "process_type": "Global Shift",
+      "urgency": "🔴 高"
+    },
+    {
+      "chart_type": "Heatmap",
+      "observed_signal": "Heatmap 固定位置高亮（Cluster）",
+      "likely_cause_1": "鋼板局部堵孔",
+      "likely_cause_2": "局部 Pad 氧化",
+      "likely_cause_3": "Fiducial 對位偏差",
+      "rule_ids": [
+        "R001",
+        "R016"
+      ],
+      "process_type": "Local Issue",
+      "urgency": "🔴 高"
+    },
+    {
+      "chart_type": "Heatmap",
+      "observed_signal": "Heatmap 左右不對稱（梯度）",
+      "likely_cause_1": "刮刀 L/R 壓力差",
+      "likely_cause_2": "刮刀傾角偏斜",
+      "likely_cause_3": "PCB 夾持不平",
+      "rule_ids": [
+        "R004"
+      ],
+      "process_type": "Variation Issue",
+      "urgency": "🟡 中"
+    },
+    {
+      "chart_type": "Heatmap",
+      "observed_signal": "Heatmap 前後不對稱（印刷方向梯度）",
+      "likely_cause_1": "刮刀速度不均",
+      "likely_cause_2": "起終點壓力差",
+      "likely_cause_3": "—",
+      "rule_ids": [
+        "R005"
+      ],
+      "process_type": "Variation Issue",
+      "urgency": "🟡 中"
+    },
+    {
+      "chart_type": "Heatmap",
+      "observed_signal": "Heatmap 全板均勻偏低",
+      "likely_cause_1": "刮刀壓力整體設定低",
+      "likely_cause_2": "錫膏黏度整體高",
+      "likely_cause_3": "鋼板開口整體偏小",
+      "rule_ids": [
+        "R006",
+        "R023"
+      ],
+      "process_type": "Global Shift",
+      "urgency": "🔴 高"
+    },
+    {
+      "chart_type": "Scatter",
+      "observed_signal": "Scatter Vol-Height 高正相關 r>0.8",
+      "likely_cause_1": "刮刀壓力不足",
+      "likely_cause_2": "刮刀磨損",
+      "likely_cause_3": "—",
+      "rule_ids": [
+        "R006"
+      ],
+      "process_type": "Variation Issue",
+      "urgency": "🟡 中"
+    },
+    {
+      "chart_type": "Scatter",
+      "observed_signal": "Scatter X-offset vs Batch 週期規律",
+      "likely_cause_1": "PCB 夾持不一致",
+      "likely_cause_2": "換班操作習慣差異",
+      "likely_cause_3": "—",
+      "rule_ids": [
+        "R017"
+      ],
+      "process_type": "Global Drift",
+      "urgency": "🟡 中"
+    },
+    {
+      "chart_type": "Scatter",
+      "observed_signal": "Scatter Vol vs Position 線性梯度",
+      "likely_cause_1": "刮刀 L/R 壓力差",
+      "likely_cause_2": "PCB 固定不平",
+      "likely_cause_3": "—",
+      "rule_ids": [
+        "R004",
+        "R005"
+      ],
+      "process_type": "Variation Issue",
+      "urgency": "🟡 中"
+    },
+    {
+      "chart_type": "Trend",
+      "observed_signal": "Trend Volume 緩慢下降（長期）",
+      "likely_cause_1": "錫膏逐漸消耗/老化",
+      "likely_cause_2": "刮刀彈性疲勞漸增",
+      "likely_cause_3": "鋼板長期使用磨損",
+      "rule_ids": [
+        "R002"
+      ],
+      "process_type": "Global Drift",
+      "urgency": "🟡 中"
+    },
+    {
+      "chart_type": "Trend",
+      "observed_signal": "Trend Offset 突然跳變後維持新均值",
+      "likely_cause_1": "鋼板重新安裝偏差",
+      "likely_cause_2": "視覺 Calibration 重置異常",
+      "likely_cause_3": "機台振動",
+      "rule_ids": [
+        "R018",
+        "R027"
+      ],
+      "process_type": "Global Shift",
+      "urgency": "🔴 高"
+    }
+  ]
+}

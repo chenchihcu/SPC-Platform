@@ -32,7 +32,9 @@ tmp/*
 
 # Runtime data and generated outputs
 Outputs/
-/data/
+/data/*
+!/data/ipc_jstd_pillar_seed.json
+!/data/spi_process_kb/
 tmp/*
 !tmp/.gitkeep
 !tmp/README.md

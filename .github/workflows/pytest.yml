@@ -21,6 +21,8 @@ jobs:
         with:
           python-version: "3.12"
 
+      # PySide6 wheels link libEGL.so.1, which ubuntu-latest lacks; every other Qt
+      # dependency (incl. the offscreen platform plugin) is already on the image.
       - name: Install Qt runtime system libraries
         run: |
           sudo apt-get update
@@ -28,14 +30,6 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
-
-      - name: Diagnose Qt shared-library deps (temporary)
-        run: |
-          QT_DIR=$(python -c "import PySide6, os; print(os.path.dirname(PySide6.__file__))")
-          for f in "$QT_DIR"/Qt/lib/libQt6Core.so.6 "$QT_DIR"/Qt/lib/libQt6Gui.so.6 "$QT_DIR"/Qt/lib/libQt6Widgets.so.6 "$QT_DIR"/Qt/plugins/platforms/libqoffscreen.so "$QT_DIR"/QtGui.abi3.so "$QT_DIR"/QtWidgets.abi3.so; do
-            echo "== $f"; ldd "$f" | grep "not found" || true
-          done
-          python -c "from PySide6.QtWidgets import QApplication; app = QApplication([]); print('QApplication OK', app.platformName())"
 
       - name: Run lint
         run: python -m ruff check .

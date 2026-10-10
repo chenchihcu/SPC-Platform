@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0.0",
+  "kb_version": "v1",
+  "generated_at": "2026-04-07T17:19:40.210453+00:00",
+  "source_xlsx_basename": "SPI_製程對應知識庫_v1.0.xlsx",
+  "canonical_workbook_basename": "SPI_製程對應知識庫_v1.0.xlsx",
+  "source_xlsx_sha256": "44f8683aad5e504ed808e0a165d075768cf3903b473c255b83525a6e3fc3c633",
+  "import_report": [
+    "multi_signal_rules:30_rows",
+    "dimension_matrix:13_rows",
+    "inspection_checklist:30_rows",
+    "chart_signal_lookup:17_rows"
+  ],
+  "description": "SPI process knowledge base bundle; authoritative Excel: SPI_製程對應知識庫_v1.0.xlsx"
+}
