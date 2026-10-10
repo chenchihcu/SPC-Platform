@@ -313,13 +313,6 @@ class CoordinateManagerPage(CsvDropZoneMixin, QWidget):
         """Return the currently selected product key from the dropdown."""
         return str(self.product_combo.currentData() or "")
 
-    def show_registration(self, show: bool = True) -> None:
-        """Toggle the visibility of the product-coordinate binding section and focus input."""
-        if hasattr(self, "_btn_bind_section"):
-            self._btn_bind_section.setChecked(show)
-        self._bind_container.setVisible(show)
-        if show:
-            self.product_name_edit.setFocus()
             # Ensure it's scrolled into view if needed by host
 
     def reset_upload_state(self) -> None:
@@ -481,7 +474,7 @@ class CoordinateManagerPage(CsvDropZoneMixin, QWidget):
         """Update the status indicator lamp and label if they exist (standalone mode)."""
         if not hasattr(self, "status_lamp") or not self.status_lamp:
             return
-        state_map = {"ok": "success", "error": "warning", "loading": "loading", "idle": "idle"}
+        state_map = {"ok": "success", "error": "error", "loading": "loading", "idle": "idle"}
         state = state_map.get(state_name, "idle")
         self.status_lamp.setProperty("state", state)
         self.status_lamp.style().unpolish(self.status_lamp)

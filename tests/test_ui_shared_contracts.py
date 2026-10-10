@@ -6,7 +6,9 @@ from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QAbstractItemView, QFrame, QTableWidget
+from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication, QAbstractItemView, QFrame, QPushButton, QTableWidget, QTableWidgetItem
 
 from app.ui.pages.coordinate_manager_page import CoordinateManagerPage
 from app.ui.pages.reference_page import ReferencePage
@@ -17,7 +19,12 @@ from app.ui.pages.measurement_library_page import MeasurementLibraryPage, _COL_N
 from app.ui.theme import apply_dark_theme
 from app.ui.theme.dark_stylesheet import get_app_stylesheet
 from app.ui.theme.tokens import SECONDARY_TAB_COMPACT_MIN_WIDTH
-from app.ui.widgets.page_templates import empty_state_label, set_drop_zone_active, style_table
+from app.ui.widgets.page_templates import (
+    bind_table_delete_shortcut,
+    empty_state_label,
+    set_drop_zone_active,
+    style_table,
+)
 from app.ui.workflow_labels import VISIBLE_WORKFLOW_TABS, WORKFLOW_LABEL_CHARTS, WORKFLOW_LABEL_STATISTICS_DATA
 
 
@@ -221,3 +228,49 @@ def test_style_table_roles_control_shared_table_behavior() -> None:
     default_table.close()
     reference_table.close()
     diagnostic_table.close()
+
+
+def test_table_delete_shortcut_requires_selection_and_stays_table_scoped() -> None:
+    _ensure_app()
+    table = QTableWidget(1, 1)
+    table.setItem(0, 0, QTableWidgetItem("row"))
+    delete_button = QPushButton("刪除")
+    invocations: list[bool] = []
+    delete_button.clicked.connect(lambda: invocations.append(True))
+    shortcut = bind_table_delete_shortcut(table, delete_button)
+    try:
+        assert not delete_button.isEnabled()
+        assert shortcut.context() == Qt.ShortcutContext.WidgetWithChildrenShortcut
+        assert shortcut.key().matches(QKeySequence("Delete")) == QKeySequence.SequenceMatch.ExactMatch
+        shortcut.activated.emit()
+        assert invocations == []
+        table.selectRow(0)
+        table.show()
+        table.activateWindow()
+        table.setFocus()
+        QTest.qWait(20)
+        QTest.keyClick(table, Qt.Key.Key_Delete)
+        assert invocations == [True]
+        assert "兩次確認" in delete_button.toolTip()
+    finally:
+        table.close()
+        delete_button.close()
+
+
+def test_measurement_library_delete_actions_share_table_scoped_shortcuts() -> None:
+    _ensure_app()
+    page = MeasurementLibraryPage()
+    try:
+        pairs = (
+            (page._table, page._delete_btn),
+            (page._c_table, page._c_delete_btn),
+            (page._sp_table, page._sp_delete_btn),
+            (page._sup_table, page._sup_delete_btn),
+        )
+        for table, delete_button in pairs:
+            shortcuts = table.findChildren(QShortcut)
+            assert not delete_button.isEnabled()
+            assert any(shortcut.objectName() == "tableDeleteShortcut" for shortcut in shortcuts)
+            assert "Delete" in delete_button.toolTip()
+    finally:
+        page.close()

@@ -364,10 +364,22 @@ def build_process_stat_report_sections(
         ),
     ]
 
+    # Unit/scale mismatch (mm data vs % spec): the capability numbers are not a
+    # trustworthy verdict. Never present Cp/Cpk as 正常/good; downgrade to 參考 and
+    # annotate the judgment, matching the PPTX 需複核 reliability label.
+    cap_scale_mismatch = bool(l5.get("scale_mismatch"))
+
+    def _cap_state(raw_state: str) -> str:
+        return "neutral" if cap_scale_mismatch else raw_state
+
+    cpk_judgment_text = cpk_judgment_zh(cpk_v)
+    if cap_scale_mismatch:
+        cpk_judgment_text = f"{cpk_judgment_text}（疑單位/尺度不符，數值僅供參考）"
+
     capability_rows = [
-        _report_row("cpk", "Cpk (主特徵)", fmt_dashboard_value(cpk_v), value_state_from_layer_state(cpk_state_ui(cpk_v)), "layer_5_spec_analysis", "製程中心化與規格能力。"),
-        _report_row("cp", "Cp", fmt_dashboard_value(l5.get("cp")), value_state_from_layer_state(cpk_state_ui(l5.get("cp"))), "layer_5_spec_analysis", "製程分散相對規格寬度。"),
-        _report_row("judgment", "製程能力判讀", cpk_judgment_zh(cpk_v), value_state_from_layer_state(cpk_state_ui(cpk_v)), "layer_5_spec_analysis", "能力門檻判讀。"),
+        _report_row("cpk", "Cpk (主特徵)", fmt_dashboard_value(cpk_v), _cap_state(value_state_from_layer_state(cpk_state_ui(cpk_v))), "layer_5_spec_analysis", "製程中心化與規格能力。"),
+        _report_row("cp", "Cp", fmt_dashboard_value(l5.get("cp")), _cap_state(value_state_from_layer_state(cpk_state_ui(l5.get("cp")))), "layer_5_spec_analysis", "製程分散相對規格寬度。"),
+        _report_row("judgment", "製程能力判讀", cpk_judgment_text, _cap_state(value_state_from_layer_state(cpk_state_ui(cpk_v))), "layer_5_spec_analysis", "能力門檻判讀。"),
         _report_row("usl", "USL", fmt_dashboard_value(l5.get("usl")), "neutral", "layer_5_spec_analysis", "規格上限。"),
         _report_row("lsl", "LSL", fmt_dashboard_value(l5.get("lsl")), "neutral", "layer_5_spec_analysis", "規格下限。"),
         _report_row("target", "目標", fmt_dashboard_value(l5.get("target")), "neutral", "layer_5_spec_analysis", "目標值或規格中心。"),
@@ -379,10 +391,20 @@ def build_process_stat_report_sections(
     top_refs = l4.get("top_oos_refdes")
     top_ref_state = "bad" if isinstance(top_refs, list) and len(top_refs) > 0 else "good"
     outlier_state = ooc_state if ooc_state in {"bad", "warning"} else "neutral"
+    # Sigma averages only spec'd features with a valid Z-bench. When some spec'd
+    # features are excluded (e.g. Z-bench undefined under a unit/scale mismatch),
+    # annotate the coverage so the headline sigma is not read as an overall verdict.
+    sigma_value_text = fmt_dashboard_value(l2.get("sigma_level"), "num")
+    sigma_n = l2.get("sigma_level_n")
+    sigma_expected = l2.get("sigma_level_expected")
+    if (isinstance(sigma_n, int) and isinstance(sigma_expected, int)
+            and sigma_expected > 0 and sigma_n < sigma_expected):
+        sigma_value_text = f"{sigma_value_text}（僅 {sigma_n}/{sigma_expected} 特徵）"
+
     stability_rows = [
         _report_row("yield", "良率 (Yield)", fmt_dashboard_value(l2.get("yield_pct"), "yield_pct"), yield_state_ui(l2.get("yield_pct")), "layer_2_kpi", "所有規格特徵在公差內的列數比例。"),
         _report_row("dpmo", "DPMO", fmt_dashboard_value(l2.get("dpmo"), "num"), dpmo_state_ui(l2.get("dpmo")), "layer_2_kpi", "每百萬機會缺陷數。"),
-        _report_row("sigma", "Sigma 水準", fmt_dashboard_value(l2.get("sigma_level"), "num"), "neutral", "layer_2_kpi", "缺陷率換算之 Sigma 表現。"),
+        _report_row("sigma", "Sigma 水準", sigma_value_text, "neutral", "layer_2_kpi", "缺陷率換算之 Sigma 表現（僅計有效 Z-bench 特徵）。"),
         _report_row("sample", "樣本數", str(l3.get("sample_size") if l3.get("sample_size") is not None else "—"), "neutral", "layer_3_info", "本次分析量測筆數。"),
         _report_row("range", "全距", fmt_dashboard_value(l3.get("range")), "neutral", "layer_3_info", "最大值與最小值距離。"),
         _report_row("pattern", "異常空間型態", str(l4.get("defect_pattern_zh") or "隨機分布"), cluster_state, "layer_4_defect_structure", "缺陷分布型態。"),

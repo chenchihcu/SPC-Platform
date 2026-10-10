@@ -2,6 +2,7 @@
 Repeated offender engine: rank RefDes by out-of-spec count (violation count).
 Phase 4 P1: single batch or filtered data, per-RefDes violation count.
 """
+import numpy as np
 import pandas as pd
 from typing import Dict, Any, Optional
 from app.analytics.statistical_utils import invalid_chart_payload
@@ -29,7 +30,11 @@ class RepeatedOffenderEngine:
             return invalid_chart_payload("RepeatedOffender", "缺少 RefDes 欄位。", target_col)
         if usl is None and lsl is None:
             return invalid_chart_payload("RepeatedOffender", "請設定規格上下限 (USL/LSL) 以計算違規。", target_col)
-        valid = df[[refdes_col, target_col]].dropna()
+        valid = (
+            df[[refdes_col, target_col]]
+            .replace([np.inf, -np.inf], np.nan)
+            .dropna()
+        )
         if valid.empty:
             return invalid_chart_payload("RepeatedOffender", "無有效資料。", target_col)
         violations = pd.Series(False, index=valid.index)

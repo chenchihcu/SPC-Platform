@@ -1,11 +1,12 @@
+import json
 import logging
+from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 from app.data.session_store import SessionStore
 from app.utils.constants import FEATURE_COLUMNS, FEATURE_DISPLAY_NAMES
-from app.utils.numeric_utils import coerce_float, coerce_int
 from app.services import report_risk
 from app.services import report_diagnostics
 from app.services import report_context
@@ -143,16 +144,22 @@ def _payload_matches_report_context(
     batch: str,
     refdes: str,
     part_type: str,
+    stencil_analysis: Optional[Dict[str, Any]] = None,
 ) -> bool:
     if not isinstance(payload, dict):
         return False
     if list(payload.get("selected_features") or []) != list(selected_features):
         return False
-    return (
+    scope_matches = (
         str(payload.get("_ctx_batch", "")) == str(batch)
         and str(payload.get("_ctx_refdes", "")) == str(refdes)
         and str(payload.get("_ctx_part_type", "")) == str(part_type)
     )
+    if not scope_matches:
+        return False
+    if stencil_analysis is not None:
+        return (payload.get("stencil_analysis") or {}) == stencil_analysis
+    return True
 
 
 def _make_cached_chart_renderer(
@@ -197,18 +204,9 @@ def _make_cached_chart_renderer(
     return _render
 
 
-def _coerce_float(value: Any, default: float = 0.0) -> float:
-    return coerce_float(value, default)
-
-
-def _coerce_int(value: Any, default: int = 0) -> int:
-    return coerce_int(value, default)
 
 
 # ── Risk level ──────────────────────────────────────────────────────────────
-def _risk_level_display(level: str) -> str:
-    return report_risk.risk_level_display(level)
-
 
 def _compute_risk_level(
     hints: List[Dict[str, Any]],
@@ -222,18 +220,6 @@ def _compute_risk_level(
         diagnostics=diagnostics,
     )
 
-
-def _build_risk_assessment(
-    *,
-    process: Optional[Dict[str, Any]] = None,
-    hints: Optional[List[Dict[str, Any]]] = None,
-    diagnostics: Optional[List[Dict[str, Any]]] = None,
-) -> Dict[str, Any]:
-    return report_risk.build_risk_assessment(
-        process=process,
-        hints=hints,
-        diagnostics=diagnostics,
-    )
 
 
 def _get_no_chart_reason(chart_id: str, payload: Dict[str, Any]) -> str:
@@ -293,10 +279,14 @@ class ReportService:
             from app.services.pptx_report_builder import build_pptx_report
             from app.analytics.summary_engine import compute_summary
             from app.data.session_store import _analysis_cache_key, filter_analysis_df
-            from app.viewmodels.chart_analysis_viewmodel import compute_analysis_payload
+            from app.viewmodels.chart_analysis_viewmodel import (
+                _apply_stencil_statistical_contract,
+                compute_analysis_payload,
+            )
 
             wo_master = getattr(store, "workorder_master", {}) or {}
             wo_spec = getattr(store, "workorder_spec", {}) or {}
+            source_wo_spec = wo_spec
 
             # Build summary data
             df = store.get_analysis_df()
@@ -317,6 +307,66 @@ class ReportService:
             if filtered_df.empty:
                 return (False, "過濾後無資料。")
 
+            from app.services.stencil_document_service import (
+                derive_percentage_dataframe,
+                infer_measurement_side,
+                percentage_workorder_spec,
+            )
+
+            product_name = str(wo_master.get("product_name") or "").strip()
+            side = infer_measurement_side(filtered_df, getattr(store, "meas_meta", {}) or {})
+            if product_name and side:
+                domain_result = derive_percentage_dataframe(
+                    filtered_df,
+                    product_name=product_name,
+                    side=side,
+                    measurement_units=(getattr(store, "meas_meta", {}) or {}).get(
+                        "measurement_units"
+                    )
+                    or {},
+                )
+                filtered_df = domain_result.dataframe
+                store.analysis_domain_meta = dict(domain_result.metadata)
+                if domain_result.metadata.get("value_domain") == "percent":
+                    wo_spec = percentage_workorder_spec(product_name) or {}
+                else:
+                    wo_spec = {}
+            elif product_name:
+                store.analysis_domain_meta = {
+                    "value_domain": "raw",
+                    "side": "",
+                    "matched": 0,
+                    "total": int(len(filtered_df)),
+                    "coverage": 0.0,
+                    "verify": True,
+                    "verify_reasons": ["量測資料無法確認 Top/Bottom Side"],
+                    "unmatched_pads": [],
+                    "original_units": dict(
+                        ((getattr(store, "meas_meta", {}) or {}).get("measurement_units") or {})
+                    ),
+                }
+                wo_spec = {}
+            else:
+                store.analysis_domain_meta = {
+                    "value_domain": "legacy",
+                    "side": "",
+                    "matched": int(len(filtered_df)),
+                    "total": int(len(filtered_df)),
+                    "coverage": 1.0,
+                    "verify": False,
+                    "verify_reasons": [],
+                    "unmatched_pads": [],
+                    "original_units": dict(
+                        ((getattr(store, "meas_meta", {}) or {}).get("measurement_units") or {})
+                    ),
+                }
+            wo_master = {
+                **dict(wo_master),
+                "_stencil_analysis": dict(
+                    getattr(store, "analysis_domain_meta", {}) or {}
+                ),
+            }
+
             available_features = [col for col in FEATURE_COLUMNS if col in filtered_df.columns]
             raw_selected_features = list(getattr(store, "selected_features", None) or [])
             selected_features = [
@@ -334,12 +384,44 @@ class ReportService:
                 time_start=time_start,
                 time_end=time_end,
                 line=line,
-                spec_version=store.spec_cache_token(wo_spec),
+                spec_version=store.spec_cache_token(wo_spec)
+                + "|"
+                + json.dumps(
+                    getattr(store, "analysis_domain_meta", {}) or {},
+                    sort_keys=True,
+                    ensure_ascii=True,
+                    default=str,
+                ),
             )
             cached_payload = getattr(store, "_analysis_cache", {}).get(cache_key)
             if isinstance(cached_payload, dict):
                 payload = cached_payload
             else:
+                # Historical raw sessions used a cache key without stencil-domain
+                # evidence.  Reuse their trend payload only after applying the new
+                # fail-closed statistical contract; percent-domain caches never use
+                # this compatibility path.
+                domain_meta = dict(getattr(store, "analysis_domain_meta", {}) or {})
+                if domain_meta.get("value_domain") == "raw":
+                    legacy_cache_key = _analysis_cache_key(
+                        selected_features,
+                        batch,
+                        refdes_filter,
+                        part_type,
+                        product=product,
+                        time_start=time_start,
+                        time_end=time_end,
+                        line=line,
+                        spec_version=store.spec_cache_token(source_wo_spec),
+                    )
+                    legacy_cached = getattr(store, "_analysis_cache", {}).get(
+                        legacy_cache_key
+                    )
+                    if isinstance(legacy_cached, dict):
+                        payload = deepcopy(legacy_cached)
+                        _apply_stencil_statistical_contract(payload, domain_meta)
+
+            if not payload:
                 last_payload = getattr(store, "last_analysis_payload", None)
                 if isinstance(last_payload, dict) and _payload_matches_report_context(
                     last_payload,
@@ -347,6 +429,9 @@ class ReportService:
                     batch=batch,
                     refdes=refdes_filter,
                     part_type=part_type,
+                    stencil_analysis=dict(
+                        getattr(store, "analysis_domain_meta", {}) or {}
+                    ),
                 ):
                     payload = last_payload
 

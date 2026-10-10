@@ -37,6 +37,7 @@ from app.ui.theme.tokens import (
     STENCIL_NUMERIC_MAX_WIDTH,
     STENCIL_ACTION_BUTTON_WIDTH,
     STENCIL_LABEL_MIN_WIDTH,
+    STENCIL_SUMMARY_ROW_MIN_HEIGHT,
     STENCIL_EMBED_THICKNESS_MIN_WIDTH,
     STENCIL_EMBED_TYPE_COMBO_MIN_WIDTH,
     STENCIL_EMBED_PRECISION_WHICH_MIN_WIDTH,
@@ -53,6 +54,8 @@ from app.data.stencil_assignment_registry import (
     list_precision_refdes,
     save_assignments,
 )
+from app.data.stencil_document_library import get_active_stencil_document
+from app.ui.dialogs.stencil_document_import_dialog import StencilDocumentImportDialog
 
 
 
@@ -62,6 +65,8 @@ class StencilSpecEditor(QWidget):
     """產品鋼板規格：類型、厚度、階梯時精密套用元件勾選。"""
     spec_saved = Signal(str)  # product_name
     manage_requested = Signal()
+    manage_documents_requested = Signal(str)
+    document_versions_changed = Signal(str)
     thickness_validity_changed = Signal(bool)
     THICKNESS_MIN_MM = 0.05
     THICKNESS_MAX_MM = 0.50
@@ -96,7 +101,7 @@ class StencilSpecEditor(QWidget):
             title.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
             card_lay.addWidget(title)
 
-            desc = QLabel("設定鋼板類型與厚度參數。階梯鋼板可指定精密區域元件。")
+            desc = QLabel("階梯鋼板可指定精密區域元件。")
             desc.setProperty("class", "caption")
             desc.setWordWrap(True)
             desc.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
@@ -163,6 +168,7 @@ class StencilSpecEditor(QWidget):
             # ── 橫向高密度摘要欄 ──
             self._summary_container = QFrame()
             self._summary_container.setProperty("class", "specSummaryRow")
+            self._summary_container.setMinimumHeight(STENCIL_SUMMARY_ROW_MIN_HEIGHT)
             sum_lay = QtWidgets.QHBoxLayout(self._summary_container)
             sum_lay.setContentsMargins(SPACING_8, SPACING_4, SPACING_8, SPACING_4)
             sum_lay.setSpacing(SPACING_16)
@@ -312,6 +318,35 @@ class StencilSpecEditor(QWidget):
         if not self._embedded:
             card_lay.addWidget(self.thickness_validation_lbl)
 
+        # ── 開窗文件狀態與入口 ──
+        self._document_container = QFrame()
+        self._document_container.setProperty("class", "specSummaryRow")
+        self._document_container.setMinimumHeight(STENCIL_SUMMARY_ROW_MIN_HEIGHT)
+        document_row = QtWidgets.QHBoxLayout(self._document_container)
+        document_row.setContentsMargins(SPACING_8, SPACING_4, SPACING_8, SPACING_4)
+        document_row.setSpacing(SPACING_8)
+        self.document_status_lbl = QLabel("開窗文件：Top 未啟用｜Bottom 未啟用")
+        self.document_status_lbl.setProperty("class", "caption")
+        self.document_status_lbl.setWordWrap(True)
+        self.document_status_lbl.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
+        document_row.addWidget(self.document_status_lbl, 1)
+        self.btn_import_document = QPushButton("載入開窗文件")
+        self.btn_import_document.setProperty("class", "secondary")
+        self.btn_import_document.clicked.connect(self._open_stencil_document_import)
+        document_row.addWidget(self.btn_import_document)
+        self.btn_manage_documents = QPushButton("管理文件")
+        self.btn_manage_documents.setProperty("class", "secondary")
+        self.btn_manage_documents.clicked.connect(
+            lambda: self.manage_documents_requested.emit(self.selected_product())
+        )
+        document_row.addWidget(self.btn_manage_documents)
+        if self._embedded:
+            root.addWidget(self._document_container)
+        else:
+            card_lay.addWidget(self._document_container)
+
         # ── RefDes 勾選區 ──
         # 將精密元件勾選區也改為更緊湊的佈局
         self.refdes_container = QFrame()
@@ -366,6 +401,7 @@ class StencilSpecEditor(QWidget):
         self._populate_products()
         self._on_type_changed()
         self._validate_thickness_field()
+        self.refresh_document_status()
 
         # Audit Item 117: Set proper tab order for form accessibility.
         # In embedded mode product_combo / btn_load_spec are not added to any
@@ -437,22 +473,54 @@ class StencilSpecEditor(QWidget):
         idx = self.product_combo.findData(product_name)
         if idx >= 0:
             self.product_combo.setCurrentIndex(idx)
+        self.refresh_document_status()
 
     def selected_product(self) -> str:
         """Return selected product name from combobox data."""
         return str(self.product_combo.currentData() or "")
 
-    def reset_for_product_change(self) -> None:
-        """Reset spec fields and precision RefDes selection for new product context."""
-        self.type_combo.setCurrentIndex(0)
-        self.thickness_main.clear()
-        self.thickness_precision.clear()
-        self.thickness_main.setPlaceholderText("0.12")
-        self.thickness_precision.setPlaceholderText("0.08")
-        self._clear_refdes_inner()
-        self.refdes_hint.setText("請先載入座標檔以取得 RefDes 清單。")
-        self.refdes_hint.setVisible(True)
-        self._validate_thickness_field()
+
+    def refresh_document_status(self) -> None:
+        """Refresh active Top/Bottom revision and coverage text."""
+        product_name = self.selected_product()
+        if not product_name:
+            self.document_status_lbl.setText("開窗文件：請先選擇產品")
+            self.btn_import_document.setEnabled(False)
+            self.btn_manage_documents.setEnabled(False)
+            return
+        self.btn_import_document.setEnabled(True)
+        self.btn_manage_documents.setEnabled(True)
+        labels: list[str] = []
+        for side, display in (("TOP", "Top"), ("BOTTOM", "Bottom")):
+            version = get_active_stencil_document(product_name, side)
+            if not version:
+                labels.append(f"{display} 未啟用")
+                continue
+            validation = version.get("validation_summary") or {}
+            matched = int(validation.get("matched_pads") or 0)
+            total = int(validation.get("total_pads") or 0)
+            coverage = matched / total * 100.0 if total else 0.0
+            labels.append(
+                f"{display} Rev {version.get('revision') or '—'} {coverage:.1f}% ({matched}/{total})"
+            )
+        self.document_status_lbl.setText("開窗文件：" + "｜".join(labels))
+
+    def _open_stencil_document_import(self) -> None:
+        product_name = self.selected_product()
+        if not product_name:
+            from app.ui.theme import show_dark_warning
+
+            show_dark_warning(self, "請選擇產品", "載入鋼板文件前請先選擇產品。")
+            return
+        dialog = StencilDocumentImportDialog(product_name, self)
+        dialog.version_created.connect(
+            lambda _version_id: self._on_document_version_created(product_name)
+        )
+        dialog.exec()
+
+    def _on_document_version_created(self, product_name: str) -> None:
+        self.refresh_document_status()
+        self.document_versions_changed.emit(product_name)
 
     def has_valid_main_thickness(self) -> bool:
         """Check whether main thickness field is a valid value in allowed range."""
@@ -487,9 +555,6 @@ class StencilSpecEditor(QWidget):
             if name:
                 self.product_combo.addItem(name, name)
 
-    def refresh_products(self) -> None:
-        """由外部呼叫以更新產品下拉清單。"""
-        self._populate_products()
 
     def refresh_refdes_list(self) -> None:
         """由外部呼叫（座標載入完成後）以從 coord_df 更新 RefDes 勾選清單。"""
@@ -544,6 +609,7 @@ class StencilSpecEditor(QWidget):
             if self._embedded:
                 self.summary_spec_lbl.setText("<b>規格：</b>請先選擇或新增產品")
                 self.set_summary_mode(True)
+            self.refresh_document_status()
             return
         spec = get_product_spec(product_name)
         if not spec:
@@ -555,6 +621,7 @@ class StencilSpecEditor(QWidget):
             if self._embedded:
                 self.summary_spec_lbl.setText("<b>規格：</b>尚未設定（請按「管理規格」新增）")
                 self.set_summary_mode(True)
+            self.refresh_document_status()
             return
         self.thickness_main.setText(str(spec.get("thickness_main", "")))
         self.thickness_precision.setText(str(spec.get("thickness_precision", "")) if spec.get("thickness_precision") is not None else "")
@@ -591,6 +658,7 @@ class StencilSpecEditor(QWidget):
             self.set_summary_mode(True)
         
         self.refresh_refdes_list()
+        self.refresh_document_status()
 
     def _save_spec(self) -> None:
         product_name = self.product_combo.currentData()

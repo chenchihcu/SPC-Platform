@@ -37,7 +37,7 @@ Claim types used here: `local-observed`, `audit-inference`, `assumption`, `not v
 | --- | --- | --- | --- |
 | Tracked source | `local-observed` | `README.md` | Not enough for rollback, diff discipline, or worktree automation. |
 | Modified tracked source | `local-observed` | `README.md` | Existing modification must be reviewed before any baseline commit. |
-| Untracked governance | `local-observed` | `AGENTS.md`, `CLAUDE.md`, `.agents/rules/agents_gateway.md`, `.cursor/rules/agents_gateway.mdc`, `.cursor/rules/vibe-tools.mdc`, `.codex/rules/project.rules`, `docs/harness/ai-rules-compatibility.md` | Candidate for reviewed baseline tracking. |
+| Untracked governance | `local-observed` | `AGENTS.md`, `CLAUDE.md`, `.agents/rules/agents_gateway.md`, `.cursor/rules/agents_gateway.mdc`, `.codex/rules/project.rules`, `docs/harness/ai-rules-compatibility.md` | Candidate for reviewed baseline tracking. |
 | Untracked product source | `local-observed` | `app/`, `scripts/`, `tests/`, `validation/`, `main.py`, `chart_router.py` | Appears to be core project source, but requires reviewed staging. |
 | Ignored runtime/generated | `local-observed` | `.env`, `.venv/`, `Outputs/`, `data/`, `tmp/`, `SPC_Platform.exe`, `*.xlsx`, `*.pptx`, caches, Claude worktrees | Must not be captured by blind staging. |
 | Local-only tool state | `local-observed` | `.claude/settings.local.json`, `.claude/worktrees/`, `.cursor/skills/` | Keep local-only; do not use as shared policy. |
@@ -48,7 +48,7 @@ Claim types used here: `local-observed`, `audit-inference`, `assumption`, `not v
 | --- | --- | --- |
 | `recommended-track-list` | `audit-inference` | `README.md` after review, `AGENTS.md`, `CLAUDE.md`, `.gitignore`, `.editorconfig`, `.gitattributes`, `.env.example`, `pyproject.toml`, `requirements.txt`, `main.py`, `chart_router.py`, `app/**/*.py`, `scripts/**`, `tests/**`, `validation/**`, `docs/**`, `.github/workflows/**`, `.agents/rules/**`, `.agents/skills/**`, `.cursor/rules/**`, `.cursor/plans/**`, `.codex/rules/**`, `.claude/settings.json`, `.claude/hooks/**`, `.claude/rules/**`, `.claude/skills/**`, `.claude/agents/**` |
 | `recommended-ignore-list` | `audit-inference` | `.env`, `.env.local`, `.venv/`, `venv/`, `__pycache__/`, `.matplotlib/`, `.mypy_cache/`, `.pytest_cache/`, `.ruff_cache/`, `Outputs/`, `data/`, `tmp/` generated content, `*.log`, `*.exe`, `*.xlsx`, `*.pptx`, `node_modules/`, `.claude/settings.local.json`, `.claude/worktrees/`, `.claude/**/exports/`, `.claude/**/failures/`, `.claude/**/matrix.csv`, `.cursor/skills/` |
-| `needs-user-decision-list` | `audit-inference` | `--help`, `Dashboard.tsx`, `ProcessDashboard.tsx`, `ReportExportDashboard.tsx`, `package.json`, `package-lock.json`, `archive/`, `assets/`, `golden_dataset/`, `sample_data/`, `presentations/`, `references/`, any PDF/CSV/PNG that is a fixture rather than generated output, `.claude/skills/spc-validation-matrix-workspace/**` summary files |
+| `needs-user-decision-list` | `audit-inference` | `--help`, `Dashboard.tsx`, `ProcessDashboard.tsx`, `ReportExportDashboard.tsx`, `package.json`, `package-lock.json`, `archive/`, `assets/`, `golden_dataset/`, `sample_data/`, `presentations/`, `references/`, any PDF/CSV/PNG that is a fixture rather than generated output, `.claude/archive/spc-validation-matrix-workspace/**` summary files |
 | `do-not-track-list` | `audit-inference` | `.env`, generated outputs, runtime data, executable/package artifacts, cache directories, local-only Claude/Cursor state, generated matrix/export/failure outputs |
 
 ## Suspicious Items

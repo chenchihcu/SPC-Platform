@@ -25,8 +25,8 @@ class TestBuildRadarPayload:
     def test_empty_input(self):
         result = build_radar_payload({})
         assert result["metadata"]["is_valid"] is False
-        assert result["data"]["categories"] == []
-        assert result["data"]["series"] == []
+        assert result["data"] == {}
+        assert result["statistics"] == {}
 
     def test_single_series_single_category(self):
         stats_map = {"Only": {"FeatureX": 42.0}}

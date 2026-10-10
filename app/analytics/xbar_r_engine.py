@@ -2,12 +2,27 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Any, Dict, Optional
 from app.analytics.statistical_utils import invalid_chart_payload
 
 import numpy as np
 import pandas as pd
+from scipy.stats import norm  # type: ignore[import-untyped]
 
+
+# AIAG d2 / d3 for n = 2..10 (relative-range mean and std of n standard normals).
+_D2_D3_TABLE: dict[int, tuple[float, float]] = {
+    2: (1.128, 0.853),
+    3: (1.693, 0.888),
+    4: (2.059, 0.880),
+    5: (2.326, 0.864),
+    6: (2.534, 0.848),
+    7: (2.704, 0.833),
+    8: (2.847, 0.820),
+    9: (2.970, 0.808),
+    10: (3.078, 0.797),
+}
 
 _XBAR_R_CONSTANTS: dict[int, tuple[float, float, float]] = {
     # n: (A2, D3, D4)
@@ -23,6 +38,40 @@ _XBAR_R_CONSTANTS: dict[int, tuple[float, float, float]] = {
 }
 
 _DEFAULT_SUBGROUP_SIZE = 5
+
+
+def _d2_d3(n: int) -> tuple[float, float]:
+    """d2(n), d3(n) for any n >= 2 (SPC_RULES §5): AIAG table for n <= 10,
+    exact numerical integration beyond (SPI board subgroups hold hundreds of pads)."""
+    if n in _D2_D3_TABLE:
+        return _D2_D3_TABLE[n]
+    return _integrate_d2_d3(n)
+
+
+@lru_cache(maxsize=256)
+def _integrate_d2_d3(n: int) -> tuple[float, float]:
+    """Exact range distribution of n standard normals:
+    d2 = ∫ [1 − Φ^n − (1 − Φ)^n] dx; F_R(w) = n ∫ φ(x)[Φ(x+w) − Φ(x)]^(n−1) dx;
+    d3 = sqrt(2∫ w(1 − F_R(w)) dw − d2²).
+    """
+    x = np.linspace(-9.0, 9.0, 1801)
+    w = np.linspace(0.0, 18.0, 1201)
+    phi = norm.pdf(x)
+    cdf = norm.cdf(x)
+    d2 = float(np.trapezoid(1.0 - cdf**n - (1.0 - cdf) ** n, x))
+    spread = norm.cdf(x[None, :] + w[:, None]) - cdf[None, :]
+    range_cdf = n * np.trapezoid(phi[None, :] * spread ** (n - 1), x, axis=1)
+    second_moment = 2.0 * float(np.trapezoid(w * np.clip(1.0 - range_cdf, 0.0, 1.0), w))
+    d3 = float(np.sqrt(max(second_moment - d2 * d2, 0.0)))
+    return d2, d3
+
+
+def _xbar_r_constants(n: int) -> tuple[float, float, float]:
+    """(A2, D3, D4) for subgroup size n; table values for n <= 10, exact beyond."""
+    if n in _XBAR_R_CONSTANTS:
+        return _XBAR_R_CONSTANTS[n]
+    d2, d3 = _d2_d3(n)
+    return 3.0 / (d2 * np.sqrt(n)), max(0.0, 1.0 - 3.0 * d3 / d2), 1.0 + 3.0 * d3 / d2
 
 
 def _valid_series(data: pd.Series) -> pd.Series:
@@ -46,9 +95,9 @@ def _build_subgroups_by_board(
         subgroup_sizes.append(len(vals))
     if not groups:
         return [], [], 0
-    # Use median subgroup size for constants lookup; clamp to available table.
-    n_med = int(np.median(subgroup_sizes))
-    n_effective = max(2, min(10, n_med))
+    # Median subgroup size drives the display limits. Never clamp to the n=10
+    # table row: SPI boards hold hundreds of pads (SPC_RULES §5).
+    n_effective = max(2, int(np.median(subgroup_sizes)))
     return labels, groups, n_effective
 
 
@@ -73,7 +122,7 @@ def _build_subgroups_by_chunk(
         i += size
     if not groups:
         return [], [], 0
-    n_effective = max(2, min(10, size))
+    n_effective = size
     return labels, groups, n_effective
 
 
@@ -111,7 +160,7 @@ class XbarREngine:
         if not groups or n_effective < 2:
             return invalid_chart_payload("Xbar-R", "有效子群不足（每群至少 2 筆）。", target_col)
 
-        a2, d3, d4 = _XBAR_R_CONSTANTS[n_effective]
+        a2, d3, d4 = _xbar_r_constants(n_effective)
 
         xbar_values: list[float] = []
         r_values: list[float] = []
@@ -123,22 +172,27 @@ class XbarREngine:
 
         xbarbar = float(np.mean(xbar_values))
         rbar = float(np.mean(r_values))
-        # Global display limits use the median-n constants (for chart rendering).
-        ucl_xbar = xbarbar + a2 * rbar
-        lcl_xbar = xbarbar - a2 * rbar
-        ucl_r = d4 * rbar
-        lcl_r = d3 * rbar
+        # sigma_hat = mean(R_i / d2(n_i)) so ranges from unequal subgroup sizes
+        # are put on a common scale before pooling (SPC_RULES §5).
+        sigma_hat = float(np.mean([r / _d2_d3(c)[0] for r, c in zip(r_values, counts)]))
+        # Global display limits use the median-n constants; with equal n they
+        # equal Xbar_bar ± A2·R_bar and D3/D4·R_bar (to table rounding).
+        d2_eff, d3_eff = _d2_d3(n_effective)
+        ucl_xbar = xbarbar + 3.0 * sigma_hat / np.sqrt(n_effective)
+        lcl_xbar = xbarbar - 3.0 * sigma_hat / np.sqrt(n_effective)
+        ucl_r = (d2_eff + 3.0 * d3_eff) * sigma_hat
+        lcl_r = max(0.0, d2_eff - 3.0 * d3_eff) * sigma_hat
 
-        # OOC detection uses per-subgroup constants so unequal subgroup sizes get
+        # OOC detection uses per-subgroup limits so unequal subgroup sizes get
         # the statistically correct limits (SPC_RULES §5: constants depend on n).
         ooc_xbar: list[int] = []
         ooc_r: list[int] = []
-        for i, (g, xbar_v, r_v) in enumerate(zip(groups, xbar_values, r_values)):
-            n_i = max(2, min(10, len(g)))
-            a2_i, d3_i, d4_i = _XBAR_R_CONSTANTS[n_i]
-            if xbar_v > xbarbar + a2_i * rbar or xbar_v < xbarbar - a2_i * rbar:
+        for i, (n_i, xbar_v, r_v) in enumerate(zip(counts, xbar_values, r_values)):
+            half_width = 3.0 * sigma_hat / np.sqrt(n_i)
+            if xbar_v > xbarbar + half_width or xbar_v < xbarbar - half_width:
                 ooc_xbar.append(i)
-            if r_v > d4_i * rbar or r_v < d3_i * rbar:
+            d2_i, d3_i = _d2_d3(n_i)
+            if r_v > (d2_i + 3.0 * d3_i) * sigma_hat or r_v < max(0.0, d2_i - 3.0 * d3_i) * sigma_hat:
                 ooc_r.append(i)
         ooc_indices = sorted(set(ooc_xbar + ooc_r))
 
@@ -158,6 +212,7 @@ class XbarREngine:
                 "n_effective": n_effective,
                 "xbarbar": xbarbar,
                 "rbar": rbar,
+                "sigma_hat": sigma_hat,
                 "ucl_xbar": float(ucl_xbar),
                 "lcl_xbar": float(lcl_xbar),
                 "ucl_r": float(ucl_r),

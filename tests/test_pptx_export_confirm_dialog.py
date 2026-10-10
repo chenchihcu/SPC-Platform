@@ -22,8 +22,7 @@ def test_build_pptx_export_confirmation_body_lines_fallback_and_distribution_not
     text = "\n".join(lines)
     assert "未勾選任何圖表" in text
     assert "預估畫廊頁數：1 頁" in text
-    assert "敘事頁「分布分析」：是" in text
-    assert "工程報告固定包含" in text
+    assert "敘事頁「分布分析」：固定包含" in text
 
 
 def test_build_pptx_export_confirmation_body_lines_explicit_selection() -> None:

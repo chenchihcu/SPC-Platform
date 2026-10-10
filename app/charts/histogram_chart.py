@@ -6,8 +6,36 @@ from app.ui.theme.tokens import (
     CHART_FONT_TICK,
     CHART_FONT_LEGEND,
     CHART_FONT_MICRO,
+    CHART_WARNING_MARK,
 )
 from typing import Dict, Any
+
+
+# When measurement data and spec limits sit on incompatible scales (e.g. mm data
+# vs a percent spec), drawing both on one linear axis crushes the histogram to an
+# invisible sliver. Detect that and suppress the spec lines so the distribution
+# stays readable, showing an explicit caveat instead.
+_SPEC_VISIBILITY_MIN_FRACTION = 0.05
+_SCALE_MISMATCH_CAVEAT = "【尺度異常】USL/LSL 與資料尺度差距過大，規格線已隱藏以保留分布可讀性"
+
+
+def _spec_would_crush_data(bin_edges, *spec_values) -> bool:
+    """True when spec limits sit so far outside the data that plotting them would
+    collapse the histogram to an invisible sliver (< 5% of the axis span)."""
+    specs = [float(v) for v in spec_values if v is not None]
+    if not bin_edges or not specs:
+        return False
+    data_lo = float(bin_edges[0])
+    data_hi = float(bin_edges[-1])
+    data_span = data_hi - data_lo
+    if data_span <= 0:
+        return False
+    axis_lo = min(data_lo, *specs)
+    axis_hi = max(data_hi, *specs)
+    axis_span = axis_hi - axis_lo
+    if axis_span <= 0:
+        return False
+    return (data_span / axis_span) < _SPEC_VISIBILITY_MIN_FRACTION
 
 
 def _fill_for(feat: str, idx: int) -> str:
@@ -93,10 +121,16 @@ class HistogramChart(BaseChart):
 
         usl = engine_output.get("usl")
         lsl = engine_output.get("lsl")
-        if usl is not None:
-            draw_reference_line(ax, usl, f"USL: {usl:.2f}", orientation="v", semantic="spec_limit")
-        if lsl is not None:
-            draw_reference_line(ax, lsl, f"LSL: {lsl:.2f}", orientation="v", semantic="spec_limit")
+        if _spec_would_crush_data(bin_edges, usl, lsl):
+            # Data and spec on incompatible scales: keep the distribution visible.
+            ax.set_xlim(bin_edges[0], bin_edges[-1])
+            ax.text(0.5, 0.98, _SCALE_MISMATCH_CAVEAT, transform=ax.transAxes,
+                    ha="center", va="top", fontsize=CHART_FONT_MICRO, color=CHART_WARNING_MARK)
+        else:
+            if usl is not None:
+                draw_reference_line(ax, usl, f"USL: {usl:.2f}", orientation="v", semantic="spec_limit")
+            if lsl is not None:
+                draw_reference_line(ax, lsl, f"LSL: {lsl:.2f}", orientation="v", semantic="spec_limit")
 
         # Cpk annotation in title when available
         cpk = stats.get("cpk")
@@ -227,12 +261,18 @@ class HistogramChart(BaseChart):
         draw_reference_line(ax, mean_plot, f"Mean: {mean_val:.3g}", orientation="v", semantic="mean")
         draw_reference_line(ax, median_plot, f"Median: {median_val:.3g}", orientation="v", semantic="median")
 
-        if target_plot is not None:
-            draw_reference_line(ax, target_plot, f"Target: {target:.3g}", orientation="v", semantic="target")
-        if usl_plot is not None:
-            draw_reference_line(ax, usl_plot, f"USL: {usl:.3g}", orientation="v", semantic="spec_limit")
-        if lsl_plot is not None:
-            draw_reference_line(ax, lsl_plot, f"LSL: {lsl:.3g}", orientation="v", semantic="spec_limit")
+        if not normalized and _spec_would_crush_data(bin_edges_plot, usl_plot, lsl_plot, target_plot):
+            # Data and spec on incompatible scales (raw mode): keep distribution visible.
+            ax.set_xlim(bin_edges_plot[0], bin_edges_plot[-1])
+            ax.text(0.5, 0.98, _SCALE_MISMATCH_CAVEAT, transform=ax.transAxes,
+                    ha="center", va="top", fontsize=CHART_FONT_MICRO, color=CHART_WARNING_MARK)
+        else:
+            if target_plot is not None:
+                draw_reference_line(ax, target_plot, f"Target: {target:.3g}", orientation="v", semantic="target")
+            if usl_plot is not None:
+                draw_reference_line(ax, usl_plot, f"USL: {usl:.3g}", orientation="v", semantic="spec_limit")
+            if lsl_plot is not None:
+                draw_reference_line(ax, lsl_plot, f"LSL: {lsl:.3g}", orientation="v", semantic="spec_limit")
 
         # Title: feature name + Cpk + Ppk
         cpk = stats.get("cpk")

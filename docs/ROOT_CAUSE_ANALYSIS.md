@@ -1,6 +1,6 @@
 # ROOT_CAUSE_ANALYSIS
 
-- Audit timestamp: `20260712_201313`
+- Audit timestamp: `20260722_212245`
 - Overall: `pass`
 
 ## Failed Gate
@@ -21,5 +21,5 @@
 
 ## Rerun Evidence
 
-- `summary.json`: `C:/Users/user/Documents/SPC Platform/Outputs/final_audit/20260712_201313/summary.json`
-- `report.md`: `C:/Users/user/Documents/SPC Platform/Outputs/final_audit/20260712_201313/report.md`
+- `summary.json`: `C:/Users/user/Documents/SPC Platform/Outputs/final_audit/20260722_212245/summary.json`
+- `report.md`: `C:/Users/user/Documents/SPC Platform/Outputs/final_audit/20260722_212245/report.md`

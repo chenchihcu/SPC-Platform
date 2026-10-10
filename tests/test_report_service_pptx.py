@@ -495,7 +495,8 @@ def test_generate_pptx_report_creates_a4_landscape_deck(monkeypatch, tmp_path) -
             yield_row = ri
             break
     assert yield_row is not None
-    assert "%" in stats_table.cell(yield_row, volume_col).text
+    assert stats_table.cell(yield_row, volume_col).text == "—"
+    assert "VERIFY" in combined
 
 
 def test_generate_pptx_report_shows_missing_chart_reason_in_placeholder(

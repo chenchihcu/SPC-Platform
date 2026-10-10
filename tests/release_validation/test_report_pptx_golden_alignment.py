@@ -67,6 +67,9 @@ def test_pptx_statistics_summary_matches_golden_compute_summary(monkeypatch, tmp
 
         deck = _all_slide_text(Presentation(str(out)))
         assert mean_snippet in deck
-        assert yield_snippet in deck
+        # Without an explicitly activated stencil opening version, the new
+        # statistical contract preserves raw trends but blocks yield conclusions.
+        assert yield_snippet not in deck
+        assert "VERIFY" in deck
     finally:
         store.clear()

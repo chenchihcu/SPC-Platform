@@ -61,6 +61,7 @@ from app.ui.widgets.process_dashboard_cards import (
     set_value_text,
 )
 from app.services.diagnostic_excel_exporter import export_diagnostic_summary_xlsx
+from app.services.report_copy import REPORT_TITLE
 
 
 class DiagnosticPage(QWidget):
@@ -442,7 +443,7 @@ class DiagnosticPage(QWidget):
         """[Legacy / Unused in V2 but kept for unit tests] Build text summary including all critical dashboard facts."""
         summary = self._last_payload.get("summary", {})
         layers = summary.get("process", {}).get("dashboard_layers", {})
-        parts = [f"【SMT SPI 製程統計分析報告 - {datetime.now().strftime('%Y-%m-%d')}】"]
+        parts = [f"【{REPORT_TITLE} - {datetime.now().strftime('%Y-%m-%d')}】"]
         parts.extend(process_stat_report_plain_lines(layers if isinstance(layers, dict) else {}))
         QApplication.clipboard().setText("\n".join(parts))
 
@@ -456,11 +457,9 @@ class DiagnosticPage(QWidget):
         )
         sections = build_diagnostic_interpretation_sections(layers if isinstance(layers, dict) else {})
 
-        context_lines = [
-            "互動模式：預設隱藏說明，按鈕開啟完整解讀視窗。",
-        ]
+        context_lines: list[str] = []
         if not isinstance(layers, dict) or not layers:
-            context_lines.append("目前狀態：NoData（尚未完成分析，僅顯示判讀框架）。")
+            context_lines.append("目前狀態：NoData（尚未分析）。")
         else:
             issue_type = str((layers.get("layer_1_alarm") or {}).get("issue_type_display_zh") or "—")
             context_lines.append(f"目前問題類別：{issue_type}")

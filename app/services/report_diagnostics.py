@@ -2,6 +2,13 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from app.services.report_copy import (
+    EVIDENCE_TYPE_STAT_CHART_RULE,
+    EVIDENCE_TYPE_STAT_RULE,
+    NO_CHART_TEXT,
+    TRUST_MISSING,
+)
+
 
 def build_pptx_diagnostics(
     payload: Dict[str, Any],
@@ -142,7 +149,7 @@ def build_pptx_diagnostics(
                 chart_missing_reason = (
                     get_no_chart_reason_fn(fallback_chart_id, diagnostic_payload)
                     if (not chart_bytes and fallback_chart_id)
-                    else "此異常目前無可用圖表輸出。"
+                    else NO_CHART_TEXT
                 )
             else:
                 chart_missing_reason = "風險彙總模式：略過圖像渲染。"
@@ -162,9 +169,9 @@ def build_pptx_diagnostics(
                     "chart_bytes": chart_bytes,
                     "chart_missing_reason": chart_missing_reason,
                     "evidence_type": (
-                        "統計計算 / 圖表證據 / 規則推論"
+                        EVIDENCE_TYPE_STAT_CHART_RULE
                         if chart_bytes
-                        else "統計計算 / 規則推論"
+                        else EVIDENCE_TYPE_STAT_RULE
                     ),
                     "evidence_lines": format_evidence_lines_fn(hint.get("evidence", {}), 4),
                     "ipc_lines": format_ipc_lines_fn(hint.get("ipc_refs", []), 2),
@@ -212,7 +219,7 @@ def build_pptx_diagnostics(
                         "chart_title": resolved_chart_title,
                         "chart_bytes": None,
                         "chart_missing_reason": get_no_chart_reason_fn(chart_id, diagnostic_payload),
-                        "evidence_type": "未納入：資料缺失",
+                        "evidence_type": TRUST_MISSING,
                         "evidence_lines": [f"Reason: {error_text}"],
                         "ipc_lines": [],
                         "recommended_actions": collect_actions_fn(

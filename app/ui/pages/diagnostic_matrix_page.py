@@ -937,19 +937,6 @@ class DiagnosticMatrixPage(QWidget):
             self._readable_rows(matrix, "correlation"),
         )
 
-    def _next_step_reason(self, candidate: dict[str, Any]) -> str:
-        dimension = str(candidate.get("evidence_dimension") or "")
-        reasons = {
-            "capability_risk": "確認規格邊界、Cp/Cpk 與失效比例是否集中在此特徵。",
-            "center_shift": "確認中心偏移是否連續發生，並回查對位、刮刀與印刷條件。",
-            "variation": "確認變異放大是否由設備、材料或量測系統造成。",
-            "stability_drift": "確認漂移是否跨時間延續，避免只看單點異常。",
-            "local_cluster": "回查 OOC/OOS 是否集中在特定位號、區域或 PCB 條件。",
-            "distribution": "確認非常態或偏態是否影響能力判讀可信度。",
-            "multi_feature_correlation": "確認特徵間連動是否對應相同製程來源。",
-            "data_confidence": "補強資料完整性後再升高判讀信心。",
-        }
-        return reasons.get(dimension, "回看此圖表以補強製程異常鏈判讀。")
 
     def _render_chart_linkage(
         self,

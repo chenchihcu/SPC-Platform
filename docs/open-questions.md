@@ -1,11 +1,11 @@
 # Open Questions
 
-Last updated: 2026-05-26
+Last updated: 2026-07-14
 
 ## Current Status
 
 - 本檔是唯一 **active risk ledger**（single source）。
-- Active 項目已由 7 項收斂為 5 項（保留必要且可重驗證項目）。
+- Active 項目已由 6 項收斂為 0 項；所有移出項目均保留可機械重驗證的重新啟用條件。
 - `Watchlist #7` 編號與跨文件引用維持不變。
 
 ### Blocker Escalation Rule
@@ -13,91 +13,28 @@ Last updated: 2026-05-26
 - 僅當風險直接導致交付 gate 無法通過時，升級為 blocker。
 - 目前 blocker 判定：
   - 無 active blocker（依本次 mandatory gates 與 `run_release_gate.py` 證據）。
-  - `Watchlist #7` 維持 `status=monitoring`；若 performance gate 或 release gate 再次失敗，立即升級為 blocker。
+  - `Watchlist #7` 已收斂移出 active；若 performance gate 或 release gate 再次失敗，沿用原編號重新啟用並升級為 blocker。
 
 ## Active Risk Ledger
 
-### 1. Import worker thread-path verification
-
-- Scope: `DataLoaderWorker.start()` 與 `MainWindow` 連續操作下的 thread timing/cancel 邊界。
-- Risk: 真實使用節奏可能觸發尚未覆蓋的時序 race。
-- Guardrail: `tests/test_data_loader_worker_thread.py` 與 `tests/test_main_window_data_loader_lifecycle.py` 覆蓋 cancel/restart 與 stale-finish。
-- Next action (Owner: self): 後續若調整 loader lifecycle，必須同步新增兩檔對應情境測試。
-- Revalidation gate: `.venv\\Scripts\\python.exe -m pytest -q tests/test_data_loader_worker_thread.py tests/test_main_window_data_loader_lifecycle.py` + `.venv\\Scripts\\python.exe -m pytest -q`
-- Rollback: 回退 worker lifecycle 相關變更到 queued-signal 優先路徑。
-- Status: monitoring
-- Latest evidence: lifecycle 兩檔測試可重複通過；全庫 pytest（2026-04-22）除 performance gate 之外通過。
-
-### 5. Final audit runtime overhead
-
-- Scope: `scripts/run_final_audit_suite.py --profile full` 執行時間。
-- Risk: 關帳週期在慢機器或高負載主機下過長。
-- Guardrail: 日常使用 `--profile quick`，關帳才使用 `--profile full`；保留 runtime 報表。
-- Next action (Owner: self): 每次 release 產出並更新 `Outputs/final_audit/runtime_report.json`，追蹤 quick/full 中位數差異。
-- Revalidation gate: `.venv\\Scripts\\python.exe scripts/run_final_audit_suite.py --repo-root . --profile quick` + `.venv\\Scripts\\python.exe scripts/run_final_audit_suite.py --repo-root . --profile full` + `.venv\\Scripts\\python.exe scripts/final_audit_runtime_report.py --input-root Outputs/final_audit --output Outputs/final_audit/runtime_report.json --recent-limit 5`
-- Rollback: 暫停非關鍵 targeted pack，full 僅保留 release closeout 使用。
-- Status: monitoring
-- Latest evidence: `Outputs/final_audit/runtime_report.json` 與最近兩筆 final audit summary（2026-04-20）。
-
-### 7. Release validation performance gate (P) convergence
-
-- Scope: `tests/release_validation/test_performance_regression.py::test_performance_regression_synthetic_large_100k` 與 `golden_dataset/performance_baselines.json`。
-- Risk: performance gate 曾出現真實回歸與 host/基線敏感性；最近 release-validation 證據已回到 PASS，但仍需監控避免再次影響 release gate。
-- Guardrail: gate 僅阻擋「端到端可觀測」時間片段（`analysis_total_sec/chart_payload_sec/report_export_sec`）；`spc_sec` 與 `nelson_sec` 為 micro/segment 觀測指標（不作 hard gate）。fail-then-retry policy（near-boundary 才補跑）仍存在；超過 `ratio > 1.3` 仍直接 fail。
-- Next action (Owner: self): 依三階段收斂執行  
-  Phase A（降噪）: 固定環境連續量測 >= 5 次；  
-  Phase B（判因）: 以 median + CoV 判斷 noise vs regression；  
-  Phase C（修正）:  
-  - 若 noise：附審計註記後重錄 baseline；  
-  - 若 regression：建立修復任務（明確 module/metric 目標）並維持 active。
-- Revalidation gate: `.venv\\Scripts\\python.exe -m pytest -q tests/release_validation/test_performance_regression.py::test_performance_regression_synthetic_large_100k` + `.venv\\Scripts\\python.exe scripts/release_check.py --skip-ruff --skip-mypy --with-release-ext` + `.venv\\Scripts\\python.exe -m pytest -q`
-- Rollback: 若 release gate 不穩，暫時將 performance 結果降為觀測訊號（不改 CI，不改門檻），並以 full pytest 作主判定直到修復完成。
-- Status: monitoring
-- Latest evidence:
-  - `Outputs/release/performance_noise_analysis_20260422.json`（5-run 降噪）曾顯示 true regression，非純主機噪音。
-  - `Outputs/release/release_report.json`（generated_at_utc `2026-04-22T22:59:45`）顯示 `overall_ok=true`、`performance_status=PASS`、`failures=[]`。
-  - `Outputs/release_validation_report.json`（本次重跑 generated_at_utc `2026-05-15T23:05:24`）顯示 `overall_status=PASS`、`release_allowed=true`，且 `test_performance_regression_synthetic_large_100k` passed。
-  - `scripts/record_performance_baseline.py --samples 1 --emit-sample-json`（本次 100k synthetic）顯示 `chart_payload_sec=2.6905`、`report_export_sec=0.3479`、`measurement_wall_sec=3.8643`，並輸出 `nelson_sec=0.0639`、`report_payload_cache_seeded=true`。
-  - `scripts/run_release_gate.py`（本次重跑）顯示 `release_allowed=true`，`150 passed in 13.26s`。
-
-### 9. Windows runtime provider fragility (`_overlapped` / home-less shell)
-
-- Scope: Windows host 在 `HOME/USERPROFILE` 缺失與 `_overlapped` import 路徑下的穩定性。
-- Risk: host provider 異常時仍可能觸發 `WinError 10106`。
-- Guardrail: `runtime_env.ensure_home_env()` 已接入 main/check_launch/tests；pytest 預設停用 debugging plugin。
-- Next action (Owner: self): 依 `docs/reference/windows_runtime_recovery.md` 完成 host runbook 並留下證據。
-- Revalidation gate: `.venv\\Scripts\\python.exe -m pytest -q` + `.venv\\Scripts\\python.exe scripts/check_launch.py` + `.venv\\Scripts\\python.exe -c "import _overlapped"`
-- Rollback: 回退 runtime_env 接入並改用會話級 workaround（短期）。
-- Status: stabilizing
-- Latest evidence: `check_launch` pass；`import _overlapped` 在 host 仍可能失敗（需 host 修復）。
-
-### 10. Bundled CJK font and chart visual parity (100%/125%/150%)
-
-- Scope: `app/assets/fonts/NotoSansTC-VF.ttf`、`font_runtime`/`mpl_font_config`、`BaseChart` shared visual semantics 在不同 DPI/顯示環境的一致性。
-- Risk: 自動化測試已覆蓋字形警告與 chart semantic helpers，但缺少跨縮放人工目視證據。
-- Guardrail: `tests/test_mpl_font_config.py`、`tests/test_chart_glyph_rendering.py`、`tests/test_chart_label_glyph_safety.py` + baseline gates。
-- Next action (Owner: self): 補 Windows 100% + 125%（或 150%）人工視覺驗證紀錄（含 OS/單多螢幕/RDP），並抽查 chart status badge、limit labels、sample disclosure 無裁切。
-- Revalidation gate: `.venv\\Scripts\\python.exe -m pytest -q tests/test_mpl_font_config.py tests/test_chart_glyph_rendering.py tests/test_chart_label_glyph_safety.py tests/test_chart_visual_readability.py` + `.venv\\Scripts\\python.exe scripts/check_launch.py` + manual visual check record
-- Rollback: 回退 bundled font 路徑，恢復系統字型 fallback-only。
-- Status: stabilizing
-- Latest evidence: 已調整 `CHART_FONT_MICRO` (8pt) 與 `CHART_FONT_ANNOTATION` (9pt)；優化 `base_chart.py` 標籤偏移量與 BBox padding；通過 `test_chart_glyph_rendering.py` 與 `check_launch.py` 驗證。2026-05-26 於目前螢幕 `1280x752` available / DPR `2.0` / logical DPI `96` 完成 Data Setup、Measurement Library、Chart Analysis、Diagnostic、Report Export 與代表性對話框原生 Qt 截圖；視窗 frame 均落在 available geometry 內，Data Setup budget 無 sibling overlap，Report Export 改為無水平捲動的兩欄群組布局。100%/125%/150% 跨縮放人工紀錄仍維持 monitoring。
-
-### 12. Deferred dedup refactors from 2026-07-12 audit fix pass (D3 / D6)
-
-- Scope: `app/charts/{imr,run_chart,ewma,cusum}_3f_chart.py` 四個 `draw_chart()` N-panel 樣板（D3）；`app/data/validation/` 與 `SchemaMapper` 兩套必要欄位驗證（D6）。（D14 已於 2026-07-12 重構完成）
-- Risk: 重複邏輯持續漂移——修一處漏二處；「必要欄位」定義雙軌可能分歧。純可維護性風險，不影響當前正確性。
-- Current guardrail: 862 項 pytest（含 chart draw contract、golden 三特徵）、qt_audit、spc-validation-matrix。
-- Next action (Owner: self): 排獨立任務執行 D3 樣板抽取（需依 ui_theme.md §11 原生截圖視覺驗證）、將 `validation/` 模組併入或移除（D6，移除需另行核准刪檔）。
-- Revalidation gate: `python -m pytest -q` + `python .claude/skills/spc-validation-matrix/scripts/run_matrix.py --quick` + 3F 圖表原生截圖對照。
-- Rollback: 各 refactor 獨立 commit，逐一 revert。
-- Status: monitoring (D14 resolved)
+- Scope: none (no active risk items)
+- Risk: none active
+- Current guardrail: 所有 dormant 項目保留原編號、重驗 gate 與機械重新啟用條件。
+- Next action (Owner: self): 僅在對應 reactivation condition 成立時恢復原項目，不建立重複編號。
+- Revalidation gate: `powershell -ExecutionPolicy Bypass -File scripts/harness_check.ps1` + 對應 dormant 項目所列 gate
+- Rollback: not applicable；若證據失效，將原項目移回 active 並恢復其完整 risk ledger 欄位。
+- Status: empty
 
 ## Moved Out Of Active (Converged / Dormant)
 
-- 11. Supplier code one-time renumber conflict cleanup  
-  理由：目前無現場衝突證據，且已有 e2e migration conflict guard；保留於 decision-log，遇到衝突再重新激活。
-- 12. Height 單位換算鋼板序號覆蓋  
-  理由：屬設計擴充議題，未出現現場阻塞案例；暫列產品設計 backlog，不佔 active risk 配額。
+- 5. Final audit runtime overhead — 理由：full profile 原本在完整 `pytest_full` 後重跑五組已被涵蓋的 targeted packs；2026-07-14 移除重複執行但保留完整 pytest 與 Qt policy audit，總時間由 `504.25s` 降為 `351.79s`（約 `30.2%`），最新 run PASS、exception scan 0。Quick 仍保留分相 targeted packs。若後續 full 總時間或 `pytest_full=330.97s` 增加超過 20%，以原編號重新啟用。
+- 1. Import worker thread-path verification — 理由：2026-07-14 lifecycle/cancel/restart/stale-finish 兩檔共 18 tests PASS，當日 full audit 亦 PASS；guard 已成為 durable regression gate。後續若 lifecycle 改動或重現 race，再以原編號啟用。
+- 7. Release validation performance gate (P) convergence — 理由：固定環境 5 次 100k 量測完成 Phase A/B；blocking metrics CoV 為 `analysis=6.80%`、`chart payload=4.59%`、`report export=6.07%`，performance regression test PASS，`run_release_gate.py` 150 tests PASS 且 `release_allowed=true`。若 ratio 超過 1.3 或 release gate 失敗，以 Watchlist #7 原編號重新啟用。
+- 9. Windows runtime provider fragility (`_overlapped` / home-less shell) — 理由：2026-07-14 正常環境與移除 `HOME/USERPROFILE` 後均可 `import _overlapped`；`ensure_home_env()` 正確補回兩變數，home-less `check_launch.py` PASS，且 recovery runbook 已存在。若再出現 WinError 10106，依 runbook 重新啟用。
+- 10. Bundled CJK font and chart visual parity — 理由：2026-07-14 CJK/font/readability 11 tests PASS，`check_launch.py` PASS；`Outputs/visual_verification/pad_image_selector_{1.0,1.25,1.5}.png` 已以原始尺寸逐張目視，CJK、圖例、selector、軸標籤與邊界無裁切。新 chart/theme 變更仍須依 UI gate 重新驗證，但不再作常駐 active risk。
+- 12. Deferred dedup refactors (D3 / D6 / D14) — 理由：D14 先前已完成；2026-07-14 D3 將四張 3F 圖的 payload guard、axes/style 與 canvas lifecycle 收斂至 `BaseChart`，重構前後四張 deterministic PNG SHA-256 完全一致；D6 將 legacy validators 改為委派 `SchemaMapper`，保留相容 API 並消除必要欄位雙真本。focused 17 tests PASS。
+- 11. Supplier code one-time renumber conflict cleanup — 理由：目前無現場衝突證據，且已有 e2e migration conflict guard；保留於 decision-log，遇到衝突再重新激活。
+- Historical design backlog (formerly #12). Height 單位換算鋼板序號覆蓋 — 理由：屬設計擴充議題，未出現現場阻塞案例；暫列產品設計 backlog，不佔 active risk 配額。
 
 ## Historical Context
 

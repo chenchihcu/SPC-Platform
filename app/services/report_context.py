@@ -7,6 +7,7 @@ import pandas as pd
 
 from app.data.session_store import SessionStore
 from app.services import report_risk
+from app.services.report_copy import TRUST_CHART, TRUST_DIRECT, TRUST_INFERENCE, TRUST_MISSING
 from app.utils.constants import FEATURE_COLUMNS
 from app.analytics.chart_registry import (
     CHART_ORDER,
@@ -130,10 +131,10 @@ def build_data_scope(
         "excluded_evidence": excluded_evidence,
         "filters": filters,
         "section_trust": {
-            "statistics": "可信：資料直接計算",
-            "charts": "可信：圖表證據",
-            "inference": "需複核：規則推論",
-            "spatial": "可信：資料直接計算" if has_coordinate_data else "未納入：資料缺失",
+            "statistics": TRUST_DIRECT,
+            "charts": TRUST_CHART,
+            "inference": TRUST_INFERENCE,
+            "spatial": TRUST_DIRECT if has_coordinate_data else TRUST_MISSING,
         },
     }
 
@@ -286,6 +287,21 @@ def build_pptx_report_context(
         },
     }
 
+    # Honesty gate: if any feature's capability was flagged as a unit/scale
+    # mismatch (|Cpk| impossibly large — mm data vs % spec, etc.), the "統計/能力"
+    # section is NOT "可信：資料直接計算". Downgrade so the deck does not present
+    # scale-broken indices as directly-computed fact.
+    per_measure = summary_data.get("per_measure", {}) if isinstance(summary_data, dict) else {}
+    any_scale_mismatch = any(
+        bool((((m or {}).get("cap") or {}).get("metadata") or {}).get("scale_mismatch"))
+        for m in per_measure.values()
+        if isinstance(m, dict)
+    )
+    if any_scale_mismatch:
+        report_context["data_scope"]["section_trust"]["statistics"] = (
+            "需複核：能力指標尺度異常（疑量測單位與規格單位不符，如 mm vs %）"
+        )
+
     product_name = str((getattr(store, "workorder_master", {}) or {}).get("product_name", "")).strip()
     if product_name:
         try:
@@ -323,6 +339,36 @@ def build_pptx_report_context(
         }
 
     ap = analysis_payload if isinstance(analysis_payload, dict) else {}
+    stencil_analysis = (
+        ap.get("stencil_analysis")
+        if isinstance(ap.get("stencil_analysis"), dict)
+        else getattr(store, "analysis_domain_meta", {}) or {}
+    )
+    if (
+        isinstance(stencil_analysis, dict)
+        and stencil_analysis
+        and stencil_analysis.get("value_domain") in {"raw", "percent"}
+    ):
+        report_context["stencil_analysis"] = dict(stencil_analysis)
+        report_context["metric_definitions"].update(
+            {
+                "Volume%": "measured_volume_mm3 / nominal_volume_mm3 * 100",
+                "Area%": "measured_area_mm2 / nominal_area_mm2 * 100",
+                "Height%": "measured_height_mm / resolved_thickness_mm * 100",
+            }
+        )
+        if stencil_analysis.get("value_domain") == "percent":
+            report_context["data_scope"]["used_sources"].append("鋼板開窗名義值")
+        if stencil_analysis.get("verify"):
+            verify_text = "；".join(
+                str(item) for item in (stencil_analysis.get("verify_reasons") or [])
+            ) or "鋼板開窗資料需複核"
+            report_context["data_scope"]["section_trust"]["statistics"] = (
+                f"VERIFY：{verify_text}"
+            )
+            report_context["data_scope"]["section_trust"]["charts"] = (
+                "部分可信：僅保留 raw 無規格趨勢圖"
+            )
     if ap.get("summary") and isinstance(ap["summary"], dict):
         from app.services.diagnostic_evidence_matrix import build_diagnostic_evidence_matrix
         from app.services.report_process_narrative import (

@@ -19,7 +19,8 @@ Does not change business logic; provides consistent structure for form / data / 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Callable, Literal
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -324,7 +325,7 @@ def confirm_double_delete(
     first_message: str,
     *,
     first_title: str = "確認刪除",
-    second_message: str = "此動作無法復原，您真的確定要刪除嗎？",
+    second_message: str = "此動作無法復原，確定刪除？",
 ) -> bool:
     """Data Deletion Safety (AGENTS.md): two sequential Yes/No confirmations.
 
@@ -348,6 +349,47 @@ def confirm_double_delete(
         QMessageBox.StandardButton.No,
     )
     return reply2 == QMessageBox.StandardButton.Yes
+
+
+def bind_table_delete_shortcut(
+    table: QTableWidget,
+    delete_button: QPushButton,
+    *,
+    can_delete: Callable[[], bool] | None = None,
+) -> QShortcut:
+    """Bind Delete to one destructive table action without creating a global hotkey.
+
+    The action is available only while the table (or one of its children) has
+    focus and the supplied selection guard permits it.  Callers still own the
+    delete confirmation and service-level validation; this helper only keeps
+    keyboard discoverability and disabled state consistent across list pages.
+    """
+
+    def _can_delete() -> bool:
+        if can_delete is not None:
+            return can_delete()
+        selection = table.selectionModel()
+        return bool(selection and selection.selectedRows())
+
+    def _sync_enabled() -> None:
+        delete_button.setEnabled(_can_delete())
+
+    def _activate() -> None:
+        if delete_button.isEnabled():
+            delete_button.click()
+
+    shortcut = QShortcut(QKeySequence(Qt.Key.Key_Delete), table)
+    shortcut.setObjectName("tableDeleteShortcut")
+    shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+    shortcut.activated.connect(_activate)
+    table.itemSelectionChanged.connect(_sync_enabled)
+    _sync_enabled()
+
+    tooltip = delete_button.toolTip().strip() or delete_button.text()
+    if "Delete" not in tooltip:
+        delete_button.setToolTip(f"{tooltip} (Delete；需兩次確認)")
+    delete_button.setAccessibleDescription("選取清單列後可按 Delete；刪除前仍需兩次確認。")
+    return shortcut
 
 
 def set_drop_zone_active(frame: QFrame, active: bool) -> None:
