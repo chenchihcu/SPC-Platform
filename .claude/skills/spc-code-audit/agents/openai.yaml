@@ -1,0 +1,4 @@
+interface:
+  display_name: "SPC Code Audit"
+  short_description: "SPC/SPI statistical semantics audits and safe fixes"
+  default_prompt: "Use $spc-code-audit to inventory SPC statistical entrypoints, audit their semantics with evidence, and safely fix confirmed findings."

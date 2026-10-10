@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, Optional
 
+from app.analytics.spc_engine import SPCEngine
 from app.analytics.statistical_utils import StatisticalUtils, invalid_chart_payload
 
 
@@ -34,15 +35,19 @@ class EWMAEngine:
         valid_data = data.replace([np.inf, -np.inf], np.nan).dropna()
         n = len(valid_data)
         mu0 = float(valid_data.mean())
-        sigma = float(valid_data.std(ddof=1))
-        if sigma <= 0:
+        # Individuals chart: sigma = MR_bar / d2 (SPC_RULES §10.1). The overall
+        # std is inflated by the very shift EWMA is meant to detect.
+        sigma = float(StatisticalUtils.calculate_moving_range(valid_data).mean() / SPCEngine.I_MR_D2)
+        if not np.isfinite(sigma) or sigma <= 0:
             return invalid_chart_payload("EWMA", "Standard deviation is 0.", target_col)
-        # EWMA sequence: z_0 = mu0, z_i = lam * x_i + (1-lam) * z_{i-1}
+        # EWMA sequence: z_0 = mu0 precedes the first observation, so every
+        # observation (including the first) enters: z_i = lam*x_i + (1-lam)*z_{i-1}
         vals = valid_data.values
         z = np.empty(n)
-        z[0] = mu0
-        for i in range(1, n):
-            z[i] = lam * vals[i] + (1 - lam) * z[i - 1]
+        z_prev = mu0
+        for i in range(n):
+            z_prev = lam * vals[i] + (1 - lam) * z_prev
+            z[i] = z_prev
         # Asymptotic control limits: mu0 +/- L * sigma * sqrt(lam/(2-lam))
         sigma_ewma = sigma * np.sqrt(lam / (2 - lam))
         ucl = mu0 + l_mult * sigma_ewma

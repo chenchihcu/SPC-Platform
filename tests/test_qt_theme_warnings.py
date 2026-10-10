@@ -15,7 +15,6 @@ def qapp():
 
 
 def test_main_window_emits_no_stylesheet_or_taborder_warnings(qapp) -> None:
-    from app.bootstrap.dpi import setup_high_dpi
     from app.ui.main_window import MainWindow
     from app.ui.theme import apply_app_theme
 
@@ -26,7 +25,6 @@ def test_main_window_emits_no_stylesheet_or_taborder_warnings(qapp) -> None:
             captured.append(message)
 
     qInstallMessageHandler(handler)
-    setup_high_dpi()
     apply_app_theme(qapp)
     window = MainWindow()
     window.show()

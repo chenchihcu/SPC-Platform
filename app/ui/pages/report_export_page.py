@@ -378,7 +378,7 @@ class ReportExportPage(QWidget):
     def _on_export_finished(self, ok: bool, err: str) -> None:
         QApplication.restoreOverrideCursor()
         if ok:
-            self._set_report_lamp("ok", "已匯出")
+            self._set_report_lamp("success", "已匯出")
             if self._status_model:
                 self._status_model.set_state("success", "報告匯出成功")
                 self._status_model.set_progress(-2)

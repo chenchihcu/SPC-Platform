@@ -65,20 +65,3 @@ class AppStatusModel(QObject):
         """Update progress value and emit signal."""
         self._progress = value
         self.progress_changed.emit(value)
-
-    def set_busy(self, reason: str) -> None:
-        """Transition to busy state with the given message."""
-        self.set_state(STATE_LOADING, reason)
-
-    def set_analyzing(self, message: str = "正在分析…") -> None:
-        """Transition to analyzing state."""
-        self.set_state(STATE_ANALYZING, message)
-
-    def set_done(self, success: bool, message: str, detail: Optional[str] = None) -> None:
-        """Transition to done/idle state with optional summary message."""
-        self.set_state(STATE_SUCCESS if success else STATE_ERROR, message, detail)
-
-    def clear_error(self) -> None:
-        """Clear any current error state and return to idle."""
-        if self._state == STATE_ERROR:
-            self.set_state(STATE_IDLE, "就緒 (Ready)")

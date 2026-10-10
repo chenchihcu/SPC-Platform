@@ -106,6 +106,7 @@ class DataSetupPage(QWidget):
     start_analysis_requested = Signal()
     spec_saved = Signal(str)
     manage_specs_requested = Signal()
+    manage_stencil_documents_requested = Signal(str)
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -320,6 +321,9 @@ class DataSetupPage(QWidget):
         self._coord_content.registry_changed.connect(self._reload_product_options)
         self._stencil_content.spec_saved.connect(self.spec_saved.emit)
         self._stencil_content.manage_requested.connect(self.manage_specs_requested.emit)
+        self._stencil_content.manage_documents_requested.connect(
+            self.manage_stencil_documents_requested.emit
+        )
 
         self._reload_product_options()
         self._reload_supplier_options()
@@ -490,7 +494,7 @@ class DataSetupPage(QWidget):
         self.product_combo.blockSignals(True)
         try:
             self.product_combo.clear()
-            self.product_combo.addItem("請選擇產品…", "")
+            self.product_combo.addItem("請選擇產品", "")
             for entry in list_registered():
                 name = (entry.get("product_name") or "").strip()
                 if name:
@@ -507,7 +511,7 @@ class DataSetupPage(QWidget):
         self.supplier_input.blockSignals(True)
         try:
             self.supplier_input.clear()
-            self.supplier_input.addItem("請選擇供應商…", "")
+            self.supplier_input.addItem("請選擇供應商", "")
             for supplier_name in list_supplier_names():
                 name = supplier_name.strip()
                 if name:

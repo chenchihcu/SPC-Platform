@@ -1,11 +1,19 @@
+import pandas as pd
+
+from app.data.mapping.schema_mapper import SchemaMapper
+
+
 def validate_measurement_minimum(mapped_result) -> tuple[bool, str]:
+    """Compatibility wrapper over the authoritative SchemaMapper contract."""
     mapped = getattr(mapped_result, "mapped_columns", {})
-    has_measure = any(key in mapped for key in ["Volume", "Area", "Height"])
-    has_identity = any(key in mapped for key in ["BoardNo", "Time"])
-    if "RefDes" not in mapped:
-        return False, "缺少 RefDes"
-    if not has_measure:
-        return False, "缺少量測欄位"
-    if not has_identity:
-        return False, "缺少樣本識別欄位"
-    return True, "OK"
+    valid, missing = SchemaMapper.validate_measurement_schema(
+        pd.DataFrame(columns=list(mapped))
+    )
+    if valid:
+        return True, "OK"
+    legacy_messages = {
+        "RefDes": "缺少 RefDes",
+        "Measurement (Volume, Area, or Height)": "缺少量測欄位",
+        "Identifier (BoardNo or Time)": "缺少樣本識別欄位",
+    }
+    return False, legacy_messages.get(missing[0], f"缺少欄位: {missing[0]}")

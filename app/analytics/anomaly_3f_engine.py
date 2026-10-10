@@ -33,7 +33,7 @@ class Anomaly3FEngine:
                 "statistics": {},
                 "metadata": {"is_valid": False, "error": f"缺少欄位: {missing}."},
             }
-        valid = filtered_df[cols].dropna()
+        valid = filtered_df[cols].replace([np.inf, -np.inf], np.nan).dropna()
         if len(valid) < 2:
             return {
                 "chart_type": "Anomaly3F",

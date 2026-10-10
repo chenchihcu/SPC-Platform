@@ -5,7 +5,7 @@
 方便比較三個特徵的漂移起始點與方向是否同步。
 """
 import numpy as np
-from app.charts.base_chart import feature_line_color as _color_for, BaseChart, _apply_mpl_app_style, sparse_tick_positions_labels
+from app.charts.base_chart import feature_line_color as _color_for, BaseChart, sparse_tick_positions_labels
 from typing import Dict, Any
 from app.ui.theme.tokens import (
     CHART_ANNOTATION,
@@ -53,28 +53,10 @@ class CUSUM3F(BaseChart):
 
     def draw_chart(self, engine_output: Dict[str, Any]) -> bool:
         """Render the chart with the given payload data."""
-        self._set_visual_contract_payload(engine_output or {})
-        metadata = engine_output.get("metadata", {})
-        if not metadata.get("is_valid", False):
-            error_msg = metadata.get("error", "未知錯誤")
-            self._show_placeholder(error_msg)
+        prepared = self._prepare_multi_feature_axes(engine_output)
+        if prepared is None:
             return False
-
-        features: list[str] = engine_output.get("_features", [])
-        feature_data: dict[str, dict] = engine_output.get("_feature_data", {})
-        normalized: bool = engine_output.get("_normalized", False)
-
-        if not features or not feature_data:
-            self._show_placeholder("無多特徵資料")
-            return False
-
-        n = len(features)
-        self.figure.clear()
-        axes = self.figure.subplots(n, 1, sharex=True)
-        axes = [axes] if n == 1 else list(axes)
-
-        for fig_ax in axes:
-            _apply_mpl_app_style(self.figure, fig_ax)
+        features, feature_data, normalized, axes = prepared
 
         for i, feat in enumerate(features):
             ax = axes[i]
@@ -129,11 +111,7 @@ class CUSUM3F(BaseChart):
             title += "（Z-score 軸；hσ 為原始參數）"
         axes[0].set_title(title, fontsize=CHART_FONT_TITLE)
 
-        self.ax = axes[0]
-
-        self._show_canvas()
-        # layout handled by BaseChart
-        self.canvas.draw()
+        self._finish_multi_feature_axes(axes)
         return True
 
     # ── Panel helpers ──────────────────────────────────────────────────

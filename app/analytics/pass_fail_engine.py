@@ -2,6 +2,7 @@
 Pass/fail matrix engine: per-feature pass rate and optional cross-tab.
 Phase 4 P1: triple-feature with USL/LSL per column.
 """
+import numpy as np
 import pandas as pd
 from typing import Dict, Any, List, Optional
 
@@ -30,7 +31,7 @@ class PassFailEngine:
         if missing:
             return invalid_chart_payload("PassFail", f"缺少欄位: {missing}.", cols[0] if cols else "")
         spec_by_col = spec_by_col or {}
-        valid = df[cols].dropna()
+        valid = df[cols].replace([np.inf, -np.inf], np.nan).dropna()
         if valid.empty:
             return invalid_chart_payload("PassFail", "無有效資料。", cols[0] if cols else "")
         n_total = len(valid)

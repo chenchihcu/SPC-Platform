@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, List
 
+from app.analytics.statistical_utils import invalid_chart_payload
+
 class ComparisonEngine:
     """
     Computes Subgroup Variance and Medians, generating Boxplot statistics
@@ -23,7 +25,7 @@ class ComparisonEngine:
                 "metadata": {"is_valid": False, "error": f"缺少 {group_col} 分組特徵或測量值 (Missing grouping or target column)."}
             }
             
-        valid_df = df[[group_col, target_col]].dropna()
+        valid_df = df[[group_col, target_col]].replace([np.inf, -np.inf], np.nan).dropna()
         if len(valid_df) == 0:
              return {
                  "chart_type": "Boxplot",
@@ -84,15 +86,18 @@ class ComparisonEngine:
             }
         if part_type_col not in df.columns or refdes_col not in df.columns:
             return ComparisonEngine.compute_boxplot(df, target_col, group_col=refdes_col)
-        valid = df[[part_type_col, refdes_col, target_col]].dropna()
+        valid = (
+            df[[part_type_col, refdes_col, target_col]]
+            .replace([np.inf, -np.inf], np.nan)
+            .dropna()
+        )
         if valid.empty:
-            return {
-                "chart_type": "Boxplot",
-                "data": {"labels": [], "arrays": []},
-                "statistics": {},
-                "metadata": {"is_valid": True, "mode": "footprint"},
-                "footprints": [],
-            }
+            return invalid_chart_payload(
+                "Boxplot",
+                "無有效量測值可進行同封裝比較。",
+                target_col,
+                mode="footprint",
+            )
         footprints: List[Dict[str, Any]] = []
         part_types = valid[part_type_col].astype(str).unique().tolist()
         for pt in part_types:
@@ -106,13 +111,12 @@ class ComparisonEngine:
                     "variance_by_label": box.get("statistics", {}).get("variance_by_label", {}),
                 })
         if not footprints:
-            return {
-                "chart_type": "Boxplot",
-                "data": {"labels": [], "arrays": []},
-                "statistics": {},
-                "metadata": {"is_valid": True, "mode": "footprint"},
-                "footprints": [],
-            }
+            return invalid_chart_payload(
+                "Boxplot",
+                "無可比較的同封裝分組。",
+                target_col,
+                mode="footprint",
+            )
         first = footprints[0]
         return {
             "chart_type": "Boxplot",

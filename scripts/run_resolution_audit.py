@@ -120,6 +120,14 @@ def generate_markdown_report(
     overlap_cnt = sum(1 for r in records if r["type"] == "OVERLAP")
     overflow_cnt = sum(1 for r in records if r["type"] == "OVERFLOW")
     total_cnt = len(records)
+    projector_records = [
+        r
+        for r in records
+        if str(r.get("env_name", "")).startswith(("1024x768", "1280x720"))
+    ]
+    projector_overflow_cnt = sum(1 for r in projector_records if r["type"] == "OVERFLOW")
+    projector_overlap_cnt = sum(1 for r in projector_records if r["type"] == "OVERLAP")
+    projector_truncation_cnt = sum(1 for r in projector_records if r["type"] == "TRUNCATION")
     
     completed_count = sum(1 for result in run_results if result["status"] == "completed")
     incomplete = completed_count != len(matrix)
@@ -182,11 +190,26 @@ def generate_markdown_report(
 
         # 投影機
         f.write("### 2.4 投影機使用環境 ($1024 \\times 768$ @1.0x / $1280 \\times 720$ @1.0x)\n")
-        f.write("- **風險級別**：`HIGH` (關鍵風險區域)\n")
+        if incomplete:
+            projector_risk = "VERIFY"
+            projector_risk_note = "部分解析度未完成，不能宣告投影機情境通過。"
+        elif projector_overflow_cnt > 0:
+            projector_risk = "HIGH"
+            projector_risk_note = "投影機情境存在已量測到的 Overflow，需修復後重跑。"
+        elif projector_overlap_cnt > 0:
+            projector_risk = "MEDIUM"
+            projector_risk_note = "投影機情境存在已量測到的 Overlap，需檢查截圖影響。"
+        elif projector_truncation_cnt > 0:
+            projector_risk = "LOW"
+            projector_risk_note = "投影機情境僅有文字截斷候選，需依截圖確認影響。"
+        else:
+            projector_risk = "LOW"
+            projector_risk_note = "投影機情境已完成量測，未發現文字截斷、重疊或溢出。"
+        f.write(f"- **風險級別**：`{projector_risk}`\n")
         f.write("- **適用性評估**：\n")
-        f.write("  - 在投影機常用的 1024x768 (4:3) 解析度下，由於高度僅有 768px，且寬度僅有 1024px，側欄與主工作區皆被高度壓縮。\n")
-        f.write("  - **關鍵風險**：資料設定頁 (Data Setup) 在空狀態時可勉強顯示，但在載入資料後，高密度的工單表格、量測檔案列表與 Readiness Bar (Start Analysis 按鈕) 在 768px 高度下將會溢出 (Overflow) 出主視窗邊界之外！使用者將「完全無法看到或點擊 Start Analysis 按鈕」，這是一個 Block 的嚴重風險。\n")
-        f.write("  - 此外，投影機流明度低，介面使用的「Slate 淺灰色」底色在強光或低流明投影機上對比度可能稍嫌不足，可能會降低現場操作人員的可讀性。\n\n")
+        f.write("  - 在投影機常用解析度下，側欄與主工作區會被明顯壓縮，因此以實際幾何記錄作為風險判定依據。\n")
+        f.write(f"  - **量測結論**：{projector_risk_note}\n")
+        f.write("  - 投影機低流明或強環境光仍可能降低細灰字可讀性；這是使用環境注意事項，不列入幾何缺失總數。\n\n")
 
         f.write("## 3. 幾何稽核發現之缺陷與風險清單 (Defect List)\n\n")
         if total_cnt == 0:

@@ -36,13 +36,7 @@ Use this repository in a **harness-first** way: every task must be bounded, test
 - Preserve backward compatibility unless user explicitly requests contract change.
 
 ### H3. Verification Gates (after edits)
-Run mandatory baseline gates:
-- `python -m ruff check .`
-- `python -m mypy app`
-- `python -m pytest -q`
-- `python scripts/check_launch.py`
-
-If impact is broad (`>=4` production files, `>=2` subsystems, or contract change), expand verification and provide findings-first review output.
+Use the V0–V3 invalidation ladder: list invalidated surfaces, direct consumers, selected gates, and why V3 is not selected. V1 is a single function/control/engine focused test; V2 is a shared helper or one subsystem pack/targeted matrix/semantic checks. V3 applies to `>=4` production files, `>=2` subsystems, public/statistical contract, release, weak/unknown impact oracle, or V1/V2 failure; only V3 runs `ruff .`, `mypy app`, full pytest, and `check_launch`. Run `check_launch` when bootstrap/entrypoint/shared initialization/runtime dependencies/shared theme/window lifecycle/release are invalidated. After another patch, rerun only invalidated gates.
 
 ### H4. Evidence & Rollback
 - Record what was run and what passed/failed.
@@ -87,11 +81,8 @@ If impact is broad (`>=4` production files, `>=2` subsystems, or contract change
 - **Fix**: wrong results, crashes, resource leaks (including Qt `QThread`/widget lifecycle), or runtime-contract violations.
 - **Defer/Avoid**: style-only edits, doc-only churn, type-hint/comment cosmetics, and micro-performance tweaks unless tied to correctness/stability.
 
-## Validation Baseline (Mandatory)
-- `python -m ruff check .`
-- `python -m mypy app`
-- `python -m pytest -q`
-- `python scripts/check_launch.py`
+## Validation Selection
+V0 is read-back/static/parse. V1 is the affected test/file/self-test. V2 is the affected subsystem pack, targeted matrix, or selected DB semantic checks. V3 is the full gate defined in H3; do not select it merely because a change occurred.
 
 Optional release-focused validation:
 - `python scripts/run_validation.py` -> `Outputs/validation_report.json`
@@ -100,24 +91,13 @@ Optional release-focused validation:
 If any step is unavailable, report `not configured` or `not available` explicitly.
 
 ## Documentation Sync Rules
-When architecture/contracts/validation baseline changes, update in the same task:
-- `README.md`
-- `docs/specs/project_architecture.md`
-- `docs/decision-log.md`
-- `docs/open-questions.md` (when residual risks/assumptions change)
+Synchronize only documentation whose behavior, contract, or validation interface was invalidated. `docs/decision-log.md` records durable policy; `docs/open-questions.md` changes only when an active risk changes.
 
 ## Active Risk Ledger Rules (Repo)
 - `docs/open-questions.md` is the single active risk ledger; do not track active residual risks in parallel docs.
 - Each active risk item must include: `Scope`, `Risk`, `Current guardrail`, `Next action`, `Revalidation gate`, `Rollback`, `Status`.
 - `Next action` must be owner-explicit (no ownerless follow-up text).
 - Keep `Watchlist #7` numbering stable for release-validation boundary compatibility.
-
-## Post-Task Verification (Universal Rule)
-Every task must pass launch verification:
-1. Run `python scripts/check_launch.py`.
-2. Any exception/hang means task is incomplete.
-3. Continue fixing until `[PASS]` is reported.
-4. Completion message must explicitly state launch check passed.
 
 ## Closed-loop Harness
 - Use the completion impact format for task delivery: `Changes`, `Impact`, `Verification`, `Residual risk`, and `Next action`.
@@ -131,7 +111,7 @@ Every task must pass launch verification:
 A task is complete only when all are true:
 - Done state met.
 - Output contract preserved (or explicitly updated with user approval).
-- Mandatory validation gates executed and reported.
+- Selected invalidated validation gates executed and reported.
 - Known residual risks/assumptions listed.
 
 ## Multi-Assistant Coexistence
@@ -149,4 +129,3 @@ A task is complete only when all are true:
   2. Update any hard-coded page routing indices (e.g. `_on_navigate_to_chart(self, ...)` using `self._go_to_page(idx)`).
   3. Ensure that navigation tooltips (`NAV_STEP_TOOLTIPS`) in `navigation_panel.py` match the new button length.
   4. Update assertions in unit tests (e.g. `tests/test_main_window_data_loader_lifecycle.py` checking tab counts or index positions).
-

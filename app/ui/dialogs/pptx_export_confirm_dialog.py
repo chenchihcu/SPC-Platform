@@ -43,7 +43,7 @@ def build_pptx_export_confirmation_body_lines(
     else:
         lines.append("範圍：依目前勾選。")
     n = len(chart_ids)
-    lines.append(f"證據圖：共 {n} 張（下列為將嘗試納入的圖表）。")
+    lines.append(f"證據圖：共 {n} 張。")
     gp = estimate_gallery_pages(n)
     lines.append(f"預估畫廊頁數：{gp} 頁（每頁最多 4 張證據圖）。")
     lines.append("")
@@ -51,9 +51,9 @@ def build_pptx_export_confirmation_body_lines(
     for cid in chart_ids:
         lines.append(f"  • {get_chart_display_name(cid, lang='zh_only')}")
     lines.append("")
-    lines.append("敘事頁「分布分析」：是（工程報告固定包含一頁；與上方勾選無關）。")
+    lines.append("敘事頁「分布分析」：固定包含。")
     lines.append(
-        "註：若特徵不足或單張證據圖渲染失敗，實際插入張數可能少於上述。"
+        "註：特徵不足或渲染失敗時，實際張數可能較少。"
     )
     return lines
 

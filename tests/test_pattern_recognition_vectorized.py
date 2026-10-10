@@ -7,7 +7,8 @@ from app.analytics.pattern_recognition_engine import PatternRecognitionEngine
 def _slow_rule_hits(values: list[float]) -> dict[str, list[int]]:
     series = pd.Series(values)
     mean = float(np.mean(values))
-    sigma = float(np.std(values, ddof=1))
+    # SPC_RULES §10: rule zones use the I-MR sigma (MR_bar / d2).
+    sigma = float(np.mean(np.abs(np.diff(values))) / 1.128)
     indices = list(series.index)
 
     rule1 = [indices[i] for i, value in enumerate(values) if abs(value - mean) > 3 * sigma]
@@ -56,3 +57,19 @@ def test_vectorized_nelson_rules_match_legacy_window_logic() -> None:
     ]
 
     assert _vectorized_rule_hits(values) == _slow_rule_hits(values)
+
+
+def test_rule1_hits_match_imr_out_of_control_points() -> None:
+    """Regression: Rule 1 must use the I-MR limits (SPC_RULES §10).
+
+    With a board-to-board step, the overall std is inflated (~2.3x MR sigma),
+    so the old overall-std Rule 1 found 0 points while I-MR flagged many.
+    """
+    from app.analytics.spc_engine import SPCEngine
+
+    rng = np.random.default_rng(0)
+    series = pd.Series(np.concatenate([rng.normal(100, 1, 50), rng.normal(104, 1, 50)]))
+    imr_ooc = SPCEngine.compute_imr(series, "Volume")["data"]["out_of_control_indices"]
+
+    assert imr_ooc
+    assert _vectorized_rule_hits(series.tolist())["R1"] == sorted(imr_ooc)

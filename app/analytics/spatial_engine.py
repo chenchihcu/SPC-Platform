@@ -70,7 +70,11 @@ class SpatialEngine:
         """
         if joined_df is None or joined_df.empty or "X" not in joined_df.columns or "Y" not in joined_df.columns or "RefDes" not in joined_df.columns or target_col not in joined_df.columns:
             return invalid_chart_payload("Spatial", "缺乏有效的映射座標資料 (Missing Joined Coordinates). 請確認座標檔已匯入且關聯成功率大於零。", target_col, modes={})
-        valid_df = joined_df[["X", "Y", "RefDes", target_col]].dropna()
+        valid_df = (
+            joined_df[["X", "Y", "RefDes", target_col]]
+            .replace([np.inf, -np.inf], np.nan)
+            .dropna()
+        )
         if len(valid_df) == 0:
             return invalid_chart_payload("Spatial", "無有效測量數值與座標組合 (No valid Value-Coordinate pairs).", target_col, modes={})
         # Normalize pandas arrays to NumPy ndarrays so downstream math/comparisons

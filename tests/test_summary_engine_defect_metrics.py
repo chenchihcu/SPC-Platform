@@ -73,18 +73,41 @@ def test_combined_defect_metrics_match_row_loop_reference() -> None:
 
     cols = ["Volume", "Area", "Height"]
     event_count = 0
-    board_count = 0
-    for _, row in df[cols].iterrows():
+    defect_boards: set[str] = set()
+    for _, row in df.iterrows():
         row_events = 0
         for col in cols:
             if row[col] < 80 or row[col] > 120:
                 row_events += 1
         if row_events:
             event_count += row_events
-            board_count += 1
+            defect_boards.add(row["BoardNo"])
 
     assert combined["combined_defect_event_count"] == event_count
-    assert combined["combined_defect_board_count"] == board_count
+    assert combined["combined_defect_board_count"] == len(defect_boards)
+
+
+def test_combined_board_dpmo_counts_boards_not_pad_rows() -> None:
+    """Regression: 10 defective pads on one of two boards is 1 defective board.
+
+    Counting pad rows against a board denominator produced 10 / 2 boards =
+    5,000,000 DPMO (an impossible >1e6 rate).
+    """
+    rows = 200
+    df = pd.DataFrame(
+        {
+            "BoardNo": ["B1"] * 100 + ["B2"] * 100,
+            "Volume": [100.0] * rows,
+            "Area": [100.0] * rows,
+            "Height": [100.0] * rows,
+        }
+    )
+    df.loc[:9, "Volume"] = 60.0
+    combined = compute_summary(df, _full_spec())["process"]["defect_combined"]
+
+    assert combined["board_n"] == 2
+    assert combined["combined_defect_board_count"] == 1
+    assert math.isclose(combined["dpmo_combined_board"], 500_000.0)
 
 
 def test_compute_summary_defect_metrics_none_when_spec_missing():

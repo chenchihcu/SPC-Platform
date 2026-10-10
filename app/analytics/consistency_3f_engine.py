@@ -38,7 +38,7 @@ class Consistency3FEngine:
                 "metadata": {"is_valid": False, "error": f"缺少欄位: {missing}."},
             }
         col_x, col_y, col_z = cols[0], cols[1], cols[2]
-        valid = filtered_df[cols].dropna()
+        valid = filtered_df[cols].replace([np.inf, -np.inf], np.nan).dropna()
         valid = valid[(valid[col_y] > 0) & (valid[col_x] > 0)]
         if len(valid) < 2:
             return {

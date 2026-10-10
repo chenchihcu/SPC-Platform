@@ -21,7 +21,9 @@ class ParetoEngine:
             return meas_df
 
         df_copy = meas_df.copy()
-        values = pd.to_numeric(df_copy[target_col], errors="coerce")
+        values = pd.to_numeric(df_copy[target_col], errors="coerce").replace(
+            [np.inf, -np.inf], np.nan
+        )
         defect = pd.Series("Normal", index=df_copy.index, dtype="object")
         defect[values.isna()] = "Unknown"
         if lsl is not None:
@@ -46,14 +48,28 @@ class ParetoEngine:
         if classified.empty or "DefectType" not in classified.columns:
              return invalid_chart_payload("Pareto", "Cannot compute pareto over empty/unmapped data", target_col, mode="spec")
 
-        # Filter out normal
-        defects = classified[classified["DefectType"] != "Normal"]
+        # Unknown values are data-quality exclusions, not spec-limit defects.
+        invalid_n = int((classified["DefectType"] == "Unknown").sum())
+        valid_n = int(len(classified) - invalid_n)
+        if valid_n == 0:
+            return invalid_chart_payload(
+                "Pareto",
+                "無有效量測值可進行 Pareto 缺陷分類。",
+                target_col,
+                mode="spec",
+            )
+        defects = classified[~classified["DefectType"].isin(["Normal", "Unknown"])]
         if defects.empty:
             return {
                 "chart_type": "Pareto",
                 "data": {"categories": ["None"], "counts": [0], "cumulative_pct": [0.0]},
-                "statistics": {"total_defects": 0},
-                "metadata": {"is_valid": True, "error": "No defects found. Process is clean.", "mode": "spec"}
+                "statistics": {"total_defects": 0, "excluded_invalid_n": invalid_n},
+                "metadata": {
+                    "is_valid": True,
+                    "error": "",
+                    "message": "No defects found. Process is clean.",
+                    "mode": "spec",
+                },
             }
 
         counts = defects["DefectType"].value_counts()
@@ -78,7 +94,8 @@ class ParetoEngine:
                 "cumulative_pct": cum_pct
             },
             "statistics": {
-                "total_defects": int(total)
+                "total_defects": int(total),
+                "excluded_invalid_n": invalid_n,
             },
             "metadata": {
                 "is_valid": True,
@@ -105,7 +122,11 @@ class ParetoEngine:
             return invalid_chart_payload("Pareto", "Missing data or required columns", target_col, mode="component")
         if usl is None and lsl is None and ucl is None and lcl is None:
             return invalid_chart_payload("Pareto", "缺少規格與管制界線，無法進行元件 Pareto 異常分類。", target_col, mode="component_non_computable")
-        df = meas_df[[group_col, target_col]].dropna()
+        df = (
+            meas_df[[group_col, target_col]]
+            .replace([np.inf, -np.inf], np.nan)
+            .dropna()
+        )
         if df.empty:
             return invalid_chart_payload("Pareto", "無有效資料可進行元件 Pareto 分析。", target_col, mode="component")
         vals = df[target_col].astype(float).to_numpy()

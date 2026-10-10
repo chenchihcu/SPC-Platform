@@ -138,6 +138,7 @@ def compute_outlier_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
     if is_outlier:
         total = len(is_outlier)
         outlier_count = int(sum(1 for x in is_outlier if bool(x)))
+        source_note = "來源：雙變量離群偵測"
     else:
         # Fallback: when dual-feature outlier input is unavailable, use SPC OOC count as proxy.
         spc = payload.get("spc") or {}
@@ -146,6 +147,9 @@ def compute_outlier_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
         outlier_idx = list(spc_data.get("out_of_control_indices") or [])
         total = int(spc_stats.get("n") or len(spc_data.get("values") or []) or 0)
         outlier_count = len(outlier_idx)
+        # Disclose the proxy so this card is not misread as an independent outlier
+        # signal (the count equals 失控分析's OOC count by construction).
+        source_note = "來源：SPC 失控點代理（無雙變量離群資料，與失控分析同一計數）"
     if total <= 0:
         return {
             "chart_type": "OutlierAnalysis",
@@ -171,6 +175,7 @@ def compute_outlier_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
                 f"Outlier Level: {rank}",
                 f"Outliers: {outlier_count}/{total}" if total else "Outliers: UNKNOWN/VERIFY",
                 f"Outlier Ratio: {ratio:.1%}" if ratio is not None else "Outlier Ratio: UNKNOWN/VERIFY",
+                source_note,
             ],
         },
         "statistics": {"outlier_count": outlier_count, "n": total, "outlier_ratio": ratio},

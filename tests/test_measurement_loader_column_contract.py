@@ -17,6 +17,17 @@ def test_measurement_loader_maps_component_alias_to_refdes(tmp_path: Path) -> No
     assert df["RefDes"].iloc[0] == "R1"
 
 
+def test_measurement_loader_preserves_pad_leading_zeroes(tmp_path: Path) -> None:
+    p = tmp_path / "m.csv"
+    p.write_text(
+        "RefDes,Pad,BoardNo,Volume\nU1,001,B1,0.01\n",
+        encoding="utf-8",
+    )
+    df, meta = MeasurementLoader().load(str(p))
+    assert meta["is_valid"] is True
+    assert df["Pad"].iloc[0] == "001"
+
+
 def test_measurement_loader_rejects_missing_measurement_column(tmp_path: Path) -> None:
     p = tmp_path / "m.csv"
     p.write_text("RefDes,BoardNo\nR1,B1\n", encoding="utf-8")

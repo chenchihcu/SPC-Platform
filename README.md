@@ -5,7 +5,7 @@ SPI 製程統計分析桌面平台（PySide6）。
 ## 主要功能 (Key Features)
 
 - **① 準備 (Preparation)**：
-    - **整合資料設定 (Data Setup)**：一頁式量化表格布局，整合座標、產品規格、多工單 (`supplier_work_order_no` / `outsource_work_order_no`) 與量測 CSV 匯入；legacy `work_order_no` 僅保留相容鍵且寫入固定空字串。
+    - **整合資料設定 (Data Setup)**：一頁式量化表格布局，整合座標、產品規格、多工單 (`supplier_work_order_no` / `outsource_work_order_no`) 與量測 CSV 匯入；鋼板區可載入 Top/Bottom Gerber（單檔/ZIP）、受控 legacy `.pho`、ODB++、IPC-2581、DXF 開窗幾何 + Pad CSV，顯示來源 layer、現用 Revision 與覆蓋率；`.pho` 只接受可明確判定為 SMD/Paste 的層，TXT/Legend 層會被拒絕；legacy `work_order_no` 僅保留相容鍵且寫入固定空字串。
     - **供應商格式相容**：量測 CSV 支援供應商限定 profile；目前 `振順豐` TOP 寬表會在供應商匹配（或未選供應商且路徑/欄位簽名完全符合）時轉為標準 `RefDes/Pad/Volume/Area/Height/BoardNo` 長表，不擴大全域欄位別名。
     - **歷史量測庫 (Measurement Library)**：基於 SQLite (`data/spc_master.db`) 的量測數據存儲與快速檢索分析；量測 session 會保存供應商名稱、雙工單與料號，從量測庫回載時會同步回 `SessionStore` 供供應商限定 CSV profile 使用；規格管理以合併表呈現「錫膏印刷規格 + 鋼板厚度規格」，可手動新增每產品 active 規格並由兩庫各自維護版本；供應商管理分頁之 `supplier_code` 由系統自動產生（`SUP-0001` 流水格式）且 UI 唯讀不可手改。
 - **② 分析 (Analysis)**：
@@ -29,7 +29,7 @@ SPI 製程統計分析桌面平台（PySide6）。
 - **SPI 製程對應知識庫**：人維護權威稿為 **`SPI_製程對應知識庫_v1.0.xlsx`**（見 `app/services/spi_process_kb_loader.py` 常數 `CANONICAL_SPI_KB_WORKBOOK_BASENAME`）；版本化 JSON 置於 `data/spi_process_kb/v1/`（四區塊：多訊號規則 R001–R030、三維對應、檢查門檻、圖表速查）；`multi_signal_diagnosis` 執行期載入並併入診斷 payload；以 `scripts/import_spi_process_kb_xlsx.py` 自該 xlsx 匯入更新。
 - CI baseline 為 `lint -> type check -> tests -> qt_audit -> check_launch`。
 
-## Current Architecture (2026-06-30)
+## Current Architecture (2026-07-27)
 
 ### Runtime Flow
 
@@ -81,7 +81,7 @@ docs/
 
 ### Main window stack（與左側流程導覽）
 
-堆疊順序見 `app/ui/main_window.py` 之 `STACK_ORDER`：**資料**、**量測**（元件／特徵選定；**不顯示於流程導覽**）、**圖表**、**報告**、**參考**、**診斷**、**量測庫**、**診斷二**、**統計資料**。左側 `CollapsibleSidebar` 顯示 8 個流程按鈕（`資料設定`、`資料庫`、`統計圖表`、`統計資料`、`診斷一`、`診斷二`、`報告匯出`、`說明`），其中 `統計圖表 / 統計資料` 與 `診斷一 / 診斷二` 各自並列，維持 6 個視覺列；透過 `NAV_TO_STACK = [0, 6, 2, 8, 5, 7, 3, 4]` 與 `TAB_TO_STACK = [0, 6, 2, 8, 5, 7, 3, 4]` 對應到內部堆疊；右側 `QTabWidget#workflowTabs` 保留為頁面容器但隱藏 tab bar。左側欄只承載流程切換、全域篩選、特徵快捷與 `下一步` / `重新分析`，表單與資料表列操作保留在內容區；當視窗高度不足時，側欄會先收合 `分析條件` 並顯示已收合提示，保留目前篩選值、流程導覽與底部主動作可辨識。Data Setup 主區採量化表格布局與 `DataSetupLayoutBudget` 診斷輸出，避免回到整頁垂直 scroll 作為主要布局。
+堆疊順序見 `app/ui/main_window.py` 之 `STACK_ORDER`：**資料**、**量測**（元件／特徵選定；**不顯示於流程導覽**）、**圖表**、**報告**、**參考**、**診斷**、**量測庫**、**統計資料**。左側 `CollapsibleSidebar` 顯示 7 個流程項（`資料設定`、`資料庫`、`統計圖表`、`統計資料`、`製程診斷`、`報告匯出`、`說明`）；`統計圖表 / 統計資料` 並列，形成 6 個視覺列。`NAV_TO_STACK = [0, 6, 2, 7, 5, 3, 4]` 與 `TAB_TO_STACK = [0, 6, 2, 7, 5, 3, 4]` 對應到內部堆疊；右側 `QTabWidget#workflowTabs` 保留為頁面容器但隱藏 tab bar。`DiagnosticMatrixPage` 是 `DiagnosticPage` 的內部診斷內容，不是獨立流程頁。左側欄只承載流程切換、全域篩選、特徵快捷與 `下一步` / `重新分析`，表單與資料表列操作保留在內容區；當視窗高度不足時，側欄會先收合 `分析條件` 並顯示已收合提示，保留目前篩選值、流程導覽與底部主動作可辨識。Data Setup 主區採量化表格布局與 `DataSetupLayoutBudget` 診斷輸出，避免回到整頁垂直 scroll 作為主要布局。
 
 ## Quick Start
 
@@ -169,6 +169,7 @@ python scripts/run_final_audit_suite.py --repo-root . --profile full
 - 報告輸出：
   - 工程導向 PPTX（`engineering`）
 - 主資料庫：`data/spc_master.db`
+- 鋼板開窗受管文件：`data/stencil_documents/<product>/<side>/<revision_timestamp>/`（保留原始 aperture source 副檔名；格式與安全邊界見 `docs/reference/stencil_aperture_format_compatibility.md`）
 - 產出路徑：`Outputs/`
 
 ## Documentation Map
@@ -190,3 +191,6 @@ python scripts/run_final_audit_suite.py --repo-root . --profile full
 - Code Review 準則：`code_review.md`
 - 決策紀錄：`docs/decision-log.md`
 - 開放問題（active risk single source）：`docs/open-questions.md`
+# Validation selection
+
+Choose V1 focused, V2 subsystem, or V3 full validation from invalidated surfaces and consumers. The DB semantic gate accepts `--checks resolver,density` for targeted runs; omit it (default `all`) for the complete semantic gate.

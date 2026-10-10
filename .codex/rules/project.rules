@@ -35,7 +35,7 @@ prefix_rule(
     decision = "allow",
     justification = "SPC Platform DB-backed chart semantic validation enforces SQLite query-only mode and rejects output paths outside Outputs.",
     match = [
-        ".venv/Scripts/python.exe scripts/validate_db_chart_semantics.py --db data/spc_master.db --latest-session --output Outputs/db_chart_semantics_current --quiet",
+        ".venv/Scripts/python.exe scripts/validate_db_chart_semantics.py --db data/spc_master.db --latest-session --checks resolver,density --output Outputs/db_chart_semantics_current --quiet",
         "python scripts/validate_db_chart_semantics.py --db data/spc_master.db --latest-session --output Outputs/db_chart_semantics_current --quiet",
     ],
     not_match = [
