@@ -902,6 +902,7 @@ Statistical accuracy is mandatory.
 **顯著性檢驗：**
 - 每個位置的 Iᵢ 使用 Monte Carlo 置換檢驗（999 次）
 - 若 p-value < 0.05，分類有效；否則標記為 NS
+- 可重現性：置換檢驗（Global 與 LISA）使用固定 RNG 種子 `DEFAULT_PERMUTATION_SEED`（`app/analytics/moran_i_engine.py`），相同輸入必得相同 p-value 與分類
 
 **參數：**
 - k：K 近鄰數（預設 k = 5）
