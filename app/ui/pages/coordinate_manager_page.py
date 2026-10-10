@@ -4,20 +4,53 @@
 
 Redesign v2: 垂直表單結構，標籤在上、控件在下，避免窄欄擠壓文字。
 """
-from PySide6 import QtWidgets
-from PySide6.QtWidgets import (
-    QWidget, QLabel, QPushButton, QLineEdit, QComboBox, QFrame,
-    QGridLayout, QHBoxLayout,
-    QSizePolicy,
-)
-from PySide6.QtCore import Signal, Qt, QThread, QTimer
-from PySide6.QtGui import QGuiApplication, QCursor
-from app.data.session_store import SessionStore
-from datetime import datetime
 import os
-from typing import Optional
+from datetime import datetime
 
-from app.ui.theme import show_dark_warning, show_dark_information, stabilize_minimum_height
+import pandas as pd
+from PySide6 import QtWidgets
+from PySide6.QtCore import Qt, QThread, QTimer, Signal
+from PySide6.QtGui import QCursor, QGuiApplication
+from PySide6.QtWidgets import (
+    QComboBox,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QSizePolicy,
+    QWidget,
+)
+
+from app.data.coordinate_registry import (
+    get_path_by_product_name,
+    list_registered,
+)
+from app.data.coordinate_registry import (
+    register as registry_register,
+)
+from app.data.mapping.schema_mapper import SchemaMapper
+from app.data.session_store import SessionStore
+from app.ui.theme import (
+    show_dark_information,
+    show_dark_warning,
+    stabilize_minimum_height,
+)
+from app.ui.theme.tokens import (
+    DATA_SETUP_CARD_CONTENT_PADDING,
+    DATA_SETUP_CARD_SECTION_GAP,
+    DATA_SETUP_FIELD_MAX_WIDTH,
+    DATA_SETUP_PATH_ACTION_MIN_WIDTH,
+    DATA_SETUP_PRIMARY_CARD_MIN_HEIGHT,
+    DATA_SETUP_PRODUCT_COMBO_MIN_WIDTH,
+    DATA_SETUP_SECONDARY_CARD_MIN_HEIGHT,
+    DATA_SETUP_TABLE_LABEL_WIDTH,
+    DATA_SETUP_TABLE_ROW_MIN_HEIGHT,
+    FORM_COMBO_MIN_WIDTH,
+    SPACING_8,
+    SPACING_12,
+)
 from app.ui.widgets.csv_file_selector_pane import CsvFileSelectorPane
 from app.ui.widgets.page_templates import (
     CsvDropZoneMixin,
@@ -25,23 +58,6 @@ from app.ui.widgets.page_templates import (
     page_margins_and_spacing,
     setup_page_header_with_status,
 )
-from app.ui.theme.tokens import (
-    SPACING_12, SPACING_8, DATA_SETUP_CARD_CONTENT_PADDING, DATA_SETUP_CARD_SECTION_GAP,
-    DATA_SETUP_PRIMARY_CARD_MIN_HEIGHT, DATA_SETUP_SECONDARY_CARD_MIN_HEIGHT,
-    FORM_COMBO_MIN_WIDTH,
-    DATA_SETUP_PRODUCT_COMBO_MIN_WIDTH,
-    DATA_SETUP_FIELD_MAX_WIDTH,
-    DATA_SETUP_PATH_ACTION_MIN_WIDTH,
-    DATA_SETUP_TABLE_LABEL_WIDTH,
-    DATA_SETUP_TABLE_ROW_MIN_HEIGHT,
-)
-from app.data.coordinate_registry import (
-    list_registered,
-    register as registry_register,
-    get_path_by_product_name,
-)
-from app.data.mapping.schema_mapper import SchemaMapper
-import pandas as pd
 
 
 class CoordValidationWorker(QThread):
@@ -259,7 +275,7 @@ class CoordinateManagerPage(CsvDropZoneMixin, QWidget):
         
         self._store = SessionStore()
         self.refresh_registered_list()
-        self._validation_worker: Optional[CoordValidationWorker] = None
+        self._validation_worker: CoordValidationWorker | None = None
         # Monotonic counter so rapid re-validation does not apply a stale worker result.
         self._coord_validation_seq: int = 0
 

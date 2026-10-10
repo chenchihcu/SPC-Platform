@@ -4,25 +4,26 @@
 
 Redesign v2: 垂直表單結構，標籤在上、控件在下，避免窄欄擠壓文字。
 """
-from PySide6 import QtWidgets
-from PySide6.QtWidgets import QWidget, QLabel, QSizePolicy, QFrame
-from PySide6.QtCore import Signal
-from datetime import datetime
 import os
+from datetime import datetime
+
+from PySide6 import QtWidgets
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QFrame, QLabel, QSizePolicy, QWidget
 
 from app.ui.theme import stabilize_minimum_height
+from app.ui.theme.tokens import (
+    DATA_SETUP_CARD_CONTENT_PADDING,
+    DATA_SETUP_PRIMARY_CARD_MIN_HEIGHT,
+    DATA_SETUP_SECONDARY_CARD_MIN_HEIGHT,
+    SPACING_8,
+    SPACING_12,
+)
 from app.ui.widgets.csv_file_selector_pane import CsvFileSelectorPane
 from app.ui.widgets.page_templates import (
     CsvDropZoneMixin,
     page_margins_and_spacing,
     setup_page_header_with_status,
-)
-from app.ui.theme.tokens import (
-    SPACING_12,
-    SPACING_8,
-    DATA_SETUP_CARD_CONTENT_PADDING,
-    DATA_SETUP_PRIMARY_CARD_MIN_HEIGHT,
-    DATA_SETUP_SECONDARY_CARD_MIN_HEIGHT,
 )
 
 

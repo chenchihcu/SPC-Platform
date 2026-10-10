@@ -12,7 +12,14 @@ from __future__ import annotations
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFontMetrics
-from PySide6.QtWidgets import QFileDialog, QFrame, QLabel, QPushButton, QSizePolicy, QWidget
+from PySide6.QtWidgets import (
+    QFileDialog,
+    QFrame,
+    QLabel,
+    QPushButton,
+    QSizePolicy,
+    QWidget,
+)
 
 from app.ui.theme.tokens import (
     DATA_SETUP_CARD_CONTENT_PADDING,
@@ -27,10 +34,14 @@ from app.ui.theme.tokens import (
     EMPTY_CSV_PATH_TEXT,
     PATH_LABEL_ELIDE_MARGIN,
     PATH_LABEL_ELIDE_MIN_W,
-    SPACING_12,
     SPACING_8,
+    SPACING_12,
 )
-from app.ui.widgets.page_templates import CsvDropZoneMixin, form_field_row, set_drop_zone_active
+from app.ui.widgets.page_templates import (
+    CsvDropZoneMixin,
+    form_field_row,
+    set_drop_zone_active,
+)
 
 _EMBEDDED_DROP_HINT = "可拖放 CSV"
 
