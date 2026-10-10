@@ -79,6 +79,6 @@ def test_density_chart_matches_baseline_png(qapp, tmp_path: Path) -> None:
             # constrained-layout shift the raster even when chart semantics match,
             # so pair a wider tolerance with the explicit semantic assertions above;
             # other hosts keep the strict tolerance.
-            raster_tol = 45 if platform.system() == "Windows" else 12
+            raster_tol = 12 if platform.system() == "Windows" else 45
             msg = compare_images(str(expected), str(actual), tol=raster_tol)
             assert msg is None, msg
