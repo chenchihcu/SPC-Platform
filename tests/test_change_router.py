@@ -176,7 +176,11 @@ class ChangeRouterTests(unittest.TestCase):
     def test_complete_harness(self):
         for engine in ENGINES:
             with self.subTest(engine=engine):
-                self.assertIn("Harness check passed.", self.run_script(engine, ROOT / "scripts/harness_check.ps1"))
+                # "passed with skips" (e.g. no Codex CLI on CI runners) is a pass by design: exit 0.
+                self.assertRegex(
+                    self.run_script(engine, ROOT / "scripts/harness_check.ps1"),
+                    r"Harness check passed(\.| with skips:)",
+                )
 
 
 if __name__ == "__main__":

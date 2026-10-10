@@ -1,5 +1,15 @@
 # Decision Log
 
+## 2026-10-10 CI on Windows + Versioned Reference Data
+
+- Decision: (1) `.github/workflows/pytest.yml` 改用 `windows-latest`；(2) 種子／參考資料由 git-ignored 的 `/data/` 移至版控的 `app/assets/reference_data/`（`ipc_jstd_pillar_seed.json`、`spi_process_kb/v1/`），`ipc_pillar_library`、`spi_process_kb_loader`、`import_spi_process_kb_xlsx.py` 預設路徑同步更新；(3) `test_complete_harness` 接受 `Harness check passed with skips:`（exit 0 的設計內通過）。
+- Scope: workflow、上述三個路徑消費端、`app/assets/reference_data/`（7 檔，與原 `/data/` 逐位元相同）、`tests/test_change_router.py`、`tests/test_chart_baseline_png.py` 註解、`tests/baseline_images/README.md`、README、`docs/specs/data_contract.md`、本條。
+- Reason: lint/type 固定後 CI 首次跑完 pytest（該 workflow 從未成功過）：ubuntu runner 缺 Qt 系統函式庫（libEGL）；7 個測試依賴只存在本機 `/data/` 的種子資料；baseline PNG 要求 Ubuntu 產生但實際使用與開發皆為 Windows；CI 無 Codex CLI 使 harness 回報 skips。改跑 Windows 讓 CI 與實際使用環境一致，並省去 Linux 專用的 apt 依賴。
+- Impact: `/data/` 只保留執行期資料（`spc_master.db`、各 registry）；參考資料隨 repo 發佈。本機舊的 `/data/ipc_jstd_pillar_seed.json`、`/data/spi_process_kb/` 不再被讀取，可保留或自行刪除。
+- Verification: 搬移後 7 個原失敗測試與匯入測試 21 passed；本機全套 pytest 見 PR 說明。
+- Risk: windows-latest 映像更新仍可能改變字型／Qt 行為；baseline PNG 以 Windows 寬容差比對。
+- Rollback: workflow 改回 ubuntu-latest（需重新加入 Qt apt 步驟）；路徑常數改回 `data/`。
+
 ## 2026-10-10 Lint/Type Toolchain Pinning
 
 - Decision: `pyproject.toml` 的 `[tool.ruff.lint]` 明確寫出 `select = ["E4", "E7", "E9", "F"]`（等同 ruff 0.15.9 預設），並在 `docs/reference/requirements.txt` 固定 `ruff==0.15.9`、`mypy==1.20.0`、`pandas-stubs==3.0.0.260204`；另修正 2 處在新版 stubs 下才會報錯的型別問題（`reference_page.py` child 可能為 None、`report_context.py` 改用 positional argmin/argmax，保留 idxmin/idxmax 首次出現語意）。

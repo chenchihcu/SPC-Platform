@@ -75,10 +75,10 @@ def test_density_chart_matches_baseline_png(qapp, tmp_path: Path) -> None:
                 actual, dpi=100, format="png", facecolor=chart.figure.get_facecolor()
             )
 
-            # Keep Ubuntu/CI strict against the canonical baseline. Windows has
-            # larger constrained-layout and FreeType shifts even when chart
-            # semantics match, so pair a wider raster tolerance with explicit
-            # semantic assertions above.
+            # CI and all usage are Windows (windows-latest). Windows FreeType and
+            # constrained-layout shift the raster even when chart semantics match,
+            # so pair a wider tolerance with the explicit semantic assertions above;
+            # other hosts keep the strict tolerance.
             raster_tol = 45 if platform.system() == "Windows" else 12
             msg = compare_images(str(expected), str(actual), tol=raster_tol)
             assert msg is None, msg
