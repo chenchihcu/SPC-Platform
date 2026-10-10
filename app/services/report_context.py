@@ -49,7 +49,11 @@ def _infer_time_range(df: pd.DataFrame, columns: List[str]) -> Tuple[Optional[st
             dt_series = pd.to_datetime(series, errors="coerce")
             if dt_series.notna().any():
                 valid_dt = dt_series.dropna()
-                return str(series.loc[valid_dt.idxmin()]), str(series.loc[valid_dt.idxmax()])
+                # Positional argmin/argmax keep idxmin/idxmax first-occurrence semantics
+                # without label lookups (typed as Hashable by pandas-stubs).
+                aligned = series.loc[valid_dt.index]
+                values = valid_dt.to_numpy()
+                return str(aligned.iloc[int(values.argmin())]), str(aligned.iloc[int(values.argmax())])
         except (TypeError, ValueError, OverflowError):
             pass
         return str(series.min()), str(series.max())
