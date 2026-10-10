@@ -2,28 +2,16 @@
 
 Used by [`tests/test_chart_baseline_png.py`](../test_chart_baseline_png.py) with `matplotlib.testing.compare.compare_images`.
 
-The pytest must use `matplotlib.pyplot.rc_context(...)` for DejaVu + dpi so **global** `rcParams` are not left on `DejaVu Sans` (that would flood later tests with CJK glyph warnings). The one-off regenerate snippet below runs in a fresh process, so `plt.rcParams.update` there is fine.
+The pytest must use `matplotlib.pyplot.rc_context(...)` for DejaVu + dpi so **global** `rcParams` are not left on `DejaVu Sans` (that would flood later tests with CJK glyph warnings).
 
-## Regenerate (Python 3.12, Windows, CI parity)
+## Regenerate
 
-From repo root, with `MPLBACKEND=Agg` and the same payload as the test:
+The raster depends on the **matplotlib version**, not the OS: one release renders pixel-identically on `windows-latest` and `ubuntu-latest`, while a version change moves it well past the tolerance. The test therefore compares strictly (`RASTER_TOL`) only when the installed matplotlib equals `BASELINE_MPL_VERSION` in the test; otherwise it skips the raster step locally and **fails on CI** (`CI` env set) so drift is never silent.
 
-```bash
-python -c "
-import os; os.environ.setdefault('QT_QPA_PLATFORM','offscreen'); os.environ['MPLBACKEND']='Agg'
-import matplotlib; matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-plt.rcParams.update({'figure.dpi': 100, 'savefig.dpi': 100, 'font.family': 'DejaVu Sans'})
-from PySide6.QtWidgets import QApplication
-app = QApplication.instance() or QApplication([])
-from app.charts.density_chart import DensityChart
-ch = DensityChart()
-ch.draw_chart({'metadata': {'is_valid': True}, 'data': {'x': [98.,100.,101.,103.,105.], 'y': [108.,110.,111.,109.,107.], 'col_x': 'Area', 'col_y': 'Height'}, 'statistics': {'gridsize': 12}})
-ch.figure.savefig('tests/baseline_images/density_chart_default.png', dpi=100, format='png', facecolor=ch.figure.get_facecolor())
-print('updated density_chart_default.png')
-"
-```
+Canonical baseline = the CI render. When CI fails with the version message (or the chart theme changes on purpose):
+
+1. Download the `chart-baseline-images` artifact from the failed `ci-quality` run (uploaded on test failure).
+2. Copy `pytest-of-*/pytest-0/test_density_chart_matches_bas0/actual.png` over `tests/baseline_images/density_chart_default.png`; inspect it first — only theme/version changes are acceptable, never data geometry.
+3. Set `BASELINE_MPL_VERSION` to the matplotlib version from that run's install log.
 
 Then run `python -m pytest tests/test_chart_baseline_png.py -q`.
-
-The app and CI (`windows-latest`) run on **Windows**; the test uses the Windows tolerance there and the strict tolerance on other hosts. Regenerate the canonical baseline on Windows.

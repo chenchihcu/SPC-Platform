@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import platform
 import warnings
 from pathlib import Path
 
@@ -19,6 +18,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication
 
 from app.charts.density_chart import DensityChart
+
+# Raster output is pinned to the matplotlib release that rendered the baseline:
+# the same release renders pixel-identically on windows-latest and ubuntu-latest,
+# while 3.10.8 -> 3.11.2 alone shifts it by RMS ~23.
+BASELINE_MPL_VERSION = "3.11.2"
+RASTER_TOL = 2
 
 
 @pytest.fixture(scope="module")
@@ -75,10 +80,13 @@ def test_density_chart_matches_baseline_png(qapp, tmp_path: Path) -> None:
                 actual, dpi=100, format="png", facecolor=chart.figure.get_facecolor()
             )
 
-            # CI and all usage are Windows (windows-latest). Windows FreeType and
-            # constrained-layout shift the raster even when chart semantics match,
-            # so pair a wider tolerance with the explicit semantic assertions above;
-            # other hosts keep the strict tolerance.
-            raster_tol = 12 if platform.system() == "Windows" else 45
-            msg = compare_images(str(expected), str(actual), tol=raster_tol)
+            if matplotlib.__version__ != BASELINE_MPL_VERSION:
+                reason = (
+                    f"density baseline rendered with matplotlib {BASELINE_MPL_VERSION}, "
+                    f"installed {matplotlib.__version__}; regenerate per tests/baseline_images/README.md"
+                )
+                if os.environ.get("CI"):
+                    pytest.fail(reason)
+                pytest.skip(reason)
+            msg = compare_images(str(expected), str(actual), tol=RASTER_TOL)
             assert msg is None, msg
