@@ -14,6 +14,7 @@ from app.analytics.distribution_engine import DistributionEngine
 from app.analytics.normality_engine import NormalityEngine
 from app.analytics.spc_engine import SPCEngine
 from app.utils.numeric_utils import safe_float
+from app.utils.dataframe_utils import detect_order_col, detect_subgroup_col, sort_by_order_col
 from app.analytics.cusum_engine import CUSUMEngine
 from app.analytics.ooc_utils import count_contiguous_ooc_clusters
 from app.analytics.process_diagnosis_engine import run_process_diagnosis
@@ -107,13 +108,19 @@ def _to_ppm(defect_count: int, n_valid: int) -> Optional[float]:
     return float(defect_count / n_valid * 1_000_000.0)
 
 
+def _board_id_col(df: pd.DataFrame) -> Optional[str]:
+    """First board-like id column with at least one non-null value."""
+    for col in ("BoardNo", "PanelId"):
+        if col in df.columns and df[col].notna().any():
+            return col
+    return None
+
+
 def _infer_board_n(df: pd.DataFrame, fallback_n: int) -> int:
     """Infer board count from board-like id columns; fallback to provided n."""
-    for col in ("BoardNo", "PanelId"):
-        if col in df.columns:
-            non_null = df[col].dropna()
-            if len(non_null) > 0:
-                return int(non_null.nunique())
+    col = _board_id_col(df)
+    if col is not None:
+        return int(df[col].dropna().nunique())
     return int(fallback_n)
 
 
@@ -168,7 +175,11 @@ def _cpk_95ci_text(cpk: Optional[float], n_valid: int, alpha: float = CPK_CI_ALP
     cpk_f = float(cpk)
     z = float(stats.norm.ppf(1.0 - alpha / 2.0))
     se = math.sqrt((1.0 / (9.0 * n_valid)) + (cpk_f * cpk_f / (2.0 * (n_valid - 1))))
-    lo = max(0.0, cpk_f - z * se)
+    # Two-sided Bissell interval is symmetric about the point estimate; do NOT
+    # floor the lower bound at 0. Cpk can be negative (mean outside spec), and a
+    # max(0.0, …) clamp then pushes the lower bound above the upper bound,
+    # producing an inverted interval like "[0.000, -23108.696]".
+    lo = cpk_f - z * se
     hi = cpk_f + z * se
     return f"[{lo:.3f}, {hi:.3f}]"
 
@@ -265,11 +276,18 @@ def compute_summary(
       - process: { "min_cpk", "min_cpk_measure", "overall_yield_pct", "verdict" }
     """
     per_measure: Dict[str, Dict[str, Any]] = {}
+    # Same run order as the chart page / semantic validator: the moving-range
+    # short-term sigma (Cp/Cpk) and I-MR limits are order-dependent, so the
+    # summary must not use raw load order when a Time/Board order column exists.
+    filtered_df = sort_by_order_col(filtered_df, detect_order_col(filtered_df))
     workorder_spec = workorder_spec or {}
     workorder_master = workorder_master or {}
     series_by_measure: Dict[str, pd.Series] = {}
     spc_by_measure: Dict[str, Dict[str, Any]] = {}
     cusum_by_measure: Dict[str, Dict[str, Any]] = {}
+    # Rational-subgroup id (board/panel) for within-subgroup short-term sigma.
+    subgroup_col = detect_subgroup_col(filtered_df)
+    subgroup_ids = filtered_df[subgroup_col] if subgroup_col else None
 
     for spec_key, col in SPEC_KEY_TO_COL.items():
         if col not in filtered_df.columns:
@@ -285,7 +303,9 @@ def compute_summary(
         dist = DistributionEngine.compute_histogram(series)
         cap = None
         if usl is not None and lsl is not None:
-            cap = CapabilityEngine.compute_capability(series, usl, lsl)
+            cap = CapabilityEngine.compute_capability(
+                series, usl, lsl, subgroup_ids=subgroup_ids
+            )
         normality = NormalityEngine.compute_normality(series)
         spc = SPCEngine.compute_imr(series, col)
         cusum = CUSUMEngine.compute_cusum(series, col, target=target, usl=usl, lsl=lsl)
@@ -431,7 +451,16 @@ def compute_summary(
                 fail_mask[col] = (sub[col] < lsl) | (sub[col] > usl)
             row_event_counts = fail_mask.sum(axis=1)
             event_count = int(row_event_counts.sum())
-            board_count = int((row_event_counts > 0).sum())
+            # Numerator must be in the same unit as board_n (boards, not pad
+            # rows): count distinct boards having at least one defect event.
+            board_col = _board_id_col(filtered_df.loc[sub.index])
+            defect_rows = row_event_counts > 0
+            if board_col is not None:
+                board_count = int(
+                    filtered_df.loc[sub.index, board_col][defect_rows].dropna().nunique()
+                )
+            else:
+                board_count = int(defect_rows.sum())
             combined_event_opportunities = int(len(sub) * len(cols_with_spec))
             combined_board_opportunities = int(board_n)
             defect_combined = {
@@ -550,6 +579,11 @@ def compute_summary(
         "yield_pct": overall_yield_pct,
         "dpmo": defect_combined.get("dpmo_combined_event"),
         "sigma_level": _avg(z_values),
+        # Sigma averages only features with a valid Z-bench; spec'd features whose
+        # Z-bench is undefined (e.g. unit/scale mismatch) are silently excluded.
+        # Expose the coverage so the report can flag a partial (optimistic) sigma.
+        "sigma_level_n": len(z_values),
+        "sigma_level_expected": len(cpk_values),
     }
 
     layer_3_info = {
@@ -606,6 +640,7 @@ def compute_summary(
         pm_i = per_measure[info_col]
         dist_i = (pm_i.get("dist") or {}).get("statistics") or {}
         cap_i = (pm_i.get("cap") or {}).get("statistics") or {}
+        cap_meta_i = (pm_i.get("cap") or {}).get("metadata") or {}
         mean_i = dist_i.get("mean")
         std_i = cap_i.get("sigma_lt")
         if std_i is None:
@@ -646,6 +681,8 @@ def compute_summary(
                 "oos_count": oos_n,
                 "oos_rate": oos_rate_spec,
                 "spec_tightness_level": _spec_tightness_level(safe_float(cpk_i)),
+                "scale_mismatch": bool(cap_meta_i.get("scale_mismatch")),
+                "scale_mismatch_reason": str(cap_meta_i.get("scale_mismatch_reason") or ""),
             }
 
     _oos_n_spec = int(layer_5_spec_analysis.get("oos_count") or 0) if layer_5_spec_analysis else 0

@@ -239,7 +239,10 @@ class MeasurementLoader:
              return pd.DataFrame(), {"is_valid": False, "error": f"File not found: {filepath}"}
 
         try:
-            raw_df = pd.read_csv(filepath, encoding="utf-8")
+            # Read identifiers as text first so Pad values such as "001" do
+            # not lose leading zeroes before schema mapping. Numeric measure
+            # columns are converted explicitly in _finalize_mapped_measurements.
+            raw_df = pd.read_csv(filepath, encoding="utf-8", dtype=str)
             raw_df.columns = raw_df.columns.astype(str).str.strip()
 
             should_use_zsf, signature_ok, missing_signature, board_numbers, activation_source = (

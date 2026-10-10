@@ -4,6 +4,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from app.services.process_risk_model import merge_risk_level
+from app.services.report_copy import PRINT_CHECK_ADVICE
 _log = logging.getLogger(__name__)
 
 
@@ -533,7 +534,7 @@ def generate_spi_narrative(
     if causes:
         sentence2 = f"常見可能原因包括：{causes[0]}、{causes[1]}。" if len(causes) >= 2 else f"常見可能原因：{causes[0]}。"
     else:
-        sentence2 = "建議確認鋼網、刮刀、錫膏及設備參數是否有異常變化。"
+        sentence2 = PRINT_CHECK_ADVICE
 
     # Sentence 3: risk consequence
     sentence3 = _SPI_RISK_CONSEQUENCE.get(risk_upper, "請依現場情況進行評估與追蹤。")

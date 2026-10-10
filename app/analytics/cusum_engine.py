@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, Optional
 
+from app.analytics.spc_engine import SPCEngine
 from app.analytics.statistical_utils import StatisticalUtils, invalid_chart_payload
 
 
@@ -50,7 +51,13 @@ class CUSUMEngine:
 
         # μ₀ priority: explicit target → spec midpoint → data mean
         data_mean = float(valid_data.mean())
-        data_sigma = float(valid_data.std(ddof=1))
+        # Individuals chart: sigma = MR_bar / d2 (SPC_RULES §10.1). The overall
+        # std is inflated by the very shift CUSUM is meant to detect.
+        data_sigma = float(
+            StatisticalUtils.calculate_moving_range(valid_data).mean() / SPCEngine.I_MR_D2
+        )
+        if not np.isfinite(data_sigma):
+            data_sigma = 0.0
         if target is not None:
             mu0 = float(target)
             mu0_source = "spec_target"

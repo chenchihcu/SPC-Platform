@@ -64,3 +64,21 @@ def test_too_few_samples_returns_invalid():
 def test_all_identical_values_returns_invalid():
     result = EWMAEngine.compute_ewma(pd.Series([100.0] * 20))
     assert result["metadata"]["is_valid"] is False
+
+
+def test_first_observation_enters_ewma():
+    """Regression: z_0 = mu0 precedes x_1, so the first point must not be dropped."""
+    values = [200.0] + [100.0 + (i % 3) for i in range(29)]
+    data = pd.Series(values)
+    result = EWMAEngine.compute_ewma(data, lam=0.2)
+    mu0 = float(data.mean())
+    assert abs(result["data"]["values"][0] - (0.2 * 200.0 + 0.8 * mu0)) < 1e-9
+
+
+def test_sigma_uses_moving_range_not_overall_std():
+    """SPC_RULES §10.1: individuals sigma = MR_bar / d2."""
+    data = _data(n=40)
+    result = EWMAEngine.compute_ewma(data, lam=0.2)
+    sigma = float(data.diff().abs().mean() / 1.128)
+    expected = sigma * np.sqrt(0.2 / 1.8)
+    assert abs(result["statistics"]["sigma_ewma"] - expected) < 1e-12

@@ -154,6 +154,14 @@ def remove_by_product_name(product_name: str) -> bool:
         pid = get_product_id(conn, key)
         if pid is None:
             return False
+        stencil_documents = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM stencil_document_versions WHERE product_id = ?",
+            (pid,),
+        ).fetchone()
+        if stencil_documents and int(stencil_documents["cnt"] or 0) > 0:
+            # Stencil document versions are immutable managed records. Removing
+            # a coordinate registration must never cascade-delete them.
+            return False
         conn.execute("DELETE FROM products WHERE id = ?", (pid,))
     # Compatibility: keep cascading clean-up call semantics explicit.
     try:

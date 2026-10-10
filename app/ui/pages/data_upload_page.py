@@ -110,12 +110,7 @@ class DataUploadPage(CsvDropZoneMixin, QWidget):
             row_file.setContentsMargins(0, 0, 0, 0)
             row_file.setSpacing(SPACING_12)
 
-            self.btn_browse = QPushButton("選量測檔")
-            self.btn_browse.setProperty("class", "secondary")
-            self.btn_browse.setMinimumWidth(DATA_SETUP_PATH_ACTION_MIN_WIDTH)
             self.btn_browse.setToolTip("選擇並載入 SPI 量測 CSV 至目前分析會話")
-            self.btn_browse.setAccessibleName("選量測檔")
-            self.btn_browse.clicked.connect(self._open_file_dialog)
             row_file.addWidget(self.btn_browse, 0)
 
             self.lbl_meta = QLabel("列數：--")
@@ -128,9 +123,6 @@ class DataUploadPage(CsvDropZoneMixin, QWidget):
             self.drop_zone_hint.setFixedWidth(DATA_SETUP_COMPACT_HINT_LABEL_WIDTH)
             row_file.addWidget(self.drop_zone_hint, 0)
 
-            self.lbl_path = QLabel("尚未選擇")
-            self.lbl_path.setProperty("class", "caption")
-            self.lbl_path.setWordWrap(False)
             self.lbl_path.setMinimumWidth(DATA_SETUP_COMPACT_PATH_MIN_WIDTH)
             row_file.addWidget(self.lbl_path, 1)
 

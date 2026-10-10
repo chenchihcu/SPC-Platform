@@ -383,7 +383,16 @@ def test_build_pptx_report_fallback_risk_shows_high_priority_signal_count(tmp_pa
     )
     assert "整體風險：" in all_text
     assert "高風險 (High)" in all_text
-    assert "高優先訊號：2" in all_text
+    high_priority_cells = [
+        shape.table.cell(1, 2).text
+        for slide in prs.slides
+        for shape in slide.shapes
+        if getattr(shape, "has_table", False)
+        and len(shape.table.rows) >= 2
+        and len(shape.table.columns) >= 3
+        and shape.table.cell(0, 2).text == "High Priority (優先)"
+    ]
+    assert high_priority_cells == ["2"]
 
 
 def test_build_pptx_report_adds_chart_evidence_gallery_when_images_available(

@@ -14,6 +14,7 @@ from app.analytics.dashboard_layers_display import (
     value_state_label_zh,
 )
 from app.services.diagnostic_evidence_matrix import build_readable_diagnostic_tabs
+from app.services.report_copy import REPORT_TITLE
 from app.ui.theme.tokens import (
     ACCENT_ERROR,
     ACCENT_SUCCESS,
@@ -95,27 +96,6 @@ def _s(value: Any) -> str:
     return "—" if value in (None, "", []) else str(value)
 
 
-def _section_row(ws, row: int, title: str) -> None:
-    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=8)
-    cell = ws.cell(row=row, column=1, value=title)
-    cell.fill = _SECTION_FILL
-    cell.font = _SECTION_FONT
-    cell.alignment = _LEFT
-    for col in range(1, 9):
-        ws.cell(row=row, column=col).border = _THIN_BORDER
-
-
-def _pair(ws, row: int, col: int, label: str, value: str) -> None:
-    label_cell = ws.cell(row=row, column=col, value=label)
-    value_cell = ws.cell(row=row, column=col + 1, value=value)
-    label_cell.fill = _LABEL_FILL
-    value_cell.fill = _VALUE_FILL
-    label_cell.font = _LABEL_FONT
-    value_cell.font = _VALUE_FONT
-    label_cell.alignment = _LEFT
-    value_cell.alignment = _LEFT
-    label_cell.border = _THIN_BORDER
-    value_cell.border = _THIN_BORDER
 
 
 def _header_cells(ws, row: int, headers: list[str]) -> None:
@@ -214,9 +194,9 @@ def _add_diagnostic_matrix_sheets(wb: Workbook, payload: dict[str, Any]) -> None
                 {
                     "title": "目前無可判讀內容",
                     "result_zh": "資料不足/不可判讀",
-                    "reason_zh": "此分頁目前沒有足夠資料形成白話判讀。",
+                    "reason_zh": "—",
                     "evidence_zh": "—",
-                    "next_action_zh": "補齊資料或重跑分析後再查看。",
+                    "next_action_zh": "補齊資料後重跑分析。",
                     "source_zh": tab_key,
                 }
             ]
@@ -235,6 +215,33 @@ def _add_diagnostic_matrix_sheets(wb: Workbook, payload: dict[str, Any]) -> None
                     row.get("source_zh"),
                 ],
             )
+
+
+def _add_stencil_analysis_sheet(wb: Workbook, payload: dict[str, Any]) -> None:
+    metadata = payload.get("stencil_analysis")
+    if not isinstance(metadata, dict) or not metadata:
+        return
+    ws = wb.create_sheet("鋼板開窗")
+    ws.sheet_view.showGridLines = False
+    ws.column_dimensions["A"].width = 30
+    ws.column_dimensions["B"].width = 90
+    rows = [
+        ("狀態", "VERIFY" if metadata.get("verify") else "VALID"),
+        ("資料域", metadata.get("value_domain")),
+        ("鋼板版次", metadata.get("stencil_revision")),
+        ("鋼板編號", metadata.get("stencil_no")),
+        ("Side", metadata.get("side")),
+        ("覆蓋率", f"{metadata.get('matched', 0)}/{metadata.get('total', 0)}"),
+        ("原始單位", metadata.get("original_units")),
+        ("Volume% 公式", "measured_volume_mm3 / nominal_volume_mm3 * 100"),
+        ("Area% 公式", "measured_area_mm2 / nominal_area_mm2 * 100"),
+        ("Height% 公式", "measured_height_mm / resolved_thickness_mm * 100"),
+        ("VERIFY 原因", "；".join(str(v) for v in metadata.get("verify_reasons", []))),
+        ("未匹配 Pad", "、".join(str(v) for v in metadata.get("unmatched_pads", []))),
+    ]
+    _header_cells(ws, 1, ["項目", "內容"])
+    for row_index, (label, value) in enumerate(rows, start=2):
+        _body_cells(ws, row_index, [label, value])
 
 
 def export_diagnostic_summary_xlsx(payload: dict[str, Any], output_path: str | Path) -> Path:
@@ -264,7 +271,7 @@ def export_diagnostic_summary_xlsx(payload: dict[str, Any], output_path: str | P
 
     ws.merge_cells("A1:F1")
     title_cell = ws["A1"]
-    title_cell.value = "SMT SPI 製程統計分析報告"
+    title_cell.value = REPORT_TITLE
     title_cell.fill = _HEADER_FILL
     title_cell.font = _HEADER_FONT
     title_cell.alignment = _CENTER
@@ -302,6 +309,7 @@ def export_diagnostic_summary_xlsx(payload: dict[str, Any], output_path: str | P
                 cell.border = _THIN_BORDER
 
     _add_diagnostic_matrix_sheets(wb, payload)
+    _add_stencil_analysis_sheet(wb, payload)
 
     out.parent.mkdir(parents=True, exist_ok=True)
     wb.save(out)

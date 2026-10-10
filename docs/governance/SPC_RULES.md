@@ -220,6 +220,18 @@ d2 = 1.128
 
 
 
+Rational subgroups (within-subgroup moving range):
+
+When the data carries a rational-subgroup id (board / panel), MR_bar for the
+short-term sigma is the mean of moving ranges computed **within each subgroup**;
+moving ranges that would straddle a subgroup boundary are excluded. A boundary
+MR mixes between-subgroup variation into the within-subgroup estimate and
+inflates short-term sigma. With no subgroup id, MR_bar falls back to the whole
+ordered series. Cp/Cpk consume this short-term sigma; Pp/Ppk keep using the
+overall sample sigma_total. (Adopted 2026-07-13; `CapabilityEngine.subgroup_ids`.)
+
+
+
 Control Limits:
 
 
@@ -297,6 +309,20 @@ LCL = Xbar\_bar - A2 \* R\_bar
 
 
 Constants depend on subgroup size.
+
+Constants for any subgroup size (adopted 2026-10-10):
+
+- n ≤ 10: use the AIAG table values (A2, D3, D4).
+- n > 10 (an SPI board subgroup typically holds hundreds of pads): the constants
+  MUST NOT be clamped to the n = 10 row. Derive them from the exact range
+  distribution of n standard normal values:
+  d2(n) = ∫ [1 − Φ(x)^n − (1 − Φ(x))^n] dx,
+  d3(n) = sqrt(Var(R)) obtained by numerical integration,
+  A2 = 3 / (d2·√n), D3 = max(0, 1 − 3·d3/d2), D4 = 1 + 3·d3/d2.
+- Unequal subgroup sizes: sigma_hat = mean(R_i / d2(n_i)); subgroup i limits are
+  Xbar_bar ± 3·sigma_hat/√n_i and R limits max(0, d2(n_i) − 3·d3(n_i))·sigma_hat …
+  (d2(n_i) + 3·d3(n_i))·sigma_hat. With equal n these reduce exactly to the
+  A2 / D3 / D4 formulas above.
 
 
 
@@ -456,7 +482,11 @@ SE(Cpk) = sqrt( 1/(9N) + Cpk^2/(2(N-1)) )
 
 
 
-CI\_95% = \[ max(0, Cpk - z\_{0.975}\*SE), Cpk + z\_{0.975}\*SE \]
+CI\_95% = \[ Cpk - z\_{0.975}\*SE, Cpk + z\_{0.975}\*SE \]
+
+The lower bound is NOT floored at 0: Cpk is negative when the mean lies outside
+the spec, and a `max(0, …)` floor would then place the lower bound above the
+upper bound (inverted interval). (Aligned with code 2026-10-10.)
 
 
 
@@ -508,6 +538,25 @@ Eight consecutive points on one side of mean
 
 
 These rules help detect process drift.
+
+The center line and sigma used for rule zones are the I-MR ones (§4):
+CL = mean(X), sigma = MR\_bar / d2 (d2 = 1.128). Using the overall sample
+standard deviation instead would contradict Rule 1 ("beyond UCL or LCL") and
+inflate sigma whenever the process shifts. (Adopted 2026-10-10.)
+
+\# 10.1 EWMA / CUSUM
+
+Both charts monitor individual values and therefore use the I-MR sigma
+estimate sigma = MR\_bar / d2 (d2 = 1.128), not the overall sample standard
+deviation (a sustained shift inflates the overall std and desensitizes the
+chart to exactly the shift it is meant to detect). (Adopted 2026-10-10.)
+
+EWMA: z\_0 = mu0 (before the first observation), z\_i = lambda\*x\_i + (1 − lambda)\*z\_(i−1)
+for i = 1..n, so every observation, including the first, enters the statistic.
+Limits: mu0 ± L\*sigma\*sqrt(lambda/(2 − lambda)).
+
+CUSUM: C+\_i = max(0, x\_i − (mu0 + k\*sigma) + C+\_(i−1)),
+C−\_i = max(0, (mu0 − k\*sigma) − x\_i + C−\_(i−1)); signal when C > h\*sigma.
 
 
 
@@ -753,6 +802,30 @@ Agents must NOT:
 
 Statistical accuracy is mandatory.
 
+---
+
+## 鋼板開窗名義值與百分比資料域
+
+只有使用者確認啟用的鋼板文件版本可以產生百分比分析資料。原始量測資料不得改寫；
+百分比值由同一份衍生 dataframe 提供給 UI、圖表及報告。
+
+- 每個 `RefDes + Pad + Side` 的多個開窗先做幾何聯集，避免重疊面積重複計數。
+- `nominal_area_mm2 = union(openings).area`
+- `nominal_volume_mm3 = nominal_area_mm2 * resolved_thickness_mm`
+- `Volume% = measured_volume_mm3 / nominal_volume_mm3 * 100`
+- `Area% = measured_area_mm2 / nominal_area_mm2 * 100`
+- `Height% = measured_height_mm / resolved_thickness_mm * 100`
+- `Pad` 必須以字串保存；量測影像尾碼以既有 `BaseRefDes` 對應 CAD `RefDes`。
+- 有效百分比樣本必須具有正的名義面積、正的解析厚度與正的名義體積。
+
+每次分析依目前 Side 與篩選後的 `BaseRefDes + Pad` 計算覆蓋率：
+
+- 覆蓋率 100%：Volume、Area、Height 使用百分比資料與百分比 limits。
+- 覆蓋率不足 100%：原始 I-MR、Run、EWMA、CUSUM 等無規格趨勢可繼續；
+  Cp/Cpk/Pp/Ppk、良率、OOS、規格 histogram/scatter 及相關報告結論必須標示 `VERIFY`。
+- 未匹配、歧義、缺厚度或未啟用版本不得靜默排除，payload 與報告必須揭露
+  `matched/total`、未匹配 Pad、Revision、Side、樣本數與阻擋原因。
+
 
 ---
 ### 多變量統計製程管制 (Multivariate SPC)
@@ -834,4 +907,3 @@ Statistical accuracy is mandatory.
 - k：K 近鄰數（預設 k = 5）
 - permutations：置換次數（預設 999）
 - α = 0.05（顯著性水準）
-

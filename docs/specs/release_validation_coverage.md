@@ -50,7 +50,7 @@
 
 ## 3. 刻意未納入（後續可擴充）
 
-- **端到端 Qt／Playwright 互動**：由 `run_final_audit_suite` 的 `pytest_ui_runtime_pack` 等閘門涵蓋，不在 `tests/release_validation` 內。
+- **端到端 Qt／Playwright 互動**：由 full profile 的完整 `pytest -q` 涵蓋；不在 `tests/release_validation` 內。
 - **完整 `pytest -q` 全庫**：CI 與 baseline 仍以全庫 pytest 為準；`release_check` 預設僅 `tests/release_validation`；**`--with-release-ext`** 再納入三個 traceability 測試（`release_report.json` 之 `release_ext_paths`）。
 - **綜合收斂**（ext 測試、`release_check` 邊界、可選擴充項）：**`docs/open-questions.md` Watchlist #7**。
 

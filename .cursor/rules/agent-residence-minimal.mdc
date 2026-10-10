@@ -1,6 +1,6 @@
 ---
 description: "SMT SPI / SPC desktop QA app — load for non-trivial work: 除錯 bugfix regression hotfix; refactor 重構; multi-file 多檔跨模組; pytest ruff mypy CI PR; user-visible UI; API DTO payload schema; viewmodels services analytics import report; charts Matplotlib control chart; chart_registry single-source; global QSS stylesheet dark_stylesheet fonts 字型. L1 vs L2: L2 outputs Scope, Evidence, RCA, Blast, Verify then code. Unsure → L2. Authority AGENTS.md; docs/specs/issue_resolution_workflow.md; docs/specs/ai_agent_response_template.md."
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Agent residence (minimal)

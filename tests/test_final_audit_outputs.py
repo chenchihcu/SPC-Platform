@@ -44,6 +44,23 @@ def test_overall_status_is_strict() -> None:
     assert module._overall_status([pass_gate], 1) == "fail"
 
 
+def test_gate_profiles_keep_full_coverage_without_rerunning_quick_subsets() -> None:
+    module = _load_final_audit_module()
+
+    full_keys = [gate.key for gate in module._build_gates("full", sys.executable)]
+    quick_keys = [gate.key for gate in module._build_gates("quick", sys.executable)]
+
+    assert full_keys == ["ruff_all", "mypy_app", "pytest_full", "qt_policy_audit"]
+    assert "pytest_full" not in quick_keys
+    assert {
+        "pytest_statistics_pack",
+        "pytest_chart_feature_pack",
+        "pytest_release_validation_pack",
+        "pytest_performance_pack",
+        "qt_policy_audit",
+    } <= set(quick_keys)
+
+
 def test_deliverable_docs_are_generated(tmp_path: Path) -> None:
     module = _load_final_audit_module()
     report_path = tmp_path / "Outputs" / "final_audit" / "mock" / "report.md"

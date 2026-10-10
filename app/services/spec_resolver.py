@@ -33,6 +33,34 @@ from app.data.stencil_thickness_registry import (
 )
 
 
+# Length units the measurement loader uses to declare absolute Height data.
+_ABSOLUTE_HEIGHT_UNITS = {"mm", "millimeter", "millimetre"}
+
+
+def _height_data_is_absolute(measurement_units: Optional[Dict[str, Any]]) -> bool:
+    """True when the loaded Height measurements are in absolute length units.
+
+    The measurement loader is the ground truth for data units. When it declares
+    Height in mm (e.g. the 振順豐 TOP profile), the stencil ``unit_mode`` must be
+    treated as absolute even if a stale/mis-set spec still says percent —
+    otherwise mm Height data is scored against a percent spec [50,170] and every
+    capability index becomes meaningless (|Cpk| in the thousands).
+    """
+    height_unit = str((measurement_units or {}).get("Height", "")).strip().lower()
+    return height_unit in _ABSOLUTE_HEIGHT_UNITS
+
+
+def _effective_unit_mode(
+    stencil_unit_mode: Any, measurement_units: Optional[Dict[str, Any]]
+) -> str:
+    """Resolve unit_mode, letting declared absolute Height data win over a
+    percent flag (data units are authoritative; the flag can drift)."""
+    mode = str(stencil_unit_mode or UNIT_MODE_PERCENT).strip().lower()
+    if _height_data_is_absolute(measurement_units):
+        return UNIT_MODE_ABSOLUTE
+    return mode
+
+
 def _coerce_precision_thickness_raw(master: Dict[str, Any]) -> Any:
     """Keep legacy precision-thickness fallback behavior."""
     raw = master.get("thickness_precision")
@@ -98,9 +126,16 @@ def _resolve_active_specs(
     return paste, stencil, None
 
 
-def resolve_workorder_spec(product_name: str) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+def resolve_workorder_spec(
+    product_name: str,
+    measurement_units: Optional[Dict[str, Any]] = None,
+) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
     """
     依產品名稱解析 workorder_spec（值為字串）。
+
+    measurement_units: 量測載入器回報的單位（如 {"Height": "mm"}）。當 Height
+        資料為絕對長度單位時，Height 規格一律以 absolute 模式換算，避免用過時
+        的 percent 旗標把 mm 資料對百分比規格評分。
     """
     paste, stencil, err = _resolve_active_specs(product_name)
     if err:
@@ -111,7 +146,7 @@ def resolve_workorder_spec(product_name: str) -> Tuple[Optional[Dict[str, Any]],
 
     stencil_type = str(stencil.get("stencil_type") or STENCIL_NORMAL).strip().lower()
     thickness_main = float(stencil.get("thickness_main") or 0.12)
-    unit_mode = str(stencil.get("unit_mode") or UNIT_MODE_PERCENT).strip().lower()
+    unit_mode = _effective_unit_mode(stencil.get("unit_mode"), measurement_units)
     denominator_mm = float(stencil.get("height_denominator_mm") or thickness_main or 0.12)
 
     vol = _spec_to_strings(
@@ -146,9 +181,13 @@ def resolve_workorder_spec(product_name: str) -> Tuple[Optional[Dict[str, Any]],
 def resolve_height_spec_by_refdes(
     product_name: str,
     refdes_list: Optional[List[str]] = None,
+    measurement_units: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Dict[str, float]]:
     """
     依 RefDes 解析 Height 規格（給細粒度情境使用）。
+
+    measurement_units: 同 :func:`resolve_workorder_spec`，Height 為絕對單位時強制
+        以 absolute 模式換算。
     """
     result: Dict[str, Dict[str, float]] = {}
     paste, stencil, err = _resolve_active_specs(product_name)
@@ -160,7 +199,7 @@ def resolve_height_spec_by_refdes(
     stencil_type = str(stencil.get("stencil_type") or STENCIL_NORMAL).strip().lower()
     thickness_main = float(stencil.get("thickness_main") or 0.12)
     t_precision = _coerce_precision_thickness_raw(stencil)
-    unit_mode = str(stencil.get("unit_mode") or UNIT_MODE_PERCENT).strip().lower()
+    unit_mode = _effective_unit_mode(stencil.get("unit_mode"), measurement_units)
     denominator_mm = float(stencil.get("height_denominator_mm") or thickness_main or 0.12)
     lsl_percent = float(paste.get("default_height_lsl", DEFAULT_HEIGHT_LSL))
     usl_percent = float(paste.get("default_height_usl", DEFAULT_HEIGHT_USL))

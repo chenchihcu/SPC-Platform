@@ -152,6 +152,7 @@ class SessionStore:
         self.relation_meta: Dict[str, Any] = {}
         self.workorder_master: Dict[str, Any] = {}
         self.workorder_spec: Dict[str, Any] = {}
+        self.analysis_domain_meta: Dict[str, Any] = {}
         self.height_spec_by_refdes: Dict[str, Dict[str, float]] = {}  # 階梯鋼板時 RefDes -> {target,lsl,usl}
         self.stencil_thickness_um: Optional[float] = None  # IPC-7525: stencil thickness for TE calc
         self.paste_type: Optional[str] = None  # J-STD-005: Type 3/4/5/6

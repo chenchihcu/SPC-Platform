@@ -139,7 +139,13 @@ def _build_gates(profile: str, python_exe: str) -> list[Gate]:
         full[7],
         full[8],
     ]
-    return full if profile == "full" else quick
+    if profile == "full":
+        # pytest_full already contains every targeted pack used by quick.
+        # Keep the non-pytest Qt policy audit, but do not rerun subsets after
+        # the complete suite; this preserves coverage and removes duplicate
+        # release-closeout cost.
+        return [full[0], full[1], full[2], full[8]]
+    return quick
 
 
 def _classify_nonzero_output(output: str) -> str:

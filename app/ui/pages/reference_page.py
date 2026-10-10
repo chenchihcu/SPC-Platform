@@ -352,8 +352,7 @@ class ReferencePage(QWidget):
         root.setSpacing(SPACING_12)
 
         intro = QLabel(
-            "心智圖圖例建議：◎ 核心決策 ｜ ◉ SPC 類別 ｜ ◍ 單一圖表。"
-            "本頁聚焦差異標籤；完整公式與資料來源請看「圖表功能參考」。"
+            "圖例：◎ 核心決策 ｜ ◉ SPC 類別 ｜ ◍ 單一圖表。公式與資料來源見「圖表功能參考」。"
         )
         intro.setWordWrap(True)
         intro.setProperty("class", "caption")
@@ -398,8 +397,8 @@ class ReferencePage(QWidget):
             cat_item = QTreeWidgetItem(
                 [
                     f"◉ {category['category']}",
-                    "同類圖表具共同決策任務，差異見子節點標籤。",
-                    "本層不重複公式與資料來源，避免跨分頁重複。",
+                    "同類圖表共同決策任務。",
+                    "見「圖表功能參考」。",
                     str(category["relation"]),
                     "沿用 A/B/C/D 語意治理。",
                 ]
