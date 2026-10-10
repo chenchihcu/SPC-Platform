@@ -1,5 +1,14 @@
 # Decision Log
 
+## 2026-10-10 CI Qt Runtime System Libraries
+
+- Decision: `.github/workflows/pytest.yml` 在 pip 安裝前新增 apt 步驟，安裝 PySide6 需要的系統函式庫（libegl1、libgl1、libxkbcommon0、libxkbcommon-x11-0、libdbus-1-3、libfontconfig1）。
+- Scope: 只改 CI workflow 與本條紀錄；不改程式碼。
+- Reason: lint/type 固定後 CI 首次跑到 pytest，51 個測試模組在 import PySide6 時因 `libEGL.so.1` 不存在而 collection error；`ci-quality` workflow 從未成功過，pytest 步驟過去實際上沒有在 CI 執行。CJK 字型已內建於 `app/assets/fonts/NotoSansTC-VF.ttf`，不需額外字型套件。
+- Impact: CI 可實際執行 pytest 與其後的 qt_audit/check_launch/release_check。
+- Risk: CI 首次實跑 pytest，可能暴露僅在 Linux runner 才會出現的既有失敗（例如未追蹤的 `data/` 種子資料、`detect_subgroup_col` 未提交），需逐項處理。
+- Rollback: 移除該 apt 步驟。
+
 ## 2026-10-10 Lint/Type Toolchain Pinning
 
 - Decision: `pyproject.toml` 的 `[tool.ruff.lint]` 明確寫出 `select = ["E4", "E7", "E9", "F"]`（等同 ruff 0.15.9 預設），並在 `docs/reference/requirements.txt` 固定 `ruff==0.15.9`、`mypy==1.20.0`、`pandas-stubs==3.0.0.260204`；另修正 2 處在新版 stubs 下才會報錯的型別問題（`reference_page.py` child 可能為 None、`report_context.py` 改用 positional argmin/argmax，保留 idxmin/idxmax 首次出現語意）。
