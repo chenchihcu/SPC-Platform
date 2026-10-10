@@ -1,4 +1,5 @@
 from app.charts.base_chart import BaseChart
+from app.charts.run_order_axis import run_order_x
 from typing import Dict, Any
 from app.ui.theme.tokens import CHART_BAR_NEUTRAL, CHART_NEUTRAL_LINE
 
@@ -15,11 +16,11 @@ class Consistency3FChart(BaseChart):
             return False
         data = engine_output.get("data", {})
         diff_va_h = data.get("diff_va_h", [])
-        indices = data.get("indices", [])
         if not diff_va_h:
             self._show_placeholder("無一致性差異資料")
             return False
-        x_values = indices if isinstance(indices, list) and len(indices) == len(diff_va_h) else list(range(len(diff_va_h)))
+        # X = 1-based position in analysis order (payload indices are row labels).
+        x_values = run_order_x(len(diff_va_h))
         self.ax.bar(x_values, diff_va_h, color=CHART_BAR_NEUTRAL, alpha=0.75, edgecolor="none")
         self.ax.axhline(0, color=CHART_NEUTRAL_LINE, linestyle="-", linewidth=1)
         self.ax.set_xlabel("樣本序 (PCB Run Order)")

@@ -368,19 +368,19 @@ CHART_DESCRIPTIONS: Dict[str, Dict[str, str]] = {
     "anomaly_3f": {
         "definition_text": "以三特徵（如 Volume、Area、Height）計算異常分數，標示多維偏離的點。",
         "formula_text": "各特徵先做 z-score（樣本平均與標準差，ddof=1），異常分數 = mean(|z_V|, |z_A|, |z_H|)；本圖不設固定門檻。",
-        "data_source_text": "三個量測特徵（Volume、Area、Height），三者皆有效的列；依資料原始列序繪製。",
+        "data_source_text": "三個量測特徵（Volume、Area、Height），三者皆有效的列；依分析順序排列（優先時間欄 Time/Timestamp/DateTime，否則 BoardNo/PanelId），X 軸為樣本序 1..N。",
         "smt_interpretation_text": "可判讀三維組合異常的錫膏點，利於綜合體積／面積／高度的一致性檢查。",
     },
     "consistency_3f": {
         "definition_text": "多特徵一致性視覺化，檢視三特徵間的關係與一致性。",
         "formula_text": "ratio = Volume/Area；diff = z(ratio) − z(Height)；|diff| 越大表示一致性越差。",
-        "data_source_text": "三個量測特徵（Volume、Area、Height）；僅納入 Volume > 0 且 Area > 0 的列。",
+        "data_source_text": "三個量測特徵（Volume、Area、Height）；僅納入 Volume > 0 且 Area > 0 的列；依分析順序排列（優先時間欄 Time/Timestamp/DateTime，否則 BoardNo/PanelId），X 軸為樣本序 1..N。",
         "smt_interpretation_text": "可判讀元件在體積／面積／高度上是否一致、是否有單一特徵偏離。",
     },
     "parallel_coord": {
         "definition_text": "平行座標圖，每筆資料為一折線跨越多軸（特徵），用於多變量模式比較。",
         "formula_text": "各軸以全部有效資料做 min-max 縮放至 0–1，再以折線連接。",
-        "data_source_text": "三個量測特徵（Volume、Area、Height），顯示全部有效點（不抽樣）。",
+        "data_source_text": "三個量測特徵（Volume、Area、Height），顯示全部有效點（不抽樣），折線依分析順序排列（優先時間欄 Time/Timestamp/DateTime，否則 BoardNo/PanelId）繪製。",
         "smt_interpretation_text": "可判讀多特徵剖面、群聚與異常線型，利於元件或板位比對。",
     },
     "pass_fail_matrix": {

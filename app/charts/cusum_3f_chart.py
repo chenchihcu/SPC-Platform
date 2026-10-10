@@ -6,6 +6,7 @@
 """
 import numpy as np
 from app.charts.base_chart import feature_line_color as _color_for, BaseChart, sparse_tick_positions_labels
+from app.charts.run_order_axis import run_order_x
 from typing import Dict, Any
 from app.ui.theme.tokens import (
     CHART_ANNOTATION,
@@ -153,10 +154,11 @@ class CUSUM3F(BaseChart):
 
     def _draw_detail_panel(self, ax, data: dict, h_sigma: float,
                             feat: str, color: str, normalized: bool) -> None:
-        indices = data.get("indices", [])
         cp = data.get("values", [])
         cm = data.get("values_cm", [])
         cm_neg = [-v for v in cm]
+        # X = 1-based position in analysis order (payload indices are row labels).
+        indices = run_order_x(len(cp))
 
         cp_arr = np.array(cp, dtype=float)
         cm_arr = np.array(cm_neg, dtype=float)

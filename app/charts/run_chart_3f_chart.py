@@ -6,6 +6,7 @@
 """
 import numpy as np
 from app.charts.base_chart import feature_line_color as _color_for, BaseChart
+from app.charts.run_order_axis import run_order_x
 from typing import Dict, Any
 from app.ui.theme.tokens import (
     CHART_ANNOTATION,
@@ -58,7 +59,8 @@ class RunChart3F(BaseChart):
             data = fd.get("data", {})
             stats = fd.get("statistics", {})
             values = data.get("values", [])
-            indices = data.get("indices", list(range(len(values))))
+            # X = 1-based position in analysis order (payload indices are row labels).
+            indices = run_order_x(len(values))
             center = stats["center_line"] if "center_line" in stats else (float(np.mean(values)) if values else 0)
 
             color = _color_for(feat, i)

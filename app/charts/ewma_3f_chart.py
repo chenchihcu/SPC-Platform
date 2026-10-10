@@ -6,6 +6,7 @@ EWMA 相對偏移（以均值正規化），方便跨特徵比較漂移速度與
 """
 import numpy as np
 from app.charts.base_chart import feature_line_color as _color_for, BaseChart
+from app.charts.run_order_axis import marker_points, series_axis
 from typing import Dict, Any
 from app.ui.theme.tokens import (
     CHART_CENTERLINE,
@@ -70,7 +71,8 @@ class EWMA3F(BaseChart):
             data = fd.get("data", {})
             stats = fd.get("statistics", {})
             values = data.get("values", [])
-            indices = data.get("indices", list(range(len(values))))
+            # X = 1-based position in analysis order; labels only locate OOC points.
+            indices, label_pos = series_axis(data.get("indices"), len(values))
             ooc = data.get("out_of_control_indices", [])
             cl = stats["cl"] if "cl" in stats else (float(np.mean(values)) if values else 0)
             ucl = stats.get("ucl", 0)
@@ -88,9 +90,7 @@ class EWMA3F(BaseChart):
                     linewidth=1.5, label=f"EWMA ({feat})")
 
             if ooc:
-                idx_map = {idx: k for k, idx in enumerate(indices)}
-                ooc_vals = [values_plot[idx_map[idx]] for idx in ooc if idx in idx_map]
-                ooc_idx = [idx for idx in ooc if idx in idx_map]
+                ooc_idx, ooc_vals = marker_points(ooc, label_pos, values_plot)
                 if ooc_idx and ooc_vals:
                     ax.scatter(ooc_idx, ooc_vals, color=CHART_OOC, zorder=5, s=25, label="OOC")
 

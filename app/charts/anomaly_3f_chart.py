@@ -1,4 +1,5 @@
 from app.charts.base_chart import BaseChart
+from app.charts.run_order_axis import run_order_x
 from typing import Dict, Any
 from app.ui.theme.tokens import CHART_BAR_NEUTRAL
 
@@ -15,11 +16,11 @@ class Anomaly3FChart(BaseChart):
             return False
         data = engine_output.get("data", {})
         scores = data.get("scores", [])
-        indices = data.get("indices", [])
         if not scores:
             self._show_placeholder("無異常分數資料")
             return False
-        x_values = indices if isinstance(indices, list) and len(indices) == len(scores) else list(range(len(scores)))
+        # X = 1-based position in analysis order (payload indices are row labels).
+        x_values = run_order_x(len(scores))
         self.ax.bar(x_values, scores, color=CHART_BAR_NEUTRAL, alpha=0.75, edgecolor="none")
         self.ax.set_xlabel("樣本序 (PCB Run Order)")
         self.ax.set_ylabel("異常分數 (Anomaly Score)")

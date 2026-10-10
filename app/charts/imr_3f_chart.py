@@ -6,6 +6,7 @@
 """
 import numpy as np
 from app.charts.base_chart import feature_line_color as _color_for, BaseChart
+from app.charts.run_order_axis import marker_points, mr_positions, series_axis
 from app.ui.theme.tokens import (
     CHART_CENTERLINE,
     CHART_CONTROL_LIMITS,
@@ -61,7 +62,8 @@ class IMR3F(BaseChart):
             stats = fd.get("statistics", {})
 
             y_values = data.get("values", [])
-            indices = data.get("indices", list(range(len(y_values))))
+            # X = 1-based position in analysis order; labels only locate OOC / MR points.
+            indices, label_pos = series_axis(data.get("indices"), len(y_values))
             ooc = data.get("out_of_control_indices", [])
             cl = stats["cl"] if "cl" in stats else (float(np.mean(y_values)) if y_values else 0)
             ucl = stats.get("ucl", 0)
@@ -76,9 +78,7 @@ class IMR3F(BaseChart):
                       linestyle="-", markersize=_msize, label=feat)
 
             if ooc:
-                idx_map = {idx: k for k, idx in enumerate(indices)}
-                ooc_vals = [y_values[idx_map[idx]] for idx in ooc if idx in idx_map]
-                ooc_idx = [idx for idx in ooc if idx in idx_map]
+                ooc_idx, ooc_vals = marker_points(ooc, label_pos, y_values)
                 if ooc_idx and ooc_vals:
                     _s = CHART_OOC_MARKER_SIZE ** 2 if _n <= 300 else max(3, CHART_OOC_MARKER_SIZE - 4) ** 2
                     ax_i.scatter(ooc_idx, ooc_vals, color=CHART_OOC, s=_s, zorder=5)
@@ -107,7 +107,7 @@ class IMR3F(BaseChart):
             mr_values = data.get("mr_values", [])
             mr_bar = stats.get("mr_bar", 0)
             if mr_values:
-                mr_indices = data.get("mr_indices", list(range(1, len(mr_values) + 1)))
+                mr_indices = mr_positions(data.get("mr_indices"), label_pos, len(mr_values))
                 mr_ucl = mr_bar * _MR_D4
                 _mr_marker = "o" if len(mr_values) <= 300 else None
                 _mr_msize = CHART_SERIES_MARKER_SIZE if _mr_marker else 0
