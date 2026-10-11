@@ -121,12 +121,17 @@ class HistogramChart(BaseChart):
 
         usl = engine_output.get("usl")
         lsl = engine_output.get("lsl")
-        if _spec_would_crush_data(bin_edges, usl, lsl):
+        target = engine_output.get("target")
+        if _spec_would_crush_data(bin_edges, usl, lsl, target):
             # Data and spec on incompatible scales: keep the distribution visible.
             ax.set_xlim(bin_edges[0], bin_edges[-1])
             ax.text(0.5, 0.98, _SCALE_MISMATCH_CAVEAT, transform=ax.transAxes,
                     ha="center", va="top", fontsize=CHART_FONT_MICRO, color=CHART_WARNING_MARK)
         else:
+            if target is not None:
+                # Legend carries the label; an edge label would collide with Mean's.
+                draw_reference_line(ax, target, f"Target: {target:.2f}", orientation="v",
+                                    semantic="target", annotate_edge=False)
             if usl is not None:
                 draw_reference_line(ax, usl, f"USL: {usl:.2f}", orientation="v", semantic="spec_limit")
             if lsl is not None:
@@ -268,7 +273,9 @@ class HistogramChart(BaseChart):
                     ha="center", va="top", fontsize=CHART_FONT_MICRO, color=CHART_WARNING_MARK)
         else:
             if target_plot is not None:
-                draw_reference_line(ax, target_plot, f"Target: {target:.3g}", orientation="v", semantic="target")
+                # Legend carries the label; an edge label would collide with Mean's.
+                draw_reference_line(ax, target_plot, f"Target: {target:.3g}", orientation="v",
+                                    semantic="target", annotate_edge=False)
             if usl_plot is not None:
                 draw_reference_line(ax, usl_plot, f"USL: {usl:.3g}", orientation="v", semantic="spec_limit")
             if lsl_plot is not None:

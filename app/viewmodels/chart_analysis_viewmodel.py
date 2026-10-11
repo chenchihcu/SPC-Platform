@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -208,6 +209,20 @@ def _parse_workorder_spec_entry(spec: Optional[Dict[str, Any]]) -> Optional[Dict
         return None
 
 
+def _annotate_cap_target(cap: Dict[str, Any], target: Optional[float]) -> None:
+    """Record the explicit spec target in valid capability metadata (histogram target line).
+
+    Only an explicit work-order target is recorded; a (USL+LSL)/2 midpoint is not a
+    spec target and is never written here. Cp/Cpk statistics are untouched.
+    """
+    meta = cap.get("metadata") if isinstance(cap, dict) else None
+    if not isinstance(meta, dict) or not meta.get("is_valid", False):
+        return
+    if target is None or not math.isfinite(target):
+        return
+    meta["target"] = float(target)
+
+
 def _compute_single_feature_analysis(
     df: pd.DataFrame,
     target_col: str,
@@ -348,6 +363,7 @@ def _build_feature_parameters(
         param_analysis = _compute_single_feature_analysis(filtered_df, col, col_usl, col_lsl)
         param_spc = param_analysis["spc"]
         param_cap = param_analysis["cap"]
+        _annotate_cap_target(param_cap, col_target)
         param_dist = param_analysis["dist"]
         param_spc["analysis_context"] = {"target_col": col, "unit": None}
         param_cap["analysis_context"] = {"target_col": col, "unit": None}
@@ -726,6 +742,8 @@ def compute_analysis_payload(
             _cusum_target = (_cusum_spec.get("target") if _cusum_spec else None) or target
             _cusum_usl = (_cusum_spec.get("usl") if _cusum_spec else None) or usl
             _cusum_lsl = (_cusum_spec.get("lsl") if _cusum_spec else None) or lsl
+            # Histogram target line: explicit spec target only (no midpoint/orchestrator fallback).
+            _annotate_cap_target(cap, _cusum_spec.get("target") if _cusum_spec else None)
             if cancel_fn and cancel_fn():
                 raise _AnalysisCancelled()
             cusum = CUSUMEngine.compute_cusum(
