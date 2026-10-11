@@ -108,6 +108,7 @@ class DataSetupPage(QWidget):
     spec_saved = Signal(str)
     manage_specs_requested = Signal()
     manage_stencil_documents_requested = Signal(str)
+    stencil_document_versions_changed = Signal(str)  # product_name
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -324,6 +325,9 @@ class DataSetupPage(QWidget):
         self._stencil_content.manage_requested.connect(self.manage_specs_requested.emit)
         self._stencil_content.manage_documents_requested.connect(
             self.manage_stencil_documents_requested.emit
+        )
+        self._stencil_content.document_versions_changed.connect(
+            self.stencil_document_versions_changed.emit
         )
 
         self._reload_product_options()
@@ -778,6 +782,10 @@ class DataSetupPage(QWidget):
         editor reflects the RefDes available in the newly loaded coordinate file.
         """
         self._stencil_content.refresh_refdes_list()
+
+    def refresh_stencil_document_status(self) -> None:
+        """Refresh the active stencil document summary after a version change elsewhere."""
+        self._stencil_content.refresh_document_status()
 
     def sync_from_store(self, master: dict) -> None:
         """同步工單/產品資訊到 UI 欄位。"""

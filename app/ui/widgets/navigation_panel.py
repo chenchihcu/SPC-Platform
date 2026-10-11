@@ -152,7 +152,5 @@ class NavigationPanel(QWidget):
             idx = btn.property("dataStackIndex")
             is_current = idx == stack_index
             btn.setProperty("isCurrent", "true" if is_current else "false")
-            # 維持 locked 狀態不被 selected 覆蓋
-            if btn.property("state") != "locked":
-                btn.setProperty("state", "selected" if is_current else "")
+            btn.setProperty("state", "selected" if is_current else "")
         self._refresh_step_style()
