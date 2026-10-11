@@ -1,5 +1,6 @@
 from app.charts.base_chart import BaseChart, annotate_latest_point, draw_reference_line, resolve_target_col, scatter_state_points
 from typing import Dict, Any
+from app.charts.run_order_axis import marker_points, series_axis
 from app.ui.theme.tokens import CHART_SERIES, CHART_FONT_LEGEND
 class EWMAChart(BaseChart):
     """Renders EWMA control chart (exponentially weighted moving average)."""
@@ -22,16 +23,15 @@ class EWMAChart(BaseChart):
         data = engine_output.get("data", {})
         stats = engine_output.get("statistics", {})
         values = data.get("values", [])
-        indices = data.get("indices", list(range(len(values))))
+        # X = 1-based position in analysis order; labels only locate OOC points.
+        indices, label_pos = series_axis(data.get("indices"), len(values))
         ooc = data.get("out_of_control_indices", [])
         cl = stats.get("cl", 0)
         ucl = stats.get("ucl", 0)
         lcl = stats.get("lcl", 0)
         self.ax.plot(indices, values, color=CHART_SERIES, linestyle="-", linewidth=1.5, label="EWMA")
         if ooc:
-            idx_to_pos = {idx: i for i, idx in enumerate(indices)}
-            ooc_vals = [values[idx_to_pos[idx]] for idx in ooc if idx in idx_to_pos]
-            ooc_idx = [idx for idx in ooc if idx in idx_to_pos]
+            ooc_idx, ooc_vals = marker_points(ooc, label_pos, values)
             if ooc_idx and ooc_vals:
                 scatter_state_points(self.ax, ooc_idx, ooc_vals, state="ooc", label="OOC")
         annotate_latest_point(self.ax, indices, values, label="Latest", color=CHART_SERIES)

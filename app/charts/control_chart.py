@@ -6,6 +6,7 @@ from app.charts.base_chart import (
     resolve_target_col,
     scatter_state_points,
 )
+from app.charts.run_order_axis import marker_points, mr_positions, series_axis
 from app.ui.theme.tokens import (
     CHART_OOC_MARKER_SIZE,
     CHART_SERIES,
@@ -65,7 +66,8 @@ class ControlChart(BaseChart):
         stats = engine_output.get("statistics", {})
 
         y_values = data.get("values", [])
-        indices = data.get("indices", list(range(len(y_values))))
+        # X = 1-based position in analysis order; labels only locate OOC / MR points.
+        indices, label_pos = series_axis(data.get("indices"), len(y_values))
         out_of_control = data.get("out_of_control_indices", [])
 
         cl = stats.get("cl", 0)
@@ -86,9 +88,7 @@ class ControlChart(BaseChart):
         )
 
         if out_of_control:
-            idx_to_pos = {idx: i for i, idx in enumerate(indices)}
-            ooc_values = [y_values[idx_to_pos[idx]] for idx in out_of_control if idx in idx_to_pos]
-            ooc_indices = [idx for idx in out_of_control if idx in idx_to_pos]
+            ooc_indices, ooc_values = marker_points(out_of_control, label_pos, y_values)
             if ooc_indices and ooc_values:
                 _ooc_marker_s = CHART_OOC_MARKER_SIZE ** 2 if _n <= 300 else max(3, CHART_OOC_MARKER_SIZE - 4) ** 2
                 _ooc_alpha = 1.0 if _n <= 300 else 0.5
@@ -111,7 +111,7 @@ class ControlChart(BaseChart):
         mr_values = data.get("mr_values", [])
         mr_bar = stats.get("mr_bar", 0)
         if mr_values:
-            mr_indices = data.get("mr_indices", list(range(1, len(mr_values) + 1)))
+            mr_indices = mr_positions(data.get("mr_indices"), label_pos, len(mr_values))
             mr_ucl = mr_bar * _MR_D4
             self.ax_mr.set_title("移動極差管制圖 (MR Chart)", fontsize=CHART_FONT_TITLE)
             _mr_marker = "o" if len(mr_values) <= 300 else None

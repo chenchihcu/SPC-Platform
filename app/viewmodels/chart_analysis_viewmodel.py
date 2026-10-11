@@ -52,6 +52,16 @@ SUMMARY_MODE_ENGINEER = "engineer"
 SUMMARY_MODES = {SUMMARY_MODE_MANAGER, SUMMARY_MODE_ENGINEER}
 
 
+def _analysis_ordered(df: pd.DataFrame) -> pd.DataFrame:
+    """Return ``df`` in analysis order (time column first, else BoardNo/PanelId).
+
+    Sequence-plotted engines (3F scores, Hotelling T², driver I-MR/EWMA/CUSUM)
+    must see the same ordering as the single-feature path so their X axis is
+    the real run order rather than the file's row order.
+    """
+    return sort_by_order_col(df, detect_order_col(df))
+
+
 def _board_ids_for_cusum(df: pd.DataFrame) -> Optional[pd.Series]:
     """Ordered board id series for CUSUM board-boundary reset; None if no board column."""
     board_col = next((c for c in ("BoardNo", "PanelId") if c in df.columns), None)
@@ -561,7 +571,7 @@ def _compute_driver_bundle(
     feature plus the four card analyses (OOC/shift/drift/outlier) derived from
     the same bridge payload.
     """
-    series = filtered_df[col].dropna()
+    series = _analysis_ordered(filtered_df)[col].dropna()
     spc = SPCEngine.compute_imr(series, col)
     ewma = EWMAEngine.compute_ewma(series, col)
     cusum = CUSUMEngine.compute_cusum(
@@ -885,6 +895,7 @@ def compute_analysis_payload(
             # Pre-compute triple-feature combination for when user selects all 3 display features.
             triple_parameters: dict[str, Any] = {}
             if len(_feature_cols) == 3:
+                _ordered_df = _analysis_ordered(filtered_df)
                 _spec_by_col = {
                     _c: workorder_spec.get(SPEC_KEY_BY_COL.get(_c, _c.lower()), {}) or {}
                     for _c in _feature_cols
@@ -893,17 +904,17 @@ def compute_analysis_payload(
                     "anomaly_3f": _safe_compute_chart(
                         "Anomaly3F",
                         Anomaly3FEngine.compute_anomaly_3f,
-                        filtered_df, _feature_cols,
+                        _ordered_df, _feature_cols,
                     ),
                     "consistency_3f": _safe_compute_chart(
                         "Consistency3F",
                         Consistency3FEngine.compute_consistency_3f,
-                        filtered_df, cols=_feature_cols,
+                        _ordered_df, cols=_feature_cols,
                     ),
                     "parallel_coord": _safe_compute_chart(
                         "ParallelCoord",
                         ParallelCoordEngine.compute_parallel_coord,
-                        filtered_df, _feature_cols,
+                        _ordered_df, _feature_cols,
                     ),
                     "pass_fail_matrix": _safe_compute_chart(
                         "PassFail",
@@ -913,7 +924,7 @@ def compute_analysis_payload(
                     "hotelling_t2": _safe_compute_chart(
                         "HotellingT2",
                         MultivariateSPCEngine.compute_hotelling_t2,
-                        filtered_df, _feature_cols,
+                        _ordered_df, _feature_cols,
                     ),
                     "radar": _safe_compute_chart(
                         "Radar",
@@ -995,9 +1006,10 @@ def compute_analysis_payload(
                 filtered_df, selected_features, workorder_spec, cancel_fn=cancel_fn
             )
         else:
-            anomaly = Anomaly3FEngine.compute_anomaly_3f(filtered_df, selected_features)
-            consistency = Consistency3FEngine.compute_consistency_3f(filtered_df, cols=selected_features)
-            parallel_coord = ParallelCoordEngine.compute_parallel_coord(filtered_df, selected_features)
+            ordered_df = _analysis_ordered(filtered_df)
+            anomaly = Anomaly3FEngine.compute_anomaly_3f(ordered_df, selected_features)
+            consistency = Consistency3FEngine.compute_consistency_3f(ordered_df, cols=selected_features)
+            parallel_coord = ParallelCoordEngine.compute_parallel_coord(ordered_df, selected_features)
             spec_by_col = {col: workorder_spec.get(SPEC_KEY_BY_COL.get(col, col.lower()), {}) or {} for col in selected_features}
             pass_fail_matrix = PassFailEngine.compute_pass_fail(filtered_df, selected_features, spec_by_col)
             corr_matrix = CorrelationMatrixEngine.compute_matrix(filtered_df, selected_features)
@@ -1045,7 +1057,7 @@ def compute_analysis_payload(
             hotelling_t2 = _safe_compute_chart(
                 "HotellingT2",
                 MultivariateSPCEngine.compute_hotelling_t2,
-                filtered_df, selected_features,
+                ordered_df, selected_features,
             )
             radar = _safe_compute_chart(
                 "Radar",

@@ -1,5 +1,6 @@
 import numpy as np
 from app.charts.base_chart import BaseChart, resolve_target_col, sparse_tick_positions_labels
+from app.charts.run_order_axis import run_order_x
 from app.ui.theme.tokens import (
     CHART_ANNOTATION,
     CHART_CONTROL_LIMITS,
@@ -123,8 +124,9 @@ class CUSUMChart(BaseChart):
 
     def _draw_detail(self, data: dict, h_sigma: float, target_col: str):
         """Line chart for single-board or no-board-info CUSUM."""
-        indices = data.get("indices", [])
         cp = data.get("values", [])
+        # X = 1-based position in analysis order (payload indices are row labels).
+        indices = run_order_x(len(cp))
         cm = data.get("values_cm", [])
         cm_neg = [-v for v in cm]
 
