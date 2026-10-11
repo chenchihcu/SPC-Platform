@@ -210,7 +210,7 @@ def test_compute_summary_dashboard_cluster_uses_max_contiguous_segments(monkeypa
         "area": {"usl": "120", "lsl": "80", "target": "100"},
     }
 
-    def _fake_spc(_series, target_col):
+    def _fake_spc(_series, target_col, subgroup_ids=None):
         ooc = [1, 2, 5] if target_col == "Volume" else [0, 4, 5]  # 2 clusters each
         return {
             "data": {"out_of_control_indices": ooc, "values": [1, 2, 3, 4, 5, 6]},

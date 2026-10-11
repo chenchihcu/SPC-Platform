@@ -33,24 +33,11 @@ class CapabilityEngine:
         estimate. Falls back to the whole-series moving range when no usable
         subgroup structure is present (preserves legacy single-series behavior).
         """
-        # reindex() raises on duplicate labels; without a unique index the
-        # subgroup alignment is ambiguous, so use the whole-series fallback.
-        if (
-            subgroup_ids is not None
-            and subgroup_ids.index.is_unique
-            and valid_data.index.is_unique
-        ):
-            aligned = subgroup_ids.reindex(valid_data.index)
-            if aligned.notna().any():
-                within_mr = [
-                    StatisticalUtils.calculate_moving_range(grp).dropna()
-                    for _, grp in valid_data.groupby(aligned, sort=False)
-                ]
-                pooled = pd.concat(within_mr) if within_mr else pd.Series(dtype=float)
-                if not pooled.empty:
-                    return float(pooled.mean() / _D2_N2)
-        # Fallback: whole-series moving range (no rational subgroups available).
-        return float(StatisticalUtils.calculate_moving_range(valid_data).mean() / _D2_N2)
+        # Single source shared with SPCEngine.compute_imr (SPC_RULES §4).
+        mr_bar, _basis, _excluded = StatisticalUtils.within_subgroup_mr_bar(
+            valid_data, subgroup_ids
+        )
+        return float(mr_bar / _D2_N2)
 
     @staticmethod
     def compute_capability(

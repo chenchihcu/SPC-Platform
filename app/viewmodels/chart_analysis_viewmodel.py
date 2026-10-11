@@ -248,7 +248,7 @@ def _compute_single_feature_analysis(
     _subgroup_col = detect_subgroup_col(_df)
     _subgroup_ids = _df[_subgroup_col] if _subgroup_col else None
 
-    spc = SPCEngine.compute_imr(data_series, target_col)
+    spc = SPCEngine.compute_imr(data_series, target_col, subgroup_ids=_subgroup_ids)
     cap = CapabilityEngine.compute_capability(
         data_series, usl, lsl, subgroup_ids=_subgroup_ids
     )
@@ -571,8 +571,14 @@ def _compute_driver_bundle(
     feature plus the four card analyses (OOC/shift/drift/outlier) derived from
     the same bridge payload.
     """
-    series = _analysis_ordered(filtered_df)[col].dropna()
-    spc = SPCEngine.compute_imr(series, col)
+    ordered = _analysis_ordered(filtered_df)
+    series = ordered[col].dropna()
+    _subgroup_col = detect_subgroup_col(ordered)
+    spc = SPCEngine.compute_imr(
+        series,
+        col,
+        subgroup_ids=ordered.loc[series.index, _subgroup_col] if _subgroup_col else None,
+    )
     ewma = EWMAEngine.compute_ewma(series, col)
     cusum = CUSUMEngine.compute_cusum(
         series,

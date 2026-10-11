@@ -1,11 +1,11 @@
 # Open Questions
 
-Last updated: 2026-07-14
+Last updated: 2026-10-11
 
 ## Current Status
 
 - 本檔是唯一 **active risk ledger**（single source）。
-- Active 項目已由 6 項收斂為 0 項；所有移出項目均保留可機械重驗證的重新啟用條件。
+- Active 項目 2 項（#13 Pareto 邊界情境、#14 EWMA/CUSUM/pattern σ 未對齊）；所有移出項目均保留可機械重驗證的重新啟用條件。
 - `Watchlist #7` 編號與跨文件引用維持不變。
 
 ### Blocker Escalation Rule
@@ -26,6 +26,16 @@ Last updated: 2026-07-14
 - Revalidation gate: `python -m pytest -q tests/test_pareto_engine.py tests/test_pad_image_group_variants.py` + `scripts/validate_db_chart_semantics.py --latest-session` + `run_matrix.py --quick`。
 - Rollback: 各修正獨立 commit，逐一 revert。
 - Status: open
+
+### 14. EWMA / CUSUM / pattern recognition σ 仍為整條序列 MR̄（未對齊板內 σ）
+
+- Scope: `app/analytics/ewma_engine.py`、`app/analytics/cusum_engine.py`、`app/analytics/pattern_recognition_engine.py` 的 σ 估計（`SPC_RULES.md` §4「Not aligned」段）。
+- Risk: 2026-10-10 起 I-MR 與 Cp/Cpk 共用板內合併 MR̄（`StatisticalUtils.within_subgroup_mr_bar`），但上述三引擎仍以整條序列 MR̄/1.128 估 σ；有 BoardNo/PanelId 時跨板 MR 會放大其 σ，使 EWMA/CUSUM 管制界限與型態判定比 I-MR 寬，同一資料的 σ 在不同圖表間仍不一致（量級依板間位移而定，DB 實測三特徵 σ 差 < 4%）。
+- Current guardrail: `SPC_RULES.md` §4 明文標示這三引擎未對齊；CUSUM 已在板界重置 C+/C-；DB 語意驗證 `imr_cap_sigma_parity` 僅守 I-MR ↔ Cpk。
+- Next action (Owner: user 決定是否對齊；核准後由 AI session 依 spec-first 實作): 決定 EWMA/CUSUM/pattern 是否改用 `within_subgroup_mr_bar`，若是先改 `SPC_RULES.md` 再改引擎與測試。
+- Revalidation gate: `.venv/Scripts/python.exe scripts/validate_db_chart_semantics.py --db data/spc_master.db --latest-session --output Outputs/db_chart_semantics_current --quiet` + `.venv/Scripts/python.exe -m pytest -q tests/test_imr_within_subgroup_sigma.py`
+- Rollback: not applicable（僅文件化的既有行為）；若決定不對齊，移至 Moved Out 並保留 §4 註記。
+- Status: open（2026-10-10 建立）
 
 ## Moved Out Of Active (Converged / Dormant)
 

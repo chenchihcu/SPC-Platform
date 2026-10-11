@@ -307,7 +307,7 @@ def compute_summary(
                 series, usl, lsl, subgroup_ids=subgroup_ids
             )
         normality = NormalityEngine.compute_normality(series)
-        spc = SPCEngine.compute_imr(series, col)
+        spc = SPCEngine.compute_imr(series, col, subgroup_ids=subgroup_ids)
         cusum = CUSUMEngine.compute_cusum(series, col, target=target, usl=usl, lsl=lsl)
         spc_by_measure[col] = spc
         cusum_by_measure[col] = cusum
