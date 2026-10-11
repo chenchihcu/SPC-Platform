@@ -236,6 +236,13 @@ class MainWindow(QMainWindow):
             measurement_library_page.measurement_selected.connect(self._on_meas_loaded_from_library)
         measurement_library_page.coordinate_selected.connect(self._on_coord_loaded_from_library)
         measurement_library_page.spec_selected.connect(self._on_product_name_selected)
+        # 開窗文件版本變更：兩個入口（資料頁鋼板規格 / 量測庫 > 開窗文件）互相刷新
+        self.pages["資料"].stencil_document_versions_changed.connect(
+            lambda _product: measurement_library_page.refresh_stencil_documents()
+        )
+        measurement_library_page.stencil_document_versions_changed.connect(
+            self.pages["資料"].refresh_stencil_document_status
+        )
 
         self._splitter.addWidget(self.collapsible_sidebar)
         self._splitter.addWidget(self.workspace)
@@ -260,7 +267,6 @@ class MainWindow(QMainWindow):
         self.chart_vm.data_ready.connect(self.pages["診斷"].update_hints)
         self.chart_vm.error_occurred.connect(self._on_analysis_error)
         self.chart_vm.summary_mode_changed.connect(self.pages["圖表"].set_summary_mode)
-        self.pages["圖表"].summary_mode_changed.connect(self.chart_vm.set_summary_mode)
         self.chart_vm.set_summary_mode(self.chart_vm.summary_mode)
 
 

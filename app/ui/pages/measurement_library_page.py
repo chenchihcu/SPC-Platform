@@ -783,6 +783,8 @@ class MeasurementLibraryPage(QWidget):
     coordinate_selected = Signal(str)
     #: 使用者選取規格記錄時發出（攜帶產品名稱）。
     spec_selected = Signal(str)
+    #: 開窗文件版本新增 / 啟用 / 停用 / 刪除後發出。
+    stencil_document_versions_changed = Signal()
 
     def _make_search_toolbar(self) -> tuple[QFrame, QHBoxLayout]:
         toolbar = QFrame()
@@ -1092,6 +1094,9 @@ class MeasurementLibraryPage(QWidget):
 
         self._spec_subtabs.addTab(parameter_spec_tab, "參數規格")
         self.stencil_document_manager = StencilDocumentManager()
+        self.stencil_document_manager.versions_changed.connect(
+            self.stencil_document_versions_changed.emit
+        )
         self._spec_subtabs.addTab(self.stencil_document_manager, "開窗文件")
 
         self.tabs.addTab(spec_tab, "規格管理")
@@ -1312,6 +1317,10 @@ class MeasurementLibraryPage(QWidget):
             self.stencil_document_manager.set_product_name(product_name)
         else:
             self.stencil_document_manager.refresh()
+
+    def refresh_stencil_documents(self) -> None:
+        """Reload the 開窗文件 list after a version change made on another page."""
+        self.stencil_document_manager.reload()
 
     # ─── Private helpers ──────────────────────────────────────────────────────
 

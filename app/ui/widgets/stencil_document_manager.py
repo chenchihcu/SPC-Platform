@@ -168,6 +168,11 @@ class StencilDocumentManager(QWidget):
             self.product_combo.setEditText(product_name)
         self.refresh()
 
+    def reload(self) -> None:
+        """Reload product choices and version rows after a version change elsewhere."""
+        self._populate_products()
+        self.refresh()
+
     def refresh(self, *_args: Any) -> None:
         """Reload version rows for side/search filters without changing import product."""
         side = str(self.side_combo.currentData() or "")
@@ -263,8 +268,7 @@ class StencilDocumentManager(QWidget):
         dialog.exec()
 
     def _after_change(self) -> None:
-        self._populate_products()
-        self.refresh()
+        self.reload()
         self.versions_changed.emit()
 
     def _preview(self, *_args: Any) -> None:
