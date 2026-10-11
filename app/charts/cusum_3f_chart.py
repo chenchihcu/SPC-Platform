@@ -6,7 +6,7 @@
 """
 import numpy as np
 from app.charts.base_chart import feature_line_color as _color_for, BaseChart, sparse_tick_positions_labels
-from app.charts.run_order_axis import run_order_x
+from app.charts.run_order_axis import aligned_axis, feature_label_lists, shared_label_positions
 from typing import Dict, Any
 from app.ui.theme.tokens import (
     CHART_ANNOTATION,
@@ -58,6 +58,7 @@ class CUSUM3F(BaseChart):
         if prepared is None:
             return False
         features, feature_data, normalized, axes = prepared
+        shared = shared_label_positions(feature_label_lists(features, feature_data))
 
         for i, feat in enumerate(features):
             ax = axes[i]
@@ -80,7 +81,7 @@ class CUSUM3F(BaseChart):
             if board_summary and board_summary.get("board_labels"):
                 self._draw_board_summary_panel(ax, board_summary, h_sigma, feat, color, normalized)
             else:
-                self._draw_detail_panel(ax, data, h_sigma, feat, color, normalized)
+                self._draw_detail_panel(ax, data, h_sigma, feat, color, normalized, shared)
 
             # mu0 annotation
             mu0 = stats.get("mu0", 0)
@@ -153,12 +154,13 @@ class CUSUM3F(BaseChart):
         ax.set_xticklabels(tick_labels, rotation=45, fontsize=CHART_FONT_MICRO, ha="right")
 
     def _draw_detail_panel(self, ax, data: dict, h_sigma: float,
-                            feat: str, color: str, normalized: bool) -> None:
+                            feat: str, color: str, normalized: bool,
+                            shared: dict) -> None:
         cp = data.get("values", [])
         cm = data.get("values_cm", [])
         cm_neg = [-v for v in cm]
-        # X = 1-based position in analysis order (payload indices are row labels).
-        indices = run_order_x(len(cp))
+        # X = position on the label union shared by all features (sharex axes).
+        indices, _ = aligned_axis(data.get("indices"), len(cp), shared)
 
         cp_arr = np.array(cp, dtype=float)
         cm_arr = np.array(cm_neg, dtype=float)

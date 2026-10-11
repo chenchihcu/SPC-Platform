@@ -6,7 +6,7 @@
 """
 import numpy as np
 from app.charts.base_chart import feature_line_color as _color_for, BaseChart
-from app.charts.run_order_axis import run_order_x
+from app.charts.run_order_axis import aligned_axis, feature_label_lists, shared_label_positions
 from typing import Dict, Any
 from app.ui.theme.tokens import (
     CHART_ANNOTATION,
@@ -44,6 +44,7 @@ class RunChart3F(BaseChart):
         if prepared is None:
             return False
         features, feature_data, normalized, axes = prepared
+        shared = shared_label_positions(feature_label_lists(features, feature_data))
 
         for i, feat in enumerate(features):
             ax = axes[i]
@@ -59,8 +60,8 @@ class RunChart3F(BaseChart):
             data = fd.get("data", {})
             stats = fd.get("statistics", {})
             values = data.get("values", [])
-            # X = 1-based position in analysis order (payload indices are row labels).
-            indices = run_order_x(len(values))
+            # X = position on the label union shared by all features (sharex axes).
+            indices, _ = aligned_axis(data.get("indices"), len(values), shared)
             center = stats["center_line"] if "center_line" in stats else (float(np.mean(values)) if values else 0)
 
             color = _color_for(feat, i)

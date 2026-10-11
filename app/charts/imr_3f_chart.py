@@ -6,7 +6,13 @@
 """
 import numpy as np
 from app.charts.base_chart import feature_line_color as _color_for, BaseChart
-from app.charts.run_order_axis import marker_points, mr_positions, series_axis
+from app.charts.run_order_axis import (
+    aligned_axis,
+    feature_label_lists,
+    marker_points,
+    mr_positions,
+    shared_label_positions,
+)
 from app.ui.theme.tokens import (
     CHART_CENTERLINE,
     CHART_CONTROL_LIMITS,
@@ -42,6 +48,7 @@ class IMR3F(BaseChart):
             return False
         features, feature_data, _normalized, axes = prepared
         n = len(features)
+        shared = shared_label_positions(feature_label_lists(features, feature_data))
 
         for i, feat in enumerate(features):
             ax_i = axes[i][0]  # Individual chart
@@ -63,7 +70,7 @@ class IMR3F(BaseChart):
 
             y_values = data.get("values", [])
             # X = 1-based position in analysis order; labels only locate OOC / MR points.
-            indices, label_pos = series_axis(data.get("indices"), len(y_values))
+            indices, label_pos = aligned_axis(data.get("indices"), len(y_values), shared)
             ooc = data.get("out_of_control_indices", [])
             cl = stats["cl"] if "cl" in stats else (float(np.mean(y_values)) if y_values else 0)
             ucl = stats.get("ucl", 0)

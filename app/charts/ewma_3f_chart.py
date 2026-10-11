@@ -6,7 +6,7 @@ EWMA 相對偏移（以均值正規化），方便跨特徵比較漂移速度與
 """
 import numpy as np
 from app.charts.base_chart import feature_line_color as _color_for, BaseChart
-from app.charts.run_order_axis import marker_points, series_axis
+from app.charts.run_order_axis import aligned_axis, feature_label_lists, marker_points, shared_label_positions
 from typing import Dict, Any
 from app.ui.theme.tokens import (
     CHART_CENTERLINE,
@@ -55,6 +55,7 @@ class EWMA3F(BaseChart):
         if prepared is None:
             return False
         features, feature_data, normalized, axes = prepared
+        shared = shared_label_positions(feature_label_lists(features, feature_data))
 
         for i, feat in enumerate(features):
             ax = axes[i]
@@ -72,7 +73,7 @@ class EWMA3F(BaseChart):
             stats = fd.get("statistics", {})
             values = data.get("values", [])
             # X = 1-based position in analysis order; labels only locate OOC points.
-            indices, label_pos = series_axis(data.get("indices"), len(values))
+            indices, label_pos = aligned_axis(data.get("indices"), len(values), shared)
             ooc = data.get("out_of_control_indices", [])
             cl = stats["cl"] if "cl" in stats else (float(np.mean(values)) if values else 0)
             ucl = stats.get("ucl", 0)

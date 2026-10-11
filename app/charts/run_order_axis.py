@@ -30,6 +30,53 @@ def series_axis(indices: Any, n_values: int) -> Tuple[List[int], Dict[Any, int]]
     return x, {label: pos for pos, label in enumerate(labels, start=1)}
 
 
+def shared_label_positions(label_lists: Iterable[Any]) -> Dict[Any, int]:
+    """Merge per-feature row labels into one ordered ``label -> 1-based position`` map.
+
+    Multi-feature charts share one X axis, but each feature engine drops its own
+    NaN/inf rows. Numbering every feature ``1..len`` would shift later samples of
+    a feature that lost a row relative to the others, so all features are placed
+    on the union of their labels. Each feature keeps its own order; a label first
+    seen later is inserted right after its predecessor.
+    """
+    merged: List[Any] = []
+    for labels in label_lists:
+        if not isinstance(labels, (list, tuple)):
+            continue
+        seen = set(merged)
+        prev = None
+        for label in labels:
+            if label not in seen:
+                at = merged.index(prev) + 1 if prev is not None else 0
+                merged.insert(at, label)
+                seen.add(label)
+            prev = label
+    return {label: pos for pos, label in enumerate(merged, start=1)}
+
+
+def aligned_axis(
+    indices: Any, n_values: int, shared: Dict[Any, int]
+) -> Tuple[List[int], Dict[Any, int]]:
+    """Like :func:`series_axis`, but X comes from the shared multi-feature map.
+
+    Falls back to plain ``1..n`` positions when labels are unusable.
+    """
+    labels = list(indices) if isinstance(indices, (list, tuple)) else []
+    if len(labels) != n_values or any(label not in shared for label in labels):
+        return series_axis(indices, n_values)
+    return [shared[label] for label in labels], shared
+
+
+def feature_label_lists(features: Iterable[str], feature_data: Dict[str, Any]) -> List[Any]:
+    """Collect each valid feature's payload row labels for :func:`shared_label_positions`."""
+    out: List[Any] = []
+    for feat in features:
+        fd = feature_data.get(feat, {})
+        if fd.get("metadata", {}).get("is_valid", False):
+            out.append(fd.get("data", {}).get("indices"))
+    return out
+
+
 def marker_points(
     labels: Iterable[Any],
     mapping: Dict[Any, int],

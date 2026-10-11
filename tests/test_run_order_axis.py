@@ -19,7 +19,13 @@ from app.charts.imr_3f_chart import IMR3F
 from app.charts.pattern_recognition_chart import PatternRecognitionChart
 from app.charts.run_chart import RunChart
 from app.charts.run_chart_3f_chart import RunChart3F
-from app.charts.run_order_axis import marker_points, mr_positions, series_axis
+from app.charts.run_order_axis import (
+    aligned_axis,
+    marker_points,
+    mr_positions,
+    series_axis,
+    shared_label_positions,
+)
 from app.utils.dataframe_utils import natural_sort_key
 from app.viewmodels.chart_analysis_viewmodel import compute_analysis_payload
 
@@ -144,3 +150,44 @@ def test_driver_bundle_matches_single_feature_statistics():
         assert driver["run_chart"]["data"]["indices"] == _expected_order(df)
         assert driver["ewma"]["statistics"]["ucl"] == pytest.approx(ewma_1f["ucl"])
         assert driver["ewma"]["statistics"]["lcl"] == pytest.approx(ewma_1f["lcl"])
+
+
+def test_shared_label_positions_merge_features_with_dropped_rows():
+    shared = shared_label_positions([[1, 2, 3, 4, 5], [1, 2, 4, 5], [1, 2, 3, 4]])
+    assert shared == {1: 1, 2: 2, 3: 3, 4: 4, 5: 5}
+    x, mapping = aligned_axis([1, 2, 4, 5], 4, shared)
+    assert x == [1, 2, 4, 5] and mapping is shared
+    # Unusable labels fall back to plain positions.
+    assert aligned_axis(None, 3, shared)[0] == [1, 2, 3]
+    assert aligned_axis([1, 2, 99], 3, shared)[0] == [1, 2, 3]
+
+
+def test_three_feature_shared_axis_keeps_samples_aligned_when_one_feature_drops_a_row():
+    _ensure_qapp()
+    df = _shuffled_df()
+    feats = ["Volume", "Area", "Height"]
+    df.loc[df.index[5], "Area"] = np.nan
+    params = _payload(df, feats)["parameters"]
+    labels = list(params["Volume"]["run_chart"]["data"]["indices"])
+    assert len(params["Area"]["run_chart"]["data"]["indices"]) == len(labels) - 1
+    gap = labels.index(df.index[5]) + 1  # position of the dropped sample
+
+    run3f = RunChart3F()
+    assert run3f.draw_chart({
+        "metadata": {"is_valid": True},
+        "_features": feats,
+        "_feature_data": {f: params[f]["run_chart"] for f in feats},
+    })
+    xs = {ax.get_ylabel(): list(ax.lines[0].get_xdata()) for ax in run3f.figure.axes}
+    assert xs["Volume"] == list(range(1, len(labels) + 1))
+    assert xs["Area"] == [p for p in range(1, len(labels) + 1) if p != gap]
+
+    imr = IMR3F()
+    assert imr.draw_chart({
+        "metadata": {"is_valid": True},
+        "_features": feats,
+        "_feature_data": {f: params[f]["spc"] for f in feats},
+    })
+    assert list(imr.figure.axes[2].lines[0].get_xdata()) == [
+        p for p in range(1, len(labels) + 1) if p != gap
+    ]
