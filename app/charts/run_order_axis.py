@@ -81,16 +81,25 @@ def marker_points(
     labels: Iterable[Any],
     mapping: Dict[Any, int],
     values: Sequence[Any],
+    x_positions: Sequence[int],
 ) -> Tuple[List[int], List[Any]]:
-    """Return ``(x_positions, y_values)`` for marker labels found in ``mapping``."""
+    """Return ``(x_positions, y_values)`` for marker labels found in ``mapping``.
+
+    ``x_positions`` is the series' own X list from :func:`series_axis` /
+    :func:`aligned_axis`. With a shared multi-feature map, a label's position is
+    not its index into this feature's ``values`` (a dropped row shifts later
+    samples), so Y is taken from the sample whose X equals that position.
+    """
+    own_index = {pos: i for i, pos in enumerate(x_positions) if i < len(values)}
     xs: List[int] = []
     ys: List[Any] = []
     for label in labels:
         pos = mapping.get(label)
-        if pos is None or pos > len(values):
+        if pos is None or pos not in own_index:
             continue
+        i = own_index[pos]
         xs.append(pos)
-        ys.append(values[pos - 1])
+        ys.append(values[i])
     return xs, ys
 
 

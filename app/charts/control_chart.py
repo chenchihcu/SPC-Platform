@@ -88,7 +88,7 @@ class ControlChart(BaseChart):
         )
 
         if out_of_control:
-            ooc_indices, ooc_values = marker_points(out_of_control, label_pos, y_values)
+            ooc_indices, ooc_values = marker_points(out_of_control, label_pos, y_values, indices)
             if ooc_indices and ooc_values:
                 _ooc_marker_s = CHART_OOC_MARKER_SIZE ** 2 if _n <= 300 else max(3, CHART_OOC_MARKER_SIZE - 4) ** 2
                 _ooc_alpha = 1.0 if _n <= 300 else 0.5

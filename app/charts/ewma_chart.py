@@ -31,7 +31,7 @@ class EWMAChart(BaseChart):
         lcl = stats.get("lcl", 0)
         self.ax.plot(indices, values, color=CHART_SERIES, linestyle="-", linewidth=1.5, label="EWMA")
         if ooc:
-            ooc_idx, ooc_vals = marker_points(ooc, label_pos, values)
+            ooc_idx, ooc_vals = marker_points(ooc, label_pos, values, indices)
             if ooc_idx and ooc_vals:
                 scatter_state_points(self.ax, ooc_idx, ooc_vals, state="ooc", label="OOC")
         annotate_latest_point(self.ax, indices, values, label="Latest", color=CHART_SERIES)

@@ -47,7 +47,7 @@ class PatternRecognitionChart(BaseChart):
                          marker="o", markersize=1.5, alpha=0.25, label="Series")
         else:
             self.ax.plot(indices, values, color=CHART_SERIES, linewidth=1.2, label="Series")
-        hit_x, hit_y = marker_points(hit_indices, label_pos, values)
+        hit_x, hit_y = marker_points(hit_indices, label_pos, values, indices)
         if hit_x:
             self.ax.scatter(hit_x, hit_y, color=CHART_OOC, s=24, zorder=5, label="Rule Hit")
         annotate_latest_point(self.ax, indices, values, label="Latest", color=CHART_SERIES)
