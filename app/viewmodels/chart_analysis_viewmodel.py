@@ -210,13 +210,15 @@ def _parse_workorder_spec_entry(spec: Optional[Dict[str, Any]]) -> Optional[Dict
 
 
 def _annotate_cap_target(cap: Dict[str, Any], target: Optional[float]) -> None:
-    """Record the explicit spec target in valid capability metadata (histogram target line).
+    """Record the explicit spec target in capability metadata (histogram target line).
 
     Only an explicit work-order target is recorded; a (USL+LSL)/2 midpoint is not a
-    spec target and is never written here. Cp/Cpk statistics are untouched.
+    spec target and is never written here. Recorded even when Cp/Cpk is not computable
+    (few samples / zero variance): the histogram still renders and the target is a spec
+    reference, not a capability result. Cp/Cpk statistics and validity are untouched.
     """
     meta = cap.get("metadata") if isinstance(cap, dict) else None
-    if not isinstance(meta, dict) or not meta.get("is_valid", False):
+    if not isinstance(meta, dict):
         return
     if target is None or not math.isfinite(target):
         return

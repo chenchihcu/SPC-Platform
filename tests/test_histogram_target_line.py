@@ -116,3 +116,44 @@ def test_multi_feature_histogram_draws_target_line_per_subplot(qapp) -> None:
     chart.draw_chart(merged)
     labels = [_target_labels(ax) for ax in chart.figure.axes]
     assert labels == [["Target: 102"], ["Target: 91"]]
+
+
+def _spec_labels(ax) -> list[str]:
+    return [str(ln.get_label()) for ln in ax.get_lines() if str(ln.get_label()).startswith(("USL:", "LSL:"))]
+
+
+def test_target_kept_when_capability_not_computable(qapp) -> None:
+    # Too few samples for Cp/Cpk, but the histogram itself still renders.
+    params = _build_feature_parameters(_df(5), ["Volume"], _SPEC_WITH_TARGET)
+    cap_meta = params["Volume"]["cap"]["metadata"]
+    assert cap_meta["is_valid"] is False
+    assert cap_meta["target"] == pytest.approx(102.0)
+    slice_ = get_feature_payload_slice({"parameters": params}, "histogram_spec", "Volume")
+    assert slice_["target"] == pytest.approx(102.0)
+    chart = HistogramChart()
+    assert chart.draw_chart(slice_) is True
+    assert _target_labels(chart.ax) == ["Target: 102.00"]
+
+
+def test_outlying_target_does_not_hide_valid_spec_limits(qapp) -> None:
+    spec = {"volume": {"usl": "130", "lsl": "70", "target": "100000"}}
+    params = _build_feature_parameters(_df(), ["Volume"], spec)
+    slice_ = get_feature_payload_slice({"parameters": params}, "histogram_spec", "Volume")
+    chart = HistogramChart()
+    assert chart.draw_chart(slice_) is True
+    assert _spec_labels(chart.ax) == ["USL: 130.00", "LSL: 70.00"]
+    assert _target_labels(chart.ax) == []
+    caveats = [t.get_text() for t in chart.ax.texts if "Target" in t.get_text()]
+    assert caveats, "off-scale target must be disclosed, not dropped silently"
+
+
+def test_multi_feature_outlying_target_does_not_hide_valid_spec_limits(qapp) -> None:
+    spec = dict(_SPEC_WITH_TARGET, volume={"usl": "130", "lsl": "70", "target": "100000"})
+    params = _build_feature_parameters(_df(), ["Volume", "Area"], spec)
+    merged = get_multi_feature_payload_slice({"parameters": params}, "histogram_spec", ["Volume", "Area"])
+    chart = HistogramChart()
+    chart.draw_chart(merged)
+    vol_ax, area_ax = chart.figure.axes
+    assert _spec_labels(vol_ax) == ["USL: 130", "LSL: 70"]
+    assert _target_labels(vol_ax) == []
+    assert _target_labels(area_ax) == ["Target: 91"]
