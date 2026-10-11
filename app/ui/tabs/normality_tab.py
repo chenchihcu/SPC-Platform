@@ -4,7 +4,7 @@ from app.charts.mpl_font_config import setup_mpl_cjk_font
 setup_mpl_cjk_font()
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from app.charts.base_chart import _apply_mpl_app_style
+from app.charts.base_chart import _apply_mpl_app_style, add_sample_disclosure
 from app.analytics.chart_registry import format_chart_description, format_chart_description_compact
 from app.ui.theme.tokens import (
     ACCENT_PRIMARY,
@@ -133,15 +133,8 @@ class NormalityTab(QWidget):
         self.ax.grid(True, linestyle="--", alpha=0.5)
         self.ax.legend()
         sampling_note = self._format_sampling_note(stats)
-        if sampling_note:
-            self.ax.annotate(
-                sampling_note.replace("  |  ", ""),
-                xy=(0.01, 0.97),
-                xycoords="axes fraction",
-                fontsize=CHART_FONT_ANNOTATION,
-                color=TEXT_PRIMARY,
-                va="top",
-            )
+        # NormalityTab is not a BaseChart, so call the shared disclosure directly.
+        add_sample_disclosure(self.ax, data)
 
         p_val = stats.get("p_value", 0)
         is_normal = stats.get("is_normal", False)
@@ -227,15 +220,7 @@ class NormalityTab(QWidget):
                 color=result_col,
             )
             sample_note = self._format_sampling_note(stats).replace("  |  ", "")
-            if sample_note:
-                ax.annotate(
-                    sample_note,
-                    xy=(0.01, 0.96),
-                    xycoords="axes fraction",
-                    fontsize=CHART_FONT_ANNOTATION,
-                    color=TEXT_PRIMARY,
-                    va="top",
-                )
+            add_sample_disclosure(ax, fd)
             stats_parts.append(f"{feat}: p={p_val:.4f} [{result}]" + (f" | {sample_note}" if sample_note else ""))
 
         self.lbl_stats.setText("　｜　".join(stats_parts))

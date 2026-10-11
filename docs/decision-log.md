@@ -1,5 +1,14 @@
 # Decision Log
 
+## 2026-10-11 Chart Visual Contract: Shared Reference Lines, Disclosure, Empty States
+
+- Decision: (1) IMR/EWMA/Run Chart/CUSUM 3F 的參考線改用 `base_chart.draw_reference_line()`（語意樣式＋右緣標籤；`annotate_limit_edge` 改以 axes-fraction X 錨定，共用 X 軸下不內縮）；三種 Z-score 寫法收斂為 `app/charts/multi_feature_panels.py` 的單一 helper，`_zscore_with_limits` / `_zscore_pair` 保留為薄包裝；(2) 移除 run_chart、run_chart_3f、heatmap、parallel_coord、repeated_offender 的左上抽樣註記，改由共用 `add_sample_disclosure()`（新增 `step=`）；`NormalityTab` 非 BaseChart，改為直接呼叫該 helper；(3) `_show_placeholder()` 預設經 `_placeholder_class_for()` 決定 class，新增 `_show_invalid_placeholder()`；空狀態文案統一（無句號、無英文後綴，`CHART_EMPTY_*` tokens）。
+- Scope: `app/charts/*`、`app/ui/tabs/normality_tab.py`、`app/ui/theme/tokens.py`、`tests/test_chart_reference_and_empty_states.py`、`docs/specs/project_architecture.md`、本條。純視覺；不改公式、管制界限、payload 語意（`docs/governance/SPC_RULES.md`）。
+- Verification: 3F 四圖 × raw/Z-score（含 board_summary、engine `normalize_mean/std`）共 8 案例，重構前後所有 line/collection 數值逐位元相同；chart pytest、validation matrix --quick 129/129、qt_audit、check_launch 通過；1F vs 3F IMR 原生截圖（100/125/150% scale）。
+- Risk: 3F 零線樣式改為 `neutral` 語意（色／線寬微調）；Run Chart 3F 中心線由虛線改實線以對齊 1F；抽樣揭露位置由左上移至左下。
+- Merge note: 與 #8（run-order 軸）合併時，X 位置一律沿用 `app/charts/run_order_axis.py`（`aligned_axis` / `marker_points` / `mr_positions` / `shared_label_positions`），本條只替換參考線、Z-score、抽樣揭露與空狀態的呈現。
+- Rollback: 回退本條所列檔案即可。
+
 ## 2026-10-11 Component Pareto 異常點聯集計數
 
 - Decision: `ParetoEngine.compute_component_pareto` 的異常判定由加總（`oos + >UCL + <LCL`）改為聯集（`oos | >UCL | <LCL`），每點最多計一次；規則先寫入 `docs/governance/SPC_RULES.md` §16.1（spec-first，使用者核准）。

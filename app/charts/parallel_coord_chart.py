@@ -1,7 +1,7 @@
 from app.charts.base_chart import BaseChart
 from typing import Dict, Any
 import numpy as np
-from app.ui.theme.tokens import CHART_SERIES
+from app.ui.theme.tokens import CHART_EMPTY_NO_DATA, CHART_SERIES
 
 
 class ParallelCoordChart(BaseChart):
@@ -24,7 +24,7 @@ class ParallelCoordChart(BaseChart):
         columns = data.get("columns", [])
         values = data.get("values", [])
         if not columns or not values:
-            self._show_placeholder("無資料")
+            self._show_placeholder(CHART_EMPTY_NO_DATA)
             return False
         n_axes = len(columns)
         x_pos = np.arange(n_axes)
@@ -35,19 +35,6 @@ class ParallelCoordChart(BaseChart):
         for row in values:
             if len(row) == n_axes:
                 self.ax.plot(x_pos, row, color=CHART_SERIES, alpha=alpha, linewidth=0.8)
-        stats = engine_output.get("statistics", {})
-        if stats.get("sampled_for_display"):
-            shown = stats.get("displayed_n", len(values))
-            total = stats.get("n", len(values))
-            basis = stats.get("normalization_basis", "full_valid_data")
-            self.ax.annotate(
-                f"顯示抽樣: {shown}/{total}（正規化基準: {basis}）",
-                xy=(0.01, 0.97),
-                xycoords="axes fraction",
-                fontsize=9,
-                color=CHART_SERIES,
-                va="top",
-            )
         # layout handled by BaseChart
         self.canvas.draw()
         return True

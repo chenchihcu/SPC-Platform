@@ -32,7 +32,7 @@ class SubgroupChart(BaseChart):
         means = data.get("means", [])
         violation_rates = data.get("violation_rates", [])
         if not labels or not means:
-            self._show_placeholder("無子群資料 (No Subgroup Data)")
+            self._show_placeholder("無子群資料")
             return False
         x = np.arange(len(labels))
         bars = self.ax.bar(x, means, color=CHART_BAR_NEUTRAL, edgecolor=CHART_FILL_EDGE, linewidth=0.5)

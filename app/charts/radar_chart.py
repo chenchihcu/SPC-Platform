@@ -74,7 +74,7 @@ class RadarChart(BaseChart):
         series_list = all_series[:_MAX_RENDERED_SERIES]
 
         if not categories or not series_list:
-            self._show_placeholder("Radar 圖資料不足")
+            self._show_placeholder("雷達圖資料不足")
             return False
 
         num_vars = len(categories)

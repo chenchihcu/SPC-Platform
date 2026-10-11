@@ -345,7 +345,11 @@ STAT_DATA_STATUS_COLUMN_WIDTH = 82
 STAT_DATA_PRIMARY_COLUMN_WIDTH = 160
 STAT_DATA_METRIC_COLUMN_WIDTH = 110
 STAT_DATA_SOURCE_COLUMN_WIDTH = 124
-ERROR_NO_DATA = "無有效資料可繪圖。"
+ERROR_NO_DATA = "無有效資料可繪圖"
+# Chart empty-state wording: 「無{對象}資料」/「{對象}資料不足」, no trailing 。, no English suffix.
+CHART_EMPTY_NO_DATA = "無資料"
+CHART_EMPTY_MULTI_FEATURE = "無多特徵資料"
+CHART_EMPTY_FEATURE_SUFFIX = "無資料"
 
 # Chart compact description min height
 CHART_DESC_MIN_HEIGHT = 20

@@ -19,7 +19,7 @@ class SummaryCardChart(BaseChart):
         data = engine_output.get("data") or {}
         lines = list(data.get("summary_lines", []))
         if not lines:
-            self._show_placeholder("無摘要資料。")
+            self._show_placeholder("無摘要資料")
             return False
         self.ax.set_axis_off()
         top = 0.95

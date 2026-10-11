@@ -34,7 +34,7 @@ class PatternRecognitionChart(BaseChart):
         values = list(data.get("values", []))
         hit_indices = list(data.get("hit_indices", []))
         if not labels or not values:
-            self._show_placeholder("Pattern recognition 資料不足。")
+            self._show_placeholder("型態辨識資料不足")
             return False
         # X = 1-based position in analysis order; labels only locate rule hits.
         indices, label_pos = series_axis(labels, len(values))

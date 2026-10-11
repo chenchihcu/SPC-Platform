@@ -5,14 +5,16 @@
 方便比較三個特徵的漂移起始點與方向是否同步。
 """
 import numpy as np
-from app.charts.base_chart import feature_line_color as _color_for, BaseChart, sparse_tick_positions_labels
+from app.charts.base_chart import BaseChart, feature_line_color, draw_reference_line, sparse_tick_positions_labels
 from app.charts.run_order_axis import aligned_axis, feature_label_lists, shared_label_positions
+from app.charts.multi_feature_panels import (
+    zscore_array,
+    zscore_scale,
+    zscore_value,
+)
 from typing import Dict, Any
 from app.ui.theme.tokens import (
     CHART_ANNOTATION,
-    CHART_CONTROL_LIMITS,
-    CHART_LINE_STYLE_SECONDARY,
-    CHART_NEUTRAL_LINE,
     CHART_OOC,
     CHART_SERIES_SECONDARY,
     CHART_FONT_LABEL,
@@ -26,18 +28,24 @@ def _zscore_pair(pos_vals: np.ndarray, neg_vals: np.ndarray) -> tuple[np.ndarray
     """Normalize C+ and C- (negative side) with a single z-score policy."""
     if pos_vals.size == 0 and neg_vals.size == 0:
         return pos_vals, neg_vals, 0.0, 1.0, 0.0
-    combined = np.concatenate([pos_vals, neg_vals])
-    mean_val = float(np.mean(combined))
-    std_val = float(np.std(combined, ddof=1)) if combined.size > 1 else 0.0
-    if std_val <= 0:
-        std_val = 1.0
+    mean_val, std_val = zscore_scale(np.concatenate([pos_vals, neg_vals]))
     return (
-        (pos_vals - mean_val) / std_val,
-        (neg_vals - mean_val) / std_val,
+        zscore_array(pos_vals, mean_val, std_val),
+        zscore_array(neg_vals, mean_val, std_val),
         mean_val,
         std_val,
-        (0.0 - mean_val) / std_val,
+        zscore_value(0.0, mean_val, std_val),
     )
+
+
+def _draw_h_lines(ax, h_pos_plot: float, h_neg_plot: float, zero_plot: float,
+                  h_sigma: float, normalized: bool) -> None:
+    """Draw ±hσ decision limits and the zero baseline (labels carry raw hσ)."""
+    raw_tag = "(raw)" if normalized else ""
+    draw_reference_line(ax, h_pos_plot, f"+hσ{raw_tag}: {h_sigma:.3g}", semantic="control_limit")
+    draw_reference_line(ax, h_neg_plot, f"-hσ{raw_tag}: {-h_sigma:.3g}",
+                        semantic="control_limit", legend=False)
+    draw_reference_line(ax, zero_plot, "0", semantic="neutral", annotate_edge=False, legend=False)
 
 
 class CUSUM3F(BaseChart):
@@ -62,16 +70,11 @@ class CUSUM3F(BaseChart):
 
         for i, feat in enumerate(features):
             ax = axes[i]
-            color = _color_for(feat, i)
-
             fd = feature_data.get(feat, {})
-            feat_meta = fd.get("metadata", {})
-            if not feat_meta.get("is_valid", False):
-                ax.text(0.5, 0.5, f"{feat} 無資料", ha="center", va="center",
-                        transform=ax.transAxes, fontsize=CHART_FONT_LABEL)
-                ax.set_ylabel(feat, fontsize=CHART_FONT_LABEL)
+            if not fd.get("metadata", {}).get("is_valid", False):
+                self._draw_invalid_feature_panel([ax], feat)
                 continue
-
+            color = feature_line_color(feat, i)
             data = fd.get("data", {})
             stats = fd.get("statistics", {})
             h_sigma = stats.get("h_sigma", 0)
@@ -106,13 +109,12 @@ class CUSUM3F(BaseChart):
             # Hide redundant X-axis labels for non-bottom rows
             ax.label_outer()
 
-        axes[-1].set_xlabel("樣本序 (PCB Run Order) / 板號 (Board ID)", fontsize=CHART_FONT_LABEL)
-
         title = "三特徵 CUSUM 管制圖並列"
         if normalized:
             title += "（Z-score 軸；hσ 為原始參數）"
+        # layout handled by BaseChart
+        axes[-1].set_xlabel("樣本序 (PCB Run Order) / 板號 (Board ID)", fontsize=CHART_FONT_LABEL)
         axes[0].set_title(title, fontsize=CHART_FONT_TITLE)
-
         self._finish_multi_feature_axes(axes)
         return True
 
@@ -130,8 +132,8 @@ class CUSUM3F(BaseChart):
         cm_raw_neg = -max_cm.astype(float)
         if normalized:
             cp_plot, cm_neg, mean_val, std_val, zero_plot = _zscore_pair(cp_raw, cm_raw_neg)
-            h_pos_plot = (float(h_sigma) - mean_val) / std_val
-            h_neg_plot = (-float(h_sigma) - mean_val) / std_val
+            h_pos_plot = zscore_value(h_sigma, mean_val, std_val)
+            h_neg_plot = zscore_value(-float(h_sigma), mean_val, std_val)
         else:
             cp_plot = cp_raw
             cm_neg = cm_raw_neg
@@ -144,10 +146,7 @@ class CUSUM3F(BaseChart):
         ax.vlines(x, 0, cm_neg, color=CHART_SERIES_SECONDARY, linewidth=1.2, alpha=0.6)
         ax.scatter(x, cm_neg, color=CHART_SERIES_SECONDARY, s=12, zorder=5, label="C- peak")
 
-        h_label = f"+hσ(raw): {h_sigma:.3g}" if normalized else f"+hσ: {h_sigma:.3g}"
-        ax.axhline(h_pos_plot, color=CHART_CONTROL_LIMITS, linestyle=CHART_LINE_STYLE_SECONDARY, linewidth=1.2, label=h_label)
-        ax.axhline(h_neg_plot, color=CHART_CONTROL_LIMITS, linestyle=CHART_LINE_STYLE_SECONDARY, linewidth=1.2)
-        ax.axhline(zero_plot, color=CHART_NEUTRAL_LINE, linestyle="-", linewidth=0.5)
+        _draw_h_lines(ax, h_pos_plot, h_neg_plot, zero_plot, h_sigma, normalized)
 
         ticks, tick_labels = sparse_tick_positions_labels(labels, max_ticks=20)
         ax.set_xticks(ticks)
@@ -168,8 +167,8 @@ class CUSUM3F(BaseChart):
             cp_plot_arr, cm_plot_arr, mean_val, std_val, zero_plot = _zscore_pair(cp_arr, cm_arr)
             cp_plot = cp_plot_arr.tolist()
             cm_plot = cm_plot_arr.tolist()
-            h_pos_plot = (float(h_sigma) - mean_val) / std_val
-            h_neg_plot = (-float(h_sigma) - mean_val) / std_val
+            h_pos_plot = zscore_value(h_sigma, mean_val, std_val)
+            h_neg_plot = zscore_value(-float(h_sigma), mean_val, std_val)
         else:
             cp_plot = cp
             cm_plot = cm_neg
@@ -179,7 +178,4 @@ class CUSUM3F(BaseChart):
 
         ax.plot(indices, cp_plot, color=color, linestyle="-", linewidth=1, label="C+")
         ax.plot(indices, cm_plot, color=CHART_SERIES_SECONDARY, linestyle="-", linewidth=1, label="C-")
-        h_label = f"+hσ(raw): {h_sigma:.3g}" if normalized else f"+hσ: {h_sigma:.3g}"
-        ax.axhline(h_pos_plot, color=CHART_CONTROL_LIMITS, linestyle=CHART_LINE_STYLE_SECONDARY, linewidth=1.2, label=h_label)
-        ax.axhline(h_neg_plot, color=CHART_CONTROL_LIMITS, linestyle=CHART_LINE_STYLE_SECONDARY, linewidth=1.2)
-        ax.axhline(zero_plot, color=CHART_NEUTRAL_LINE, linestyle="-", linewidth=0.5)
+        _draw_h_lines(ax, h_pos_plot, h_neg_plot, zero_plot, h_sigma, normalized)

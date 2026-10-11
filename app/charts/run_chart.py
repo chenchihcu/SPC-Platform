@@ -1,7 +1,7 @@
 from app.charts.base_chart import BaseChart, annotate_latest_point, draw_reference_line, resolve_target_col
 from app.charts.run_order_axis import run_order_x
 from typing import Dict, Any
-from app.ui.theme.tokens import CHART_ANNOTATION, CHART_SERIES, CHART_FONT_ANNOTATION, CHART_FONT_LEGEND
+from app.ui.theme.tokens import CHART_SERIES, CHART_FONT_LEGEND
 
 # Above this many points a connecting line over oscillating data fills the axis
 # into an unreadable band; render translucent markers-only instead.
@@ -41,18 +41,6 @@ class RunChart(BaseChart):
                          linewidth=1, marker="o", markersize=3, label="個別值")
         annotate_latest_point(self.ax, indices, values, label="Latest", color=CHART_SERIES)
         draw_reference_line(self.ax, center, f"中心線: {center:.2f}", semantic="centerline")
-        if stats.get("sampled_for_display"):
-            shown = stats.get("displayed_n", len(values))
-            total = stats.get("n", len(values))
-            step = stats.get("downsample_step", 1)
-            self.ax.annotate(
-                f"顯示抽樣: {shown}/{total}（step={step}）",
-                xy=(0.01, 0.97),
-                xycoords="axes fraction",
-                fontsize=CHART_FONT_ANNOTATION,
-                color=CHART_ANNOTATION,
-                va="top",
-            )
         self.ax.legend(loc="lower right", fontsize=CHART_FONT_LEGEND)
         # layout handled by BaseChart
         self.canvas.draw()
