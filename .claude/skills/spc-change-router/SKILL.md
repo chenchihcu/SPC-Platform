@@ -1,7 +1,6 @@
 ---
 name: spc-change-router
-allowed-tools: Read, Grep, Glob
-description: 把 SPC Platform 任務路由到正確的來源文件、reviewer subagent 與驗證 gate。Use this skill 當任務涉及 UI/theme、analytics engine、chart registry、報告/匯出、docs/harness、release validation,或使用者詢問該跑哪些檢查時。觸發詞包含「該跑什麼檢查」「route」「change router」「驗證 gate」「reviewer」「UI/theme」「analytics engine」。
+description: "把 SPC Platform 任務路由到正確來源文件、reviewer 與驗證 gate。Use when 開始 SPC Platform 變更前需分類任務並決定先讀哪份文件、reviewer 與驗證 gate。Do NOT use for 直接實作分析引擎契約（改用 analytics-engine-contract）、圖表語意驗證（改用 spc-db-chart-semantics-validator）或通用 SAST（改用 audit-codebase-security）。"
 metadata:
   version: "1.0.1"
 ---
@@ -12,13 +11,13 @@ Classify the task before changing code. Keep routing concise and use existing re
 
 ## Route Table
 
-> 機器可讀正本:[`route-table.json`](../../../.claude/skills/spc-change-router/route-table.json)(`changed-path-advisor.ps1` hook 執行期讀取;pathRegex/docs/reviewer/gates 以 JSON 為準)。下表為人類可讀鏡像——**改路由先改 JSON,再同批更新本表**。
+> 機器可讀路由（正本位於 `.agents/skills/spc-change-router`）:[`route-table.json`](route-table.json)(`changed-path-advisor.ps1` hook 執行期讀取;pathRegex/docs/reviewer/gates 以 JSON 為準)。下表為人類可讀鏡像——**改路由先改 JSON,再同批更新本表**。
 
 | Task surface | Read first | Prefer reviewer | Minimum verification |
 |---|---|---|---|
-| UI/theme/chart visuals | `AI_RULES.md`, `docs/specs/ui_state_semantics.md` | `qt-ui-token-auditor` | `.venv/Scripts/python.exe scripts/qt_audit.py app/`, `.venv/Scripts/python.exe scripts/check_launch.py` |
-| Analytics/statistics/chart registry | `docs/governance/SPC_RULES.md`, `.claude/skills/analytics-engine-contract/SKILL.md`, `.claude/skills/spc-db-chart-semantics-validator/SKILL.md` | `spc-stat-contract-reviewer` | `.venv/Scripts/python.exe -m pytest -q`, `.venv/Scripts/python.exe .claude/skills/spc-validation-matrix/scripts/run_matrix.py --quick` when routing changes, and `.venv/Scripts/python.exe scripts/validate_db_chart_semantics.py --db data/spc_master.db --latest-session --output Outputs/db_chart_semantics_current --quiet` when chart statistics/payload semantics change |
-| Reports/PPTX/Excel exports | `README.md`, `docs/specs/project_architecture.md` | `report-export-parity-reviewer` | `.venv/Scripts/python.exe -m pytest -q` plus `.venv/Scripts/python.exe scripts/check_launch.py` |
+| UI/theme/chart visuals | `.claude/rules/ui_theme.md`, `docs/specs/ui_state_semantics.md` | `qt-ui-token-auditor` | `.venv/Scripts/python.exe scripts/qt_audit.py app/`; `check_launch.py` only when AGENTS.md H3 launch surfaces are invalidated |
+| Analytics/statistics/chart registry | `docs/governance/SPC_RULES.md`, `.claude/skills/analytics-engine-contract/SKILL.md`, `.claude/skills/spc-db-chart-semantics-validator/SKILL.md` | `spc-stat-contract-reviewer` | V1 affected-engine test + `--checks` semantic subset; V2 selected matrix; V3 full pytest only under the declared V3 conditions |
+| Reports/PPTX/Excel exports | `README.md`, `docs/specs/project_architecture.md` | `report-export-parity-reviewer` | V1 focused export test; V2 export consumer pack; V3 full pytest under the declared V3 conditions; launch only for H3 launch surfaces |
 | Docs/harness/Claude automation | `AGENTS.md`, `CLAUDE.md`, `docs/harness/README.md` | none by default | `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/harness_check.ps1` |
 | Release validation/performance | `docs/open-questions.md`, `README.md` validation section | `release-gate-triager` | `.venv/Scripts/python.exe scripts/run_release_gate.py` only when release scope requires it |
 
@@ -33,3 +32,8 @@ Classify the task before changing code. Keep routing concise and use existing re
 ## Delivery
 
 Report with `Changes`, `Impact`, `Verification`, `Residual risk`, and `Next action`. Add Debug/RCA fields only for debugging, regressions, or repeated failures.
+# V0–V3 selection
+
+Route by invalidated surfaces, consumers, and oracle. V0 is read-back/static/parse. V1 single engine uses its focused test plus selected semantic checks; V2 shared helper/subsystem uses target matrix selectors; V3 only for >=4 production files, >=2 subsystems, public/statistical contract, release, weak/unknown oracle, or V1/V2 failure. Full pytest is V3-only; the complete V3 gate also includes `ruff .` and `mypy app` per AGENTS.md H3.
+
+Run `check_launch.py` when bootstrap, entrypoint, shared initialization, runtime dependencies, shared theme, window lifecycle, or release are invalidated. After another patch, rerun only the invalidated gates. Hook output is advisory and never executes these commands.

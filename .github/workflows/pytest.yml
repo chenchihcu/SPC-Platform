@@ -34,6 +34,21 @@ jobs:
       - name: Run tests
         run: python -m pytest -q
 
+      # PNG baseline mismatches leave actual/diff images under pytest's tmp dir.
+      - name: Locate pytest tmp dir
+        if: failure()
+        shell: pwsh
+        run: Add-Content $env:GITHUB_ENV "PYTEST_TMP=$($env:TEMP.Replace('\', '/'))"
+
+      - name: Upload chart baseline images on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chart-baseline-images
+          path: ${{ env.PYTEST_TMP }}/pytest-of-*/**/*.png
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Run Qt UI audit
         run: python scripts/qt_audit.py app/
 

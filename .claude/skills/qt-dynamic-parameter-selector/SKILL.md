@@ -1,8 +1,7 @@
 ---
 name: qt-dynamic-parameter-selector
-version: 1.1.1
-allowed-tools: Read, Grep, Glob
-description: Qt 動態參數選擇器 — 在 PySide6 tab 介面中加入 ComboBox 切換已預先計算好的多組參數/特徵,支援即時切換視圖而不重算。Use this skill 當使用者要為單特徵分析圖表加上下拉選單、在多參數結果間即時切換,或避免重複計算造成的卡頓。觸發詞包含「parameter switching」「feature selector」「dynamic tabs」「ComboBox」「即時切換」「動態參數」。
+description: "SPC Platform PySide6 tab 中以 ComboBox 切換已預先計算的多組參數/特徵，即時切換不重算。Use when 為本專案單特徵分析圖加 ComboBox 下拉或多參數結果即時切換。Do NOT use for 新建通用 Qt parameter panel（改用 build-qt-parameter-selector）、Qt theme/entrypoint 版面（改用 configure-qt-layout-theme）或 Web CSS（改用 configure-web-layout-theme）。"
+version: 1.1.0
 ---
 
 # Qt Dynamic Parameter Selector
@@ -19,8 +18,8 @@ Interactive parameter/feature switching in PySide6 tabs with real-time view upda
 
 ## The two switching mechanisms (don't confuse them)
 
-1. **Feature switching (Volume / Area / Height)** — handled by **toolbar buttons**, not per-tab ComboBoxes. `chart_analysis_page._on_feature_shortcut_clicked()` sets `_display_feature` → `_update_current_chart()` → `_resolve_chart_data(chart_id)` returns `parameters[_display_feature][key]`. The `chart_id → key` mapping lives in `_PARAM_KEY_FOR_CHART`. Instant, no re-analysis.
-2. **In-tab ComboBox** — used only for **sub-selections within one tab** (spatial display mode, comparison footprint). This is the pattern the code below implements.
+1. **Analysis-feature switching (Volume / Area / Height)** — handled by the left sidebar and updates `ComponentSelectPage`; changing it starts a new analysis.
+2. **Precomputed display switching** — `ChartAnalysisPage.feature_combination_combo` selects a stable key such as `Volume|Height`, then resolves `parameters` / `dual_parameters` / triple top-level results without starting a new analysis. In-tab selectors (spatial mode, comparison footprint) follow the same stable-key and signal-blocking rules.
 
 ## Core in-tab ComboBox pattern
 
@@ -52,7 +51,7 @@ def _on_parameter_selected(self, index: int) -> None:
     self.chart_view.draw_chart(self._last_payload)
 ```
 
-**P1 — `blockSignals` must be symmetric on every path.** A `return` between `blockSignals(True)` and `blockSignals(False)` permanently deadens the widget's signals. Use `try/finally`. This rule's authoritative source is the project audit rule **P1** in [`.claude/rules/code_audit_rules.md`](../../rules/code_audit_rules.md) (also checked by the global `/code-audit` when run in this repo).
+**P1 — `blockSignals` must be symmetric on every path.** A `return` between `blockSignals(True)` and `blockSignals(False)` permanently deadens the widget's signals. Use `try/finally`. This rule's authoritative source is the project audit rule **P1** in [`.claude/rules/code_audit_rules.md`](../../../.claude/rules/code_audit_rules.md) (also checked by the global `/code-audit` when run in this repo).
 
 ## Dual / hierarchical selectors
 
@@ -85,11 +84,11 @@ Real in-repo examples: `spatial_tab.mode_combo` (Value / PassRate / DefectRate) 
 
 ## Backward compatibility
 
-`payload["parameters"]` is present **only in n=1 (single-feature) mode**. For n=2/n=3 it is absent — `.get("parameters", {})` yields `{}`, the ComboBox auto-hides, and the view falls back to `_last_payload`. Never assume the key exists.
+`payload["parameters"]` is available for the analyzed feature set. `dual_parameters` is additive: n=1 may cache all available pairs, n=2 caches the selected pair, and n=3 caches all three selected pairs. Consumers must still tolerate missing cache keys and use the documented resolver fallback. `feature_tab_count` remains a derived compatibility field; new code should use `active_feature_combination`.
 
 ## Verify before done
 
-- [ ] ComboBox visible only when `parameters` is non-empty (n=1); hidden for n=2/n=3
-- [ ] Items sorted; each selectable; chart updates instantly (no re-analysis)
+- [ ] ComboBox lists only legal combinations of analyzed features and hides when no alternative exists
+- [ ] Stable item-data keys resolve the exact feature tuple; chart updates instantly with no analysis generation change
 - [ ] `index < 0` and unknown-name selections handled without crash
 - [ ] Every `blockSignals(True)` path reaches `blockSignals(False)` (try/finally)

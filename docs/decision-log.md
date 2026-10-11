@@ -1,5 +1,14 @@
 # Decision Log
 
+## 2026-10-10 Density PNG Baseline: Refresh and Pin to matplotlib Version
+
+- Decision: `tests/baseline_images/density_chart_default.png` 以 CI `windows-latest`（matplotlib 3.11.2）實際渲染重建；`tests/test_chart_baseline_png.py` 移除依 OS 的容差（Windows 45），改為 matplotlib 版本等於 `BASELINE_MPL_VERSION` 時以 `RASTER_TOL = 2` 嚴格比對，版本不符時本機 skip、CI（`CI` 環境變數）直接 fail 並指向重建步驟；workflow 於測試失敗時上傳 pytest PNG artifact。
+- Scope: 上述測試、基準圖、`tests/baseline_images/README.md`、`.github/workflows/pytest.yml`、本條紀錄；不改圖表程式碼或統計輸出。
+- Reason: 舊基準圖自 2026-06-07 未更新，figure 背景仍為舊主題 `#F5F5F7`（現行 `CHART_FIGURE_BG` = `#F8FAFC`），本機 Windows RMS 40.8、CI 39.76，全靠容差 45 掩蓋。實測同一 matplotlib 版本在 windows-latest 與 ubuntu-latest 渲染 RMS 0，而 3.10.8 → 3.11.2 即 RMS 23；變因是 matplotlib 版本而非 OS。
+- Verification: 新舊圖資料幾何（5 個 hexbin 位置、colorbar 範圍、軸標籤）目視一致，僅主題色差；本機 3.10.8 測試 skip 並說明原因，`CI=true` 時 fail；CI 結果見 PR。
+- Risk: CI 的 matplotlib 未固定，上游發新版時此測試會在 CI fail，需依 README 重建基準（刻意設計，避免靜默漂移）；本機版本不同的開發者不做 raster 比對，只跑語意斷言。
+- Rollback: 回退本條所列檔案即可。
+
 ## 2026-10-10 CI on Windows + Versioned Reference Data
 
 - Decision: (1) `.github/workflows/pytest.yml` 改用 `windows-latest`；(2) 種子／參考資料由 git-ignored 的 `/data/` 移至版控的 `app/assets/reference_data/`（`ipc_jstd_pillar_seed.json`、`spi_process_kb/v1/`），`ipc_pillar_library`、`spi_process_kb_loader`、`import_spi_process_kb_xlsx.py` 預設路徑同步更新；(3) `test_complete_harness` 接受 `Harness check passed with skips:`（exit 0 的設計內通過）。
