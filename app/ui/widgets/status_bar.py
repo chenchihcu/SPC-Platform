@@ -20,7 +20,7 @@ from app.ui.theme.tokens import (
     STATUS_PROGRESS_MIN_WIDTH,
     STATUS_PROGRESS_MAX_WIDTH,
 )
-from app.ui.widgets.page_templates import apply_status_accessibility
+from app.ui.widgets.page_templates import apply_status_accessibility, set_status
 
 if TYPE_CHECKING:
     from app.ui.state.app_status_model import AppStatusModel
@@ -139,11 +139,7 @@ class StatusBarWidget(QWidget):
         self._on_progress_changed(model.progress)
 
     def _on_state_changed(self, state: str, message: str) -> None:
-        self._lamp.setProperty("state", state)
-        self._label.setText(message)
-        apply_status_accessibility(self._lamp, self._label, state=state, text=message)
-        self._lamp.style().unpolish(self._lamp)
-        self._lamp.style().polish(self._lamp)
+        set_status(self._lamp, self._label, state, message)
 
     def _on_progress_changed(self, value: int) -> None:
         """Handle progress signal: -1 (indeterminate), -2 (hidden), or 0-100."""

@@ -14,7 +14,6 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QMessageBox,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -30,7 +29,8 @@ from app.ui.theme.tokens import (
     SPACING_12,
     PAGE_HEADER_BOTTOM_SPACING,
 )
-from app.ui.widgets.page_templates import create_status_lamp
+from app.ui.theme import show_dark_critical, show_dark_information
+from app.ui.widgets.page_templates import create_status_lamp, set_status
 from app.analytics.dashboard_layers_display import (
     cpk_judgment_zh,
     cpk_state_ui,
@@ -474,7 +474,7 @@ class DiagnosticPage(QWidget):
         summary = self._last_payload.get("summary", {})
         layers = summary.get("process", {}).get("dashboard_layers", {})
         if not layers:
-            QMessageBox.information(self, "無可匯出資料", "目前尚未有分析結果，請先完成分析。")
+            show_dark_information(self, "無可匯出資料", "目前尚未有分析結果，請先完成分析。")
             return
 
         path, _ = QFileDialog.getSaveFileName(
@@ -491,10 +491,10 @@ class DiagnosticPage(QWidget):
         try:
             export_diagnostic_summary_xlsx(self._last_payload, path)
         except (OSError, ValueError) as exc:  # pragma: no cover - UI fallback path
-            QMessageBox.critical(self, "匯出失敗", f"無法匯出 Excel 報告：{exc}")
+            show_dark_critical(self, "匯出失敗", f"無法匯出 Excel 報告：{exc}")
             return
 
-        QMessageBox.information(self, "匯出完成", f"已匯出 Excel 報告：\n{path}")
+        show_dark_information(self, "匯出完成", f"已匯出 Excel 報告：\n{path}")
 
     # Compatibility shim for orchestrated analysis updates
     def update_hints(self, payload: dict[str, Any]) -> None:
@@ -504,19 +504,16 @@ class DiagnosticPage(QWidget):
     def _on_status_changed(self, state: str, message: str) -> None:
         """Sync global status model changes to the page's local status lamp and text."""
         if state in ("loading", "analyzing"):
-            self._lamp.setProperty("state", "loading")
-            self._status_lbl.setText("正在分析…" if state == "analyzing" else "載入中…")
+            set_status(self._lamp, self._status_lbl, "loading", "正在分析…" if state == "analyzing" else "載入中…")
             self._status_lbl.setToolTip(message)
         elif state == "error":
-            self._lamp.setProperty("state", "error")
-            self._status_lbl.setText("分析錯誤")
+            set_status(self._lamp, self._status_lbl, "error", "分析錯誤")
             self._status_lbl.setToolTip(message)
         elif state in ("success", "idle"):
-            self._lamp.setProperty("state", "success" if self._last_payload else "idle")
-            self._status_lbl.setText("分析完成" if self._last_payload else "就緒")
+            set_status(
+                self._lamp,
+                self._status_lbl,
+                "success" if self._last_payload else "idle",
+                "分析完成" if self._last_payload else "就緒",
+            )
             self._status_lbl.setToolTip("")
-        
-        self._lamp.style().unpolish(self._lamp)
-        self._lamp.style().polish(self._lamp)
-        self._status_lbl.style().unpolish(self._status_lbl)
-        self._status_lbl.style().polish(self._status_lbl)

@@ -13,7 +13,6 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QLineEdit,
-    QMessageBox,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
@@ -33,7 +32,11 @@ from app.data.stencil_document_library import (
 from app.ui.dialogs.stencil_document_import_dialog import StencilDocumentImportDialog
 from app.ui.theme import show_dark_information, show_dark_warning
 from app.ui.theme.layout_policy import fit_top_level_to_available
-from app.ui.widgets.page_templates import bind_table_delete_shortcut
+from app.ui.widgets.page_templates import (
+    bind_table_delete_shortcut,
+    confirm_action,
+    confirm_double_delete,
+)
 from app.ui.theme.tokens import (
     DIALOG_MIN_HEIGHT_STANDARD,
     DIALOG_MIN_WIDTH_WIDE,
@@ -343,14 +346,11 @@ class StencilDocumentManager(QWidget):
         if version_id is None:
             show_dark_warning(self, "尚未選取", "請選擇要啟用的版本。")
             return
-        reply = QMessageBox.question(
+        if not confirm_action(
             self,
             "確認切換現用開窗版本",
             "啟用後，後續分析會依此版本與 Side 計算百分比。是否繼續？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+        ):
             return
         try:
             changed = set_active_stencil_document_version(version_id)
@@ -366,14 +366,11 @@ class StencilDocumentManager(QWidget):
         if version_id is None:
             show_dark_warning(self, "尚未選取", "請選擇要停用的版本。")
             return
-        reply = QMessageBox.question(
+        if confirm_action(
             self,
             "停用開窗版本",
             "停用後將回到 Raw 趨勢分析，規格型統計會顯示 VERIFY。是否繼續？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes and deactivate_stencil_document_version(version_id):
+        ) and deactivate_stencil_document_version(version_id):
             self._after_change()
 
     def _delete(self) -> None:
@@ -392,23 +389,14 @@ class StencilDocumentManager(QWidget):
         if active_ids:
             show_dark_warning(self, "不可刪除", "現用或已不存在的版本不能刪除；請只選取非現用版本。")
             return
-        first = QMessageBox.question(
+        # Data Deletion Safety (AGENTS.md): both prompts must be confirmed.
+        if not confirm_double_delete(
             self,
-            "刪除開窗版本（1/2）",
             f"即將刪除 {len(version_ids)} 筆非現用版本及其受管檔案。是否繼續？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if first != QMessageBox.StandardButton.Yes:
-            return
-        second = QMessageBox.question(
-            self,
-            "刪除開窗版本（2/2）",
-            f"再次確認：將刪除 {len(version_ids)} 筆，且動作無法復原。",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if second != QMessageBox.StandardButton.Yes:
+            first_title="刪除開窗版本（1/2）",
+            second_message=f"再次確認：將刪除 {len(version_ids)} 筆，且動作無法復原。",
+            second_title="刪除開窗版本（2/2）",
+        ):
             return
         try:
             deleted_ids = delete_inactive_stencil_document_versions(version_ids)

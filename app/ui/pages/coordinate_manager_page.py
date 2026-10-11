@@ -56,6 +56,7 @@ from app.ui.widgets.page_templates import (
     CsvDropZoneMixin,
     form_field_row,
     page_margins_and_spacing,
+    set_status,
     setup_page_header_with_status,
 )
 
@@ -476,11 +477,7 @@ class CoordinateManagerPage(CsvDropZoneMixin, QWidget):
             return
         state_map = {"ok": "success", "error": "error", "loading": "loading", "idle": "idle"}
         state = state_map.get(state_name, "idle")
-        self.status_lamp.setProperty("state", state)
-        self.status_lamp.style().unpolish(self.status_lamp)
-        self.status_lamp.style().polish(self.status_lamp)
-        if hasattr(self, "status_text") and self.status_text:
-            self.status_text.setText(message)
+        set_status(self.status_lamp, getattr(self, "status_text", None), state, message)
 
     def _set_drop_zone_active(self, active: bool) -> None:
         """Apply visual feedback to the drop zone when dragging files over it."""

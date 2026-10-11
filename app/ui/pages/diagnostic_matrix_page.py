@@ -54,7 +54,7 @@ from app.ui.theme.tokens import (
     DIAGNOSTIC_MATRIX_GAP_COUNT_COL_WIDTH,
     DIAGNOSTIC_MATRIX_LINK_REASON_COL_WIDTH,
 )
-from app.ui.widgets.page_templates import create_status_lamp, style_table
+from app.ui.widgets.page_templates import create_status_lamp, set_status, style_table
 from app.services.diagnostic_evidence_matrix import build_readable_diagnostic_tabs
 from app.analytics.chart_registry import get_chart_display_name as _get_chart_display_name
 
@@ -1132,17 +1132,11 @@ class DiagnosticMatrixPage(QWidget):
         self._last_payload = payload or {}
         matrix = self._last_payload.get("diagnostic_evidence_matrix")
         if not matrix:
-            self._lamp.setProperty("state", "idle")
-            self._status_lbl.setText("尚待分析數據...")
-            self._lamp.style().unpolish(self._lamp)
-            self._lamp.style().polish(self._lamp)
+            set_status(self._lamp, self._status_lbl, "idle", "尚待分析數據...")
             self._update_matrix_tabs(None)
             return
 
-        self._lamp.setProperty("state", "success")
-        self._lamp.style().unpolish(self._lamp)
-        self._lamp.style().polish(self._lamp)
-        self._status_lbl.setText("分析完成")
+        set_status(self._lamp, self._status_lbl, "success", "分析完成")
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self._updated_lbl.setText(f"最後更新: {now}")
         self._update_matrix_tabs(matrix)
@@ -1175,16 +1169,13 @@ class DiagnosticMatrixPage(QWidget):
     def _on_status_changed(self, state: str, message: str) -> None:
         """Sync global status model changes to the page's local status lamp and text."""
         if state in ("loading", "analyzing"):
-            self._lamp.setProperty("state", "loading")
-            self._status_lbl.setText(message)
+            set_status(self._lamp, self._status_lbl, "loading", message)
         elif state == "error":
-            self._lamp.setProperty("state", "error")
-            self._status_lbl.setText(message)
+            set_status(self._lamp, self._status_lbl, "error", message)
         elif state in ("success", "idle"):
-            self._lamp.setProperty("state", "success" if self._last_payload else "idle")
-            self._status_lbl.setText("分析完成" if self._last_payload else "就緒")
-        
-        self._lamp.style().unpolish(self._lamp)
-        self._lamp.style().polish(self._lamp)
-        self._status_lbl.style().unpolish(self._status_lbl)
-        self._status_lbl.style().polish(self._status_lbl)
+            set_status(
+                self._lamp,
+                self._status_lbl,
+                "success" if self._last_payload else "idle",
+                "分析完成" if self._last_payload else "就緒",
+            )
