@@ -1,5 +1,15 @@
 # Decision Log
 
+## 2026-10-11 Component Pareto 異常點聯集計數
+
+- Decision: `ParetoEngine.compute_component_pareto` 的異常判定由加總（`oos + >UCL + <LCL`）改為聯集（`oos | >UCL | <LCL`），每點最多計一次；規則先寫入 `docs/governance/SPC_RULES.md` §16.1（spec-first，使用者核准）。
+- Scope: `app/analytics/pareto_engine.py`、`CHART_DESCRIPTIONS["pareto"]`（`app/analytics/chart_registry.py`）、`SPC_RULES.md` §16.1、`tests/test_pareto_engine.py`。
+- Reason: 2026-10-10 稽核發現同時超出 USL 與 UCL 的點被計兩次，高估 bar 高度與累積 %、可能改變 vital-few 排序，且 `abnormal_rate` 可大於 1（PPTX「TOP 異常元件」可能顯示 >100%）。
+- Impact: payload 形狀不變；重疊點所在群組的 `abnormal_count` / `total_abnormal` / `abnormal_rate` / `cumulative_pct` 下降，`abnormal_rate ∈ [0,1]`。預設 PartType 與 Pad/ImageID 變體同步生效。consumer（UI 圖表、PPTX、evidence matrix、report_*）經 parity review 無依賴舊語意。
+- Verification: 見 PR 描述（重疊點測試先紅後綠、real DB session 5 獨立重算、matrix quick、ruff/mypy/pytest/check_launch）。
+- Risk: 單邊規格（只有 USL 或 LSL）且無管制界線時結果 valid 但計數全 0、viewmodel `(usl and lsl)` 真值判斷，均為既有行為，列入 `docs/open-questions.md` #13。
+- Rollback: 回退上述四個檔案；不涉及 schema、migration 或持久資料。
+
 ## 2026-10-10 Density PNG Baseline: Refresh and Pin to matplotlib Version
 
 - Decision: `tests/baseline_images/density_chart_default.png` 以 CI `windows-latest`（matplotlib 3.11.2）實際渲染重建；`tests/test_chart_baseline_png.py` 移除依 OS 的容差（Windows 45），改為 matplotlib 版本等於 `BASELINE_MPL_VERSION` 時以 `RASTER_TOL = 2` 嚴格比對，版本不符時本機 skip、CI（`CI` 環境變數）直接 fail 並指向重建步驟；workflow 於測試失敗時上傳 pytest PNG artifact。
