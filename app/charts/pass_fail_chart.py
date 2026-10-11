@@ -2,6 +2,7 @@ from app.charts.base_chart import BaseChart, build_sparse_tick_labels
 from typing import Dict, Any
 import numpy as np
 from app.ui.theme.tokens import (
+    CHART_EMPTY_NO_DATA,
     CHART_BAR_PASS,
     CHART_FILL_EDGE,
     CHART_FONT_LABEL,
@@ -28,7 +29,7 @@ class PassFailChart(BaseChart):
         labels = data.get("labels", [])
         pass_rates = data.get("pass_rates", [])
         if not labels or not pass_rates:
-            self._show_placeholder("無資料")
+            self._show_placeholder(CHART_EMPTY_NO_DATA)
             return False
         x = np.arange(len(labels))
         bars = self.ax.bar(x, pass_rates, color=CHART_BAR_PASS, edgecolor=CHART_FILL_EDGE, linewidth=0.5)

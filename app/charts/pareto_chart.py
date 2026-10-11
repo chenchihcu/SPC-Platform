@@ -57,11 +57,11 @@ class ParetoChart(BaseChart):
         self._component_ids = data.get("component_ids", []) if mode == "component" else []
 
         if not categories or not counts:
-            self._show_placeholder("無任何不良種類資料能分析 (No Defect Data)")
+            self._show_placeholder("無不良種類資料")
             return False
         # 方案 10: 無不良時顯示 placeholder
         if categories == ["None"] and counts == [0]:
-            self._show_placeholder("無不良，製程良好 (No Defects)")
+            self._show_placeholder("無不良，製程良好")
             return False
 
         n = len(categories)

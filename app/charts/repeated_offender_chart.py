@@ -1,7 +1,7 @@
 from app.charts.base_chart import BaseChart, resolve_target_col, build_sparse_tick_labels
 from typing import Dict, Any
 import numpy as np
-from app.ui.theme.tokens import CHART_BAR_FAIL, CHART_FILL_EDGE, CHART_ANNOTATION, CHART_FONT_ANNOTATION
+from app.ui.theme.tokens import CHART_BAR_FAIL, CHART_FILL_EDGE
 
 
 class RepeatedOffenderChart(BaseChart):
@@ -24,7 +24,7 @@ class RepeatedOffenderChart(BaseChart):
         labels = data.get("labels", [])
         counts = data.get("counts", [])
         if not labels or not counts:
-            self._show_placeholder("無違規紀錄或無資料 (No Violations)")
+            self._show_placeholder("無違規紀錄")
             return False
         x = np.arange(len(labels))
         self.ax.bar(x, counts, color=CHART_BAR_FAIL, edgecolor=CHART_FILL_EDGE, linewidth=0.5)
@@ -33,20 +33,6 @@ class RepeatedOffenderChart(BaseChart):
         self.ax.set_xticklabels(display_labels, rotation=45, ha="right")
         if target_col:
             self.ax.set_ylabel(f"違規次數 ({target_col})")
-        stats = engine_output.get("statistics", {})
-        if stats.get("sampled_for_display"):
-            shown = stats.get("displayed_n", len(labels))
-            total = stats.get("n_refdes_with_violations", len(labels))
-            top_n = stats.get("top_n")
-            top_note = f", top_n={top_n}" if top_n else ""
-            self.ax.annotate(
-                f"顯示截取: {shown}/{total}{top_note}",
-                xy=(0.01, 0.97),
-                xycoords="axes fraction",
-                fontsize=CHART_FONT_ANNOTATION,
-                color=CHART_ANNOTATION,
-                va="top",
-            )
         # layout handled by BaseChart
         self.canvas.draw()
         return True

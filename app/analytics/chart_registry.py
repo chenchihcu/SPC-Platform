@@ -277,7 +277,7 @@ CHART_NEXT_STEP_BY_ID: Dict[str, list[str]] = {
 CHART_DESCRIPTIONS: Dict[str, Dict[str, str]] = {
     "imr": {
         "definition_text": "個別值（I）與移動極差（MR）管制圖，用於監控單一量測特徵的製程穩定性；可觀察趨勢、突變與超出管制界線的點。",
-        "formula_text": "中心線 CL = 個別值平均；σ̂ = MR̄ / d2（d2 = 1.128），UCL/LCL = CL ± 3σ̂（非整體標準差）。移動極差 MR = |x_i − x_{i−1}|，MR 圖 CL = MR̄，UCL = 3.267×MR̄。",
+        "formula_text": "中心線 CL = 個別值平均；σ̂ = 板內 MR̄ 合併 / d2（d2 = 1.128，與 Cpk 的 σ_within 相同），UCL/LCL = CL ± 3σ̂（非整體標準差）。移動極差 MR = |x_i − x_{i−1}|；跨板（BoardNo/PanelId 切換）的 MR 照畫但不計入 MR̄，無板欄時用整條序列。MR 圖 CL = MR̄，UCL = 3.267×MR̄。",
         "data_source_text": "單一量測特徵（Volume / Area / Height），依分析順序排列（優先時間欄 Time/Timestamp/DateTime，否則 BoardNo/PanelId）；鋼板模式下 Volume/Area/Height 為相對開窗標稱值之百分比。",
         "smt_interpretation_text": "SPI 錫膏量／高度／面積的逐點與極差變化；可判讀少錫、多錫、漂移、突變或設備不穩。判讀問題：是否已超出管制界線、MR 是否同時放大。下一步：回看 Run Chart 對齊異常區段。",
     },
@@ -301,7 +301,7 @@ CHART_DESCRIPTIONS: Dict[str, Dict[str, str]] = {
     },
     "histogram_spec": {
         "definition_text": "量測值分布直方圖與規格界線（USL/LSL），用於觀察分布形態與規格符合度；工單規格設有目標值時另畫 Target 線（未設定則不畫，不以規格中點代替）。",
-        "formula_text": "直方圖為 30 區間次數分布，常態曲線用樣本標準差。Cp = (USL−LSL)/(6σ_within)，Cpk = min((USL−μ)/(3σ_within), (μ−LSL)/(3σ_within))；σ_within = 板內 MR̄ 合併 / 1.128。Pp/Ppk 改用整體標準差（ddof=1）。圖上單特徵顯示 Cpk，多特徵顯示 Cpk 與 Ppk。",
+        "formula_text": "直方圖為 30 區間次數分布，常態曲線用樣本標準差。Cp = (USL−LSL)/(6σ_within)，Cpk = min((USL−μ)/(3σ_within), (μ−LSL)/(3σ_within))；σ_within = 板內 MR̄ 合併 / 1.128（與 I-MR 的 σ̂ 相同）。Pp/Ppk 改用整體標準差（ddof=1）。圖上單特徵顯示 Cpk，多特徵顯示 Cpk 與 Ppk。",
         "data_source_text": "一至三個量測特徵（選定頁可複選）；各特徵需同時具備 USL 與 LSL 才計算能力指標；鋼板模式下 Volume/Area/Height 為相對開窗標稱值之百分比。",
         "smt_interpretation_text": "可判讀錫膏量／高度／面積的分布是否居中、是否偏規格、是否有雙峰或偏態。",
     },
@@ -391,7 +391,7 @@ CHART_DESCRIPTIONS: Dict[str, Dict[str, str]] = {
     },
     "imr_3f": {
         "definition_text": "三特徵並列 I-MR 管制圖：Volume / Area / Height 各自獨立一列，共用 X 軸，方便比較哪個特徵最早超出管制界限。",
-        "formula_text": "同 I-MR 單特徵（CL = 均值，σ̂ = MR̄/1.128，UCL/LCL = CL ± 3σ̂，MR UCL = 3.267 × MR̄）；三列獨立計算各自的界限。",
+        "formula_text": "同 I-MR 單特徵（CL = 均值，σ̂ = 板內 MR̄ 合併/1.128、跨板 MR 照畫不計入，UCL/LCL = CL ± 3σ̂，MR UCL = 3.267 × MR̄）；三列獨立計算各自的界限。",
         "data_source_text": "三個量測特徵（Volume、Area、Height），依分析順序排列（優先時間欄 Time/Timestamp/DateTime，否則 BoardNo/PanelId）。",
         "smt_interpretation_text": "可判斷問題是單一特徵異常還是整體印刷製程異常；體積異常是否伴隨高度或面積一起失控。判讀問題：三特徵是否同時進入失控狀態。下一步：切換 run_chart_3f 對齊樣本區段。",
     },

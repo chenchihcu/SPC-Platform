@@ -9,6 +9,15 @@
 - Risk: `mr_positions` 只回傳 X（MR 值依序繪製），不受影響；若未來新增呼叫端仍須傳自身 X，簽名為必要參數以避免漏傳。
 - Rollback: 回退本條所列檔案；不涉及 schema 或持久資料。
 
+## 2026-10-11 Chart Visual Contract: Shared Reference Lines, Disclosure, Empty States
+
+- Decision: (1) IMR/EWMA/Run Chart/CUSUM 3F 的參考線改用 `base_chart.draw_reference_line()`（語意樣式＋右緣標籤；`annotate_limit_edge` 改以 axes-fraction X 錨定，共用 X 軸下不內縮）；三種 Z-score 寫法收斂為 `app/charts/multi_feature_panels.py` 的單一 helper，`_zscore_with_limits` / `_zscore_pair` 保留為薄包裝；(2) 移除 run_chart、run_chart_3f、heatmap、parallel_coord、repeated_offender 的左上抽樣註記，改由共用 `add_sample_disclosure()`（新增 `step=`）；`NormalityTab` 非 BaseChart，改為直接呼叫該 helper；(3) `_show_placeholder()` 預設經 `_placeholder_class_for()` 決定 class，新增 `_show_invalid_placeholder()`；空狀態文案統一（無句號、無英文後綴，`CHART_EMPTY_*` tokens）。
+- Scope: `app/charts/*`、`app/ui/tabs/normality_tab.py`、`app/ui/theme/tokens.py`、`tests/test_chart_reference_and_empty_states.py`、`docs/specs/project_architecture.md`、本條。純視覺；不改公式、管制界限、payload 語意（`docs/governance/SPC_RULES.md`）。
+- Verification: 3F 四圖 × raw/Z-score（含 board_summary、engine `normalize_mean/std`）共 8 案例，重構前後所有 line/collection 數值逐位元相同；chart pytest、validation matrix --quick 129/129、qt_audit、check_launch 通過；1F vs 3F IMR 原生截圖（100/125/150% scale）。
+- Risk: 3F 零線樣式改為 `neutral` 語意（色／線寬微調）；Run Chart 3F 中心線由虛線改實線以對齊 1F；抽樣揭露位置由左上移至左下。
+- Merge note: 與 #8（run-order 軸）合併時，X 位置一律沿用 `app/charts/run_order_axis.py`（`aligned_axis` / `marker_points` / `mr_positions` / `shared_label_positions`），本條只替換參考線、Z-score、抽樣揭露與空狀態的呈現。
+- Rollback: 回退本條所列檔案即可。
+
 ## 2026-10-11 Component Pareto 異常點聯集計數
 
 - Decision: `ParetoEngine.compute_component_pareto` 的異常判定由加總（`oos + >UCL + <LCL`）改為聯集（`oos | >UCL | <LCL`），每點最多計一次；規則先寫入 `docs/governance/SPC_RULES.md` §16.1（spec-first，使用者核准）。
@@ -18,6 +27,15 @@
 - Verification: 見 PR 描述（重疊點測試先紅後綠、real DB session 5 獨立重算、matrix quick、ruff/mypy/pytest/check_launch）。
 - Risk: 單邊規格（只有 USL 或 LSL）且無管制界線時結果 valid 但計數全 0、viewmodel `(usl and lsl)` 真值判斷，均為既有行為，列入 `docs/open-questions.md` #13。
 - Rollback: 回退上述四個檔案；不涉及 schema、migration 或持久資料。
+
+## 2026-10-10 I-MR σ̂ Aligned to Within-Subgroup σ (shared with Cp/Cpk)
+
+- Decision: I-MR 管制圖的 σ̂ 改用與 Cp/Cpk 相同的「板內合併 MR̄ / 1.128」（rule b'）。跨板（BoardNo，否則 PanelId 切換）的 MR 仍保留在 `mr_values` 照畫（顯示板間跳動），但不計入 MR̄、MR 圖 CL 與 UCL；無 subgroup 欄時維持整條序列 MR̄（舊行為）。計算收斂為單一來源 `StatisticalUtils.within_subgroup_mr_bar`，`CapabilityEngine._short_term_sigma` 與 `SPCEngine.compute_imr(subgroup_ids=...)` 共用。payload 新增 `statistics.mr_boundary_excluded`、`metadata.sigma_basis`（加法式欄位，形狀不變）。新退化 guard：板內 MR̄ = 0（各板內皆常數、僅板間跳動）時 I-MR 回傳 `is_valid=false`，與 Cpk σ_st ≤ 0 的 fail-closed 一致。板交錯時依 subgroup 歸組合併（見 SPC_RULES §4）。
+- Scope: `SPC_RULES.md` §4（新段）與 §7 交叉引用；`statistical_utils.py`、`spc_engine.py`、`capability_engine.py`（委派，行為不變）、`chart_analysis_viewmodel.py`（單特徵與 n=2/3 driver bundle 兩處傳入 subgroup ids）、`summary_engine.py`；`chart_registry.py` 的 `imr` / `imr_3f` / `histogram_spec` formula_text；`scripts/validate_db_chart_semantics.py` I-MR oracle 改板內 MR̄並新增 `imr_cap_sigma_parity` 檢查；新測試 `tests/test_imr_within_subgroup_sigma.py`。EWMA/CUSUM/pattern recognition 不在範圍（列 open-questions #14）。
+- Reason: 2026-10-10 圖表解讀稽核發現同一資料的 I-MR σ̂（整條序列 MR̄，含跨板 MR）與 Cpk σ_within（板內 MR̄）不同，使用者無法對帳。SMT/SPI 換板跳動（鋼板擦拭、板支撐/翹曲、錫膏滾動）屬板間變異；AIAG 規定 MR 不得跨 rational subgroup，以板內變異建界限才能揭露板間特殊原因。
+- Impact: 有板欄的資料 I-MR UCL/LCL 依板間位移幅度收窄，OOC 點數可能增加（屬正確化）；I-MR σ̂ 與 Cpk σ_st 完全相等；無板欄的資料數值逐位元不變。
+- Risk: 板序交錯（如 Time 排序跨多線）時 MR̄ 依 subgroup 歸組合併，不等於任一組畫出點的平均（SPC_RULES §4 已註明）。原「n=2/3 driver bundle 以未排序 filtered_df 計算」之風險已由 PR #8（driver 輸入改依分析順序排序）解除；合併後 driver bundle 的 subgroup ids 取自同一排序後資料框並以 series index 對齊。
+- Rollback: `subgroup_ids` 預設 None；反向套用 viewmodel / summary_engine 呼叫端 hunks 即回整條序列 I-MR，再還原 SPC_RULES §4 新段與 CHART_DESCRIPTIONS 三行。
 
 ## 2026-10-10 Density PNG Baseline: Refresh and Pin to matplotlib Version
 

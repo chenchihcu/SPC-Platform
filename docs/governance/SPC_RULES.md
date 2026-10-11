@@ -230,6 +230,46 @@ inflates short-term sigma. With no subgroup id, MR_bar falls back to the whole
 ordered series. Cp/Cpk consume this short-term sigma; Pp/Ppk keep using the
 overall sample sigma_total. (Adopted 2026-07-13; `CapabilityEngine.subgroup_ids`.)
 
+One sigma_within for I-MR and Cp/Cpk (adopted 2026-10-10):
+
+The I-MR chart uses the **same** within-subgroup MR_bar as Cp/Cpk, so for the
+same ordered data the I-MR sigma equals the Cpk sigma_within exactly:
+
+sigma = MR\_bar\_within / 1.128
+
+UCL/LCL = CL ± 3 \* sigma (CL = mean(X))
+
+MR chart: CL = MR\_bar\_within, UCL = 3.267 \* MR\_bar\_within
+
+- MR\_bar\_within is computed per subgroup (BoardNo, else PanelId): rows are
+  grouped by subgroup id, MRs are taken between consecutive rows of the same
+  subgroup in analysis order, and pooled (`StatisticalUtils.within_subgroup_mr_bar`,
+  single source for both engines). Rows with a missing subgroup id contribute
+  no MR. Fallback to whole-series MR\_bar (`sigma_basis = whole_series`) when
+  there is no subgroup id, the index is not unique, or no subgroup has ≥ 2 rows.
+- Boundary MRs (|X_i − X_(i−1)| where the adjacent subgroup id changes or is
+  missing) are still returned and plotted on the MR chart so board-to-board
+  jumps stay visible, but they are **not** part of MR\_bar. Their count is
+  reported as `statistics.mr_boundary_excluded`; `metadata.sigma_basis` is
+  `within_subgroup` or `whole_series`.
+- When each subgroup is contiguous in analysis order (normal SPI board order),
+  MR\_bar\_within equals the mean of the plotted non-boundary MRs. If subgroups
+  interleave (e.g. Time order across parallel lines), pooling follows the
+  subgroup grouping, so MR\_bar\_within may include ranges between
+  non-adjacent plotted points and is not the mean of any plotted subset.
+- Degenerate input: MR\_bar\_within = 0 (values constant inside every
+  subgroup, only between-board steps) → I-MR returns `is_valid = false`
+  (zero-width limits), matching the Cp/Cpk sigma = 0 rule in §7.
+- Rationale (SMT/SPI): a board changeover jump (stencil wipe, board support /
+  warp, paste roll-over) is between-board variation. AIAG requires that an MR
+  not span a rational subgroup; limits built from within-board variation are
+  the classical way to expose between-board special causes rather than absorb
+  them into wider limits.
+- Not aligned (explicit): EWMA, CUSUM and pattern recognition still estimate
+  sigma from the whole-series MR\_bar / 1.128 (CUSUM only resets its C+/C-
+  accumulation at board boundaries; its sigma is whole-series). Tracked in
+  `docs/open-questions.md`.
+
 
 
 Control Limits:
@@ -367,6 +407,9 @@ Formula:
 
 
 Cp = (USL - LSL) / (6 \* sigma)
+
+sigma (Cp and Cpk) = the §4 short-term sigma\_within = MR\_bar\_within / 1.128,
+identical to the I-MR sigma for the same ordered data.
 
 
 

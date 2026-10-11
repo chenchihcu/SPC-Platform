@@ -24,7 +24,7 @@ class CorrelationMatrixChart(BaseChart):
             return False
         pairs = list((engine_output.get("data") or {}).get("pairs_ranked", []))
         if not pairs:
-            self._show_placeholder("關聯配對資料不足。")
+            self._show_placeholder("關聯配對資料不足")
             return False
         top = pairs[:8]
         labels = [str(item.get("pair", "UNKNOWN")) for item in top]

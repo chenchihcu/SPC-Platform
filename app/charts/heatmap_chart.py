@@ -33,7 +33,7 @@ class HeatmapChart(BaseChart):
         vals = data.get("values", [])
 
         if not x or not y or not vals:
-            self._show_placeholder("無法取得有效的 PCB 座標數據 (Failed to yield spatial scatter points)")
+            self._show_placeholder("無有效 PCB 座標資料")
             return False
 
         mode = (engine_output.get("metadata") or {}).get("mode", "value")
@@ -56,21 +56,6 @@ class HeatmapChart(BaseChart):
         self.cbar = self.figure.colorbar(scatter, ax=self.ax, orientation="vertical", label=cbar_label)
         self.cbar.ax.yaxis.label.set_color(TEXT_SECONDARY)
         self.cbar.ax.tick_params(colors=TEXT_SECONDARY)
-        stats = engine_output.get("statistics", {})
-        if stats.get("sampled_for_display"):
-            shown = stats.get("displayed_n", len(x))
-            total = stats.get("n", len(x))
-            bins = stats.get("aggregation_bins")
-            bins_note = f", grid={bins}x{bins}" if bins else ""
-            self.ax.annotate(
-                f"顯示聚合: {shown}/{total}{bins_note}",
-                xy=(0.01, 0.97),
-                xycoords="axes fraction",
-                fontsize=9,
-                color=TEXT_SECONDARY,
-                va="top",
-            )
-
         # layout handled by BaseChart
         self.canvas.draw()
         return True

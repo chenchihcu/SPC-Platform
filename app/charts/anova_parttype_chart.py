@@ -28,7 +28,7 @@ class AnovaPartTypeChart(BaseChart):
         labels = list(data.get("group_labels", []))
         means = list(data.get("mean_by_group", []))
         if not labels or not means:
-            self._show_placeholder("ANOVA 分組資料不足。")
+            self._show_placeholder("ANOVA 分組資料不足")
             return False
         colors = [CHART_BAR_NEUTRAL for _ in labels]
         self.ax.bar(labels, means, color=colors, alpha=0.85)

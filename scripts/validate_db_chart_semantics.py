@@ -362,12 +362,21 @@ def _build_payload(joined_df: pd.DataFrame, features: list[str], spec: dict[str,
     return payload
 
 
-def _imr_expected(series: pd.Series) -> dict[str, float | int]:
+def _imr_expected(series: pd.Series, subgroup_ids: pd.Series | None = None) -> dict[str, float | int]:
+    """Independent I-MR oracle: sigma = pooled within-subgroup MR_bar / 1.128 (SPC_RULES §4)."""
     valid = _finite_series(series)
     values = valid.to_numpy(dtype=float, copy=False)
     cl = float(values.mean())
-    mr_values = np.abs(np.diff(values))
-    mr_bar = float(mr_values.mean())
+    mr_bar = float(np.abs(np.diff(values)).mean())
+    if subgroup_ids is not None:
+        aligned = subgroup_ids.reindex(valid.index)
+        pooled = [
+            np.abs(np.diff(grp.to_numpy(dtype=float)))
+            for _, grp in valid.groupby(aligned, sort=False)
+        ]
+        pooled_mr = np.concatenate(pooled) if pooled else np.array([])
+        if pooled_mr.size:
+            mr_bar = float(pooled_mr.mean())
     sigma = mr_bar / 1.128
     return {
         "n": int(len(valid)),
@@ -460,12 +469,15 @@ def _validate_single_feature_semantics(
         feat_spec = _feature_spec(spec, feature)
 
         imr_actual = (bundle.get("spc") or {}).get("statistics") or {}
-        for key, expected in _imr_expected(series).items():
+        for key, expected in _imr_expected(series, _subgroup_ids).items():
             _add_check(checks, f"{feature}.imr.{key}", imr_actual.get(key), expected)
 
         cap_actual = (bundle.get("cap") or {}).get("statistics") or {}
         for key, expected in _capability_expected(series, feat_spec, _subgroup_ids).items():
             _add_check(checks, f"{feature}.capability.{key}", cap_actual.get(key), expected)
+        if "sigma_st" in cap_actual:
+            # SPC_RULES §4: one sigma_within shared by I-MR limits and Cp/Cpk.
+            _add_check(checks, f"{feature}.imr_cap_sigma_parity", imr_actual.get("sigma"), cap_actual.get("sigma_st"))
 
         run_actual = (bundle.get("run_chart") or {}).get("statistics") or {}
         valid = _finite_series(series)
