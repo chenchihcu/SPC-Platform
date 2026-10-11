@@ -1,11 +1,11 @@
 # Open Questions
 
-Last updated: 2026-10-10
+Last updated: 2026-10-11
 
 ## Current Status
 
 - 本檔是唯一 **active risk ledger**（single source）。
-- Active 項目 1 項（#13，2026-10-10 新增）；所有移出項目均保留可機械重驗證的重新啟用條件。
+- Active 項目 2 項（#13 Pareto 邊界情境、#14 EWMA/CUSUM/pattern σ 未對齊）；所有移出項目均保留可機械重驗證的重新啟用條件。
 - `Watchlist #7` 編號與跨文件引用維持不變。
 
 ### Blocker Escalation Rule
@@ -17,7 +17,17 @@ Last updated: 2026-10-10
 
 ## Active Risk Ledger
 
-### 13. EWMA / CUSUM / pattern recognition σ 仍為整條序列 MR̄（未對齊板內 σ）
+### 13. Component Pareto residual edge cases (post 2026-10-11 union-count fix)
+
+- Scope: `app/analytics/pareto_engine.py::compute_component_pareto`、`app/viewmodels/chart_analysis_viewmodel.py::_pareto_with_parttype_fallback`。
+- Risk: (a) 只有單邊規格且無 UCL/LCL 時回傳 `is_valid=True` 但計數全為 0（Pad/ImageID 變體無條件呼叫，會出現「無異常」的有效圖），違反「不可計算須明確回報原因」；(b) viewmodel 以 `(usl and lsl)` 真值判斷，LSL/USL=0 時誤走 spec-only fallback。
+- Current guardrail: SPC_RULES §16.1 明文 OOS 僅在雙邊規格皆有時判定；`tests/test_pareto_engine.py` 覆蓋聯集計數與 abnormal_rate ∈ [0,1]。
+- Next action (Owner: self): 開獨立任務——先在 SPC_RULES §16.1 決定單邊規格語意（spec-first，需使用者核准），再修 (a)(b) 並補對應測試。
+- Revalidation gate: `python -m pytest -q tests/test_pareto_engine.py tests/test_pad_image_group_variants.py` + `scripts/validate_db_chart_semantics.py --latest-session` + `run_matrix.py --quick`。
+- Rollback: 各修正獨立 commit，逐一 revert。
+- Status: open
+
+### 14. EWMA / CUSUM / pattern recognition σ 仍為整條序列 MR̄（未對齊板內 σ）
 
 - Scope: `app/analytics/ewma_engine.py`、`app/analytics/cusum_engine.py`、`app/analytics/pattern_recognition_engine.py` 的 σ 估計（`SPC_RULES.md` §4「Not aligned」段）。
 - Risk: 2026-10-10 起 I-MR 與 Cp/Cpk 共用板內合併 MR̄（`StatisticalUtils.within_subgroup_mr_bar`），但上述三引擎仍以整條序列 MR̄/1.128 估 σ；有 BoardNo/PanelId 時跨板 MR 會放大其 σ，使 EWMA/CUSUM 管制界限與型態判定比 I-MR 寬，同一資料的 σ 在不同圖表間仍不一致（量級依板間位移而定，DB 實測三特徵 σ 差 < 4%）。

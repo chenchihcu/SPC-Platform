@@ -173,3 +173,39 @@ def test_local_missing_xy_columns_returns_invalid():
     bad_df = pd.DataFrame({"A": [1, 2, 3]})
     result = MoranIEngine.compute_local_moran_i(bad_df, _values(3))
     assert result["metadata"]["is_valid"] is False
+
+
+# ── Reproducibility: fixed permutation seed ───────────────────────────────
+
+
+def test_global_permutation_test_is_reproducible():
+    coords, vals = _spatial_pattern()
+    first = MoranIEngine.compute_global_moran_i(coords, vals)
+    second = MoranIEngine.compute_global_moran_i(coords, vals)
+    assert first == second
+
+
+@pytest.mark.parametrize("n, n_sites", [(30, 30), (2500, 50)])
+def test_local_permutation_test_is_reproducible(n: int, n_sites: int):
+    # (2500, 50) exercises the n>2000 duplicate-coordinate path with reduced permutations.
+    sites = _coords(n_sites)
+    coords = sites[np.arange(n) % n_sites]
+    vals = _values(n)
+    first = MoranIEngine.compute_local_moran_i(coords, vals)
+    second = MoranIEngine.compute_local_moran_i(coords, vals)
+    assert first["metadata"]["is_valid"] is True
+    assert first["data"]["p_values"] == second["data"]["p_values"]
+    assert first["data"]["classifications"] == second["data"]["classifications"]
+    assert first["statistics"] == second["statistics"]
+
+
+def test_viewmodel_lisa_payload_is_reproducible():
+    from app.viewmodels.chart_analysis_viewmodel import _compute_lisa_payload
+
+    sites = _coords(40)
+    df = pd.DataFrame({
+        "X": sites[np.arange(2400) % 40, 0],
+        "Y": sites[np.arange(2400) % 40, 1],
+        "Area": _values(2400).to_numpy(),
+    })
+    assert _compute_lisa_payload(df, "Area") == _compute_lisa_payload(df, "Area")

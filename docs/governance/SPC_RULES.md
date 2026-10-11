@@ -799,6 +799,29 @@ Cluster detection
 
 
 
+\# 16.1 Component Pareto Abnormal Counting
+
+Applies to `ParetoEngine.compute_component_pareto` (default Pareto grouped by `PartType`, and the `Pad` / `ImageID` group variants).
+
+A measurement point is **abnormal** when it satisfies at least one condition:
+
+- OOS: `x < LSL` or `x > USL` (evaluated only when both USL and LSL are provided)
+- above control limit: `x > UCL` (I-MR)
+- below control limit: `x < LCL` (I-MR)
+
+Counting rule (union, not sum):
+
+- Each point is counted **at most once**, even when it violates several conditions (e.g. beyond both USL and UCL).
+- `abnormal_count` = number of abnormal points in the group; `abnormal_rate = abnormal_count / total`, therefore `0 ≤ abnormal_rate ≤ 1`.
+- Bars are sorted by `abnormal_count` descending, then `abnormal_rate` descending; cumulative % = `cumsum(abnormal_count) / Σ abnormal_count × 100`; when `Σ abnormal_count = 0` the result stays valid and every cumulative % is `0.0`.
+- If none of USL/LSL/UCL/LCL is available, the result is `is_valid=False` with an explicit reason.
+
+
+
+\---
+
+
+
 \# 17. Performance Requirements
 
 
@@ -945,6 +968,7 @@ Statistical accuracy is mandatory.
 **顯著性檢驗：**
 - 每個位置的 Iᵢ 使用 Monte Carlo 置換檢驗（999 次）
 - 若 p-value < 0.05，分類有效；否則標記為 NS
+- 可重現性：置換檢驗（Global 與 LISA）使用固定 RNG 種子 `DEFAULT_PERMUTATION_SEED`（`app/analytics/moran_i_engine.py`），相同輸入必得相同 p-value 與分類
 
 **參數：**
 - k：K 近鄰數（預設 k = 5）

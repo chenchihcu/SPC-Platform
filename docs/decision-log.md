@@ -1,9 +1,19 @@
 # Decision Log
 
+## 2026-10-11 Component Pareto 異常點聯集計數
+
+- Decision: `ParetoEngine.compute_component_pareto` 的異常判定由加總（`oos + >UCL + <LCL`）改為聯集（`oos | >UCL | <LCL`），每點最多計一次；規則先寫入 `docs/governance/SPC_RULES.md` §16.1（spec-first，使用者核准）。
+- Scope: `app/analytics/pareto_engine.py`、`CHART_DESCRIPTIONS["pareto"]`（`app/analytics/chart_registry.py`）、`SPC_RULES.md` §16.1、`tests/test_pareto_engine.py`。
+- Reason: 2026-10-10 稽核發現同時超出 USL 與 UCL 的點被計兩次，高估 bar 高度與累積 %、可能改變 vital-few 排序，且 `abnormal_rate` 可大於 1（PPTX「TOP 異常元件」可能顯示 >100%）。
+- Impact: payload 形狀不變；重疊點所在群組的 `abnormal_count` / `total_abnormal` / `abnormal_rate` / `cumulative_pct` 下降，`abnormal_rate ∈ [0,1]`。預設 PartType 與 Pad/ImageID 變體同步生效。consumer（UI 圖表、PPTX、evidence matrix、report_*）經 parity review 無依賴舊語意。
+- Verification: 見 PR 描述（重疊點測試先紅後綠、real DB session 5 獨立重算、matrix quick、ruff/mypy/pytest/check_launch）。
+- Risk: 單邊規格（只有 USL 或 LSL）且無管制界線時結果 valid 但計數全 0、viewmodel `(usl and lsl)` 真值判斷，均為既有行為，列入 `docs/open-questions.md` #13。
+- Rollback: 回退上述四個檔案；不涉及 schema、migration 或持久資料。
+
 ## 2026-10-10 I-MR σ̂ Aligned to Within-Subgroup σ (shared with Cp/Cpk)
 
 - Decision: I-MR 管制圖的 σ̂ 改用與 Cp/Cpk 相同的「板內合併 MR̄ / 1.128」（rule b'）。跨板（BoardNo，否則 PanelId 切換）的 MR 仍保留在 `mr_values` 照畫（顯示板間跳動），但不計入 MR̄、MR 圖 CL 與 UCL；無 subgroup 欄時維持整條序列 MR̄（舊行為）。計算收斂為單一來源 `StatisticalUtils.within_subgroup_mr_bar`，`CapabilityEngine._short_term_sigma` 與 `SPCEngine.compute_imr(subgroup_ids=...)` 共用。payload 新增 `statistics.mr_boundary_excluded`、`metadata.sigma_basis`（加法式欄位，形狀不變）。新退化 guard：板內 MR̄ = 0（各板內皆常數、僅板間跳動）時 I-MR 回傳 `is_valid=false`，與 Cpk σ_st ≤ 0 的 fail-closed 一致。板交錯時依 subgroup 歸組合併（見 SPC_RULES §4）。
-- Scope: `SPC_RULES.md` §4（新段）與 §7 交叉引用；`statistical_utils.py`、`spc_engine.py`、`capability_engine.py`（委派，行為不變）、`chart_analysis_viewmodel.py`（單特徵與 n=2/3 driver bundle 兩處傳入 subgroup ids）、`summary_engine.py`；`chart_registry.py` 的 `imr` / `imr_3f` / `histogram_spec` formula_text；`scripts/validate_db_chart_semantics.py` I-MR oracle 改板內 MR̄並新增 `imr_cap_sigma_parity` 檢查；新測試 `tests/test_imr_within_subgroup_sigma.py`。EWMA/CUSUM/pattern recognition 不在範圍（列 open-questions #13）。
+- Scope: `SPC_RULES.md` §4（新段）與 §7 交叉引用；`statistical_utils.py`、`spc_engine.py`、`capability_engine.py`（委派，行為不變）、`chart_analysis_viewmodel.py`（單特徵與 n=2/3 driver bundle 兩處傳入 subgroup ids）、`summary_engine.py`；`chart_registry.py` 的 `imr` / `imr_3f` / `histogram_spec` formula_text；`scripts/validate_db_chart_semantics.py` I-MR oracle 改板內 MR̄並新增 `imr_cap_sigma_parity` 檢查；新測試 `tests/test_imr_within_subgroup_sigma.py`。EWMA/CUSUM/pattern recognition 不在範圍（列 open-questions #14）。
 - Reason: 2026-10-10 圖表解讀稽核發現同一資料的 I-MR σ̂（整條序列 MR̄，含跨板 MR）與 Cpk σ_within（板內 MR̄）不同，使用者無法對帳。SMT/SPI 換板跳動（鋼板擦拭、板支撐/翹曲、錫膏滾動）屬板間變異；AIAG 規定 MR 不得跨 rational subgroup，以板內變異建界限才能揭露板間特殊原因。
 - Impact: 有板欄的資料 I-MR UCL/LCL 依板間位移幅度收窄，OOC 點數可能增加（屬正確化）；I-MR σ̂ 與 Cpk σ_st 完全相等；無板欄的資料數值逐位元不變。
 - Risk: n=2/3 driver bundle 的 I-MR 以未經 `sort_by_order_col` 排序的 filtered_df 計算（既有行為，本次未改排序），若載入順序與分析順序不同，邊界數與單特徵路徑可能不同。

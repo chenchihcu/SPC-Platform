@@ -325,7 +325,7 @@ CHART_DESCRIPTIONS: Dict[str, Dict[str, str]] = {
     },
     "pareto": {
         "definition_text": "柏拉圖依異常次數排序，找出關鍵少數的元件類型（預設）或異常類別。",
-        "formula_text": "預設依 PartType 分組，異常次數 = 超出 USL/LSL 點數 + 超出 I-MR UCL/LCL 點數（同一點可能同時計入），折線為累積百分比。無 PartType 或無結果時，改依 USL/LSL 判定 Excess/Insufficient 類別。",
+        "formula_text": "預設依 PartType 分組，異常次數 = 超出 USL/LSL 或超出 I-MR UCL/LCL 的點數（同一點只計一次），折線為累積百分比。無 PartType 或元件 Pareto 無法計算時，改依 USL/LSL 判定 Excess/Insufficient 類別。",
         "data_source_text": "單一量測特徵；需 I-MR 管制界線或 USL/LSL 規格；另有 Pad / ImageID 分組檢視。",
         "smt_interpretation_text": "可協助聚焦改善重點，優先處理影響最大的異常來源。",
     },

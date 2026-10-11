@@ -18,7 +18,7 @@ from app.analytics.anomaly_3f_engine import Anomaly3FEngine
 from app.analytics.consistency_3f_engine import Consistency3FEngine
 from app.analytics.multivariate_spc_engine import MultivariateSPCEngine
 from app.analytics.radar_payload_helper import build_radar_from_dataframe_groups
-from app.analytics.moran_i_engine import MoranIEngine
+from app.analytics.moran_i_engine import DEFAULT_PERMUTATION_SEED, MoranIEngine
 from app.analytics.ewma_engine import EWMAEngine
 from app.analytics.cusum_engine import CUSUMEngine
 from app.analytics.run_chart_engine import RunChartEngine
@@ -524,6 +524,7 @@ def _compute_lisa_payload(filtered_df: pd.DataFrame, col: str) -> Dict[str, Any]
             coords_df,
             values_series,
             k=3,
+            seed=DEFAULT_PERMUTATION_SEED,
         )
     except (ValueError, TypeError, AttributeError, KeyError, IndexError, ZeroDivisionError) as e:
         return {"chart_type": "LISA", "data": {}, "statistics": {}, "metadata": {"is_valid": False, "error": f"LISA 計算失敗: {str(e)}"}}
