@@ -1371,18 +1371,6 @@ def get_app_stylesheet() -> str:
         border-left: 3px solid {SIDEBAR_ACCENT};
     }}
 
-    /* 稽核修正 A-02：鎖定步驟樣式（前置條件未完成時） */
-    QPushButton#navStepBtn[state="locked"] {{
-        color: {TEXT_DISABLED};
-        background-color: transparent;
-        border-left: {ACCENT_STRIPE_W}px solid transparent;
-    }}
-    QPushButton#navStepBtn[state="locked"]:hover {{
-        background-color: transparent;
-        color: {TEXT_DISABLED};
-        cursor: default;
-    }}
-
     QFrame#sidebarDivider {{
         background-color: {SIDEBAR_DIVIDER};
         border: none;

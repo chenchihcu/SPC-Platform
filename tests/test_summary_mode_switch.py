@@ -30,17 +30,15 @@ def test_viewmodel_summary_mode_defaults_to_manager():
 
 
 def test_chart_page_mode_sync_via_viewmodel(qapp):
-    """Chart page mode switching still works through the viewmodel."""
+    """The viewmodel is the single writer; the chart page only follows it."""
     vm = ChartAnalysisViewModel()
     chart_page = ChartAnalysisPage()
 
     vm.summary_mode_changed.connect(chart_page.set_summary_mode)
-    chart_page.summary_mode_changed.connect(vm.set_summary_mode)
+    assert not hasattr(chart_page, "summary_mode_changed")
 
-    chart_page.summary_mode_changed.emit(SUMMARY_MODE_ENGINEER)
-    assert vm.summary_mode == SUMMARY_MODE_ENGINEER
+    vm.set_summary_mode(SUMMARY_MODE_ENGINEER)
     assert chart_page._summary_mode == SUMMARY_MODE_ENGINEER
 
-    chart_page.summary_mode_changed.emit(SUMMARY_MODE_MANAGER)
-    assert vm.summary_mode == SUMMARY_MODE_MANAGER
+    vm.set_summary_mode(SUMMARY_MODE_MANAGER)
     assert chart_page._summary_mode == SUMMARY_MODE_MANAGER

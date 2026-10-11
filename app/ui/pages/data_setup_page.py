@@ -106,6 +106,8 @@ class DataSetupPage(QWidget):
     start_analysis_requested = Signal()
     spec_saved = Signal(str)
     manage_specs_requested = Signal()
+    manage_stencil_documents_requested = Signal(str)
+    stencil_document_versions_changed = Signal(str)  # product_name
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -320,6 +322,12 @@ class DataSetupPage(QWidget):
         self._coord_content.registry_changed.connect(self._reload_product_options)
         self._stencil_content.spec_saved.connect(self.spec_saved.emit)
         self._stencil_content.manage_requested.connect(self.manage_specs_requested.emit)
+        self._stencil_content.manage_documents_requested.connect(
+            self.manage_stencil_documents_requested.emit
+        )
+        self._stencil_content.document_versions_changed.connect(
+            self.stencil_document_versions_changed.emit
+        )
 
         self._reload_product_options()
         self._reload_supplier_options()
@@ -490,7 +498,7 @@ class DataSetupPage(QWidget):
         self.product_combo.blockSignals(True)
         try:
             self.product_combo.clear()
-            self.product_combo.addItem("請選擇產品…", "")
+            self.product_combo.addItem("請選擇產品", "")
             for entry in list_registered():
                 name = (entry.get("product_name") or "").strip()
                 if name:
@@ -507,7 +515,7 @@ class DataSetupPage(QWidget):
         self.supplier_input.blockSignals(True)
         try:
             self.supplier_input.clear()
-            self.supplier_input.addItem("請選擇供應商…", "")
+            self.supplier_input.addItem("請選擇供應商", "")
             for supplier_name in list_supplier_names():
                 name = supplier_name.strip()
                 if name:
@@ -778,6 +786,10 @@ class DataSetupPage(QWidget):
         editor reflects the RefDes available in the newly loaded coordinate file.
         """
         self._stencil_content.refresh_refdes_list()
+
+    def refresh_stencil_document_status(self) -> None:
+        """Refresh the active stencil document summary after a version change elsewhere."""
+        self._stencil_content.refresh_document_status()
 
     def sync_from_store(self, master: dict) -> None:
         """同步工單/產品資訊到 UI 欄位。"""

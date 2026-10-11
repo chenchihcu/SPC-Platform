@@ -98,6 +98,7 @@ from app.data.supplier_library import (
 )
 from app.data.coordinate_registry import list_registered
 from app.ui.theme import show_dark_information, show_dark_warning
+from app.ui.widgets.stencil_document_manager import StencilDocumentManager
 from app.ui.theme.tokens import (
     SPACING_4,
     SPACING_8,
@@ -122,6 +123,7 @@ from app.ui.theme.tokens import (
 from app.ui.theme.layout_policy import fit_top_level_to_available
 from app.ui.widgets.page_templates import (
     apply_status_accessibility,
+    bind_table_delete_shortcut,
     confirm_double_delete,
     create_status_lamp,
     page_margins_and_spacing,
@@ -280,7 +282,7 @@ class _PasteSpecForm(QWidget):
 
         self._limit_fields: Dict[str, QLineEdit] = {}
 
-        header = QLabel("請設定體積/面積目標與上下限，以及高度上下限")
+        header = QLabel("設定體積/面積目標與上下限、高度上下限")
         header.setProperty("class", "caption")
         form.addRow("規格管制：", header)
 
@@ -781,6 +783,8 @@ class MeasurementLibraryPage(QWidget):
     coordinate_selected = Signal(str)
     #: 使用者選取規格記錄時發出（攜帶產品名稱）。
     spec_selected = Signal(str)
+    #: 開窗文件版本新增 / 啟用 / 停用 / 刪除後發出。
+    stencil_document_versions_changed = Signal()
 
     def _make_search_toolbar(self) -> tuple[QFrame, QHBoxLayout]:
         toolbar = QFrame()
@@ -900,6 +904,7 @@ class MeasurementLibraryPage(QWidget):
         self._delete_btn.setProperty("class", "danger")
         self._delete_btn.setToolTip("刪除選取的 DB 記錄")
         self._delete_btn.clicked.connect(self._on_delete_clicked)
+        bind_table_delete_shortcut(self._table, self._delete_btn)
         self._apply_uniform_action_button_size(
             self._load_btn,
             self._edit_btn,
@@ -978,6 +983,7 @@ class MeasurementLibraryPage(QWidget):
         self._c_delete_btn = QPushButton("刪除版次")
         self._c_delete_btn.setProperty("class", "danger")
         self._c_delete_btn.clicked.connect(self._on_coord_delete_clicked)
+        bind_table_delete_shortcut(self._c_table, self._c_delete_btn)
         self._apply_uniform_action_button_size(
             self._c_load_btn,
             self._c_active_btn,
@@ -1000,6 +1006,14 @@ class MeasurementLibraryPage(QWidget):
         spec_root = QVBoxLayout(spec_tab)
         spec_root.setContentsMargins(0, SPACING_4, 0, 0)
         spec_root.setSpacing(SPACING_8)
+        self._spec_subtabs = QTabWidget()
+        self._spec_subtabs.setProperty("class", "secondaryTabs")
+        spec_root.addWidget(self._spec_subtabs, 1)
+
+        parameter_spec_tab = QWidget()
+        parameter_spec_root = QVBoxLayout(parameter_spec_tab)
+        parameter_spec_root.setContentsMargins(0, SPACING_4, 0, 0)
+        parameter_spec_root.setSpacing(SPACING_8)
 
         sp_search_card, sp_row1 = self._make_search_toolbar()
 
@@ -1025,7 +1039,7 @@ class MeasurementLibraryPage(QWidget):
         self._sp_clear_btn.clicked.connect(self._clear_combined_spec_filters)
         sp_row1.addWidget(self._sp_clear_btn)
 
-        spec_root.addWidget(sp_search_card)
+        parameter_spec_root.addWidget(sp_search_card)
 
         self._sp_table = QTableWidget(0, len(_COMBINED_SPEC_COL_NAMES))
         self._sp_table.setHorizontalHeader(_GroupedHeaderView(_COMBINED_SPEC_GROUPS, self._sp_table))
@@ -1036,7 +1050,7 @@ class MeasurementLibraryPage(QWidget):
         sp_hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         sp_hdr.setDefaultAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         self._sp_table.itemDoubleClicked.connect(self._on_combined_spec_load_clicked)
-        spec_root.addWidget(self._sp_table, 1)
+        parameter_spec_root.addWidget(self._sp_table, 1)
 
         self._sp_count_lbl = QLabel("共 0 筆記錄")
         self._sp_count_lbl.setProperty("class", "caption")
@@ -1060,6 +1074,7 @@ class MeasurementLibraryPage(QWidget):
         self._sp_delete_btn = QPushButton("刪除規格")
         self._sp_delete_btn.setProperty("class", "danger")
         self._sp_delete_btn.clicked.connect(self._on_combined_spec_delete_clicked)
+        bind_table_delete_shortcut(self._sp_table, self._sp_delete_btn)
         self._apply_uniform_action_button_size(
             self._sp_add_btn,
             self._sp_load_btn,
@@ -1068,7 +1083,7 @@ class MeasurementLibraryPage(QWidget):
             self._sp_delete_btn,
         )
         self._add_table_action_row(
-            spec_root,
+            parameter_spec_root,
             self._sp_count_lbl,
             self._sp_add_btn,
             self._sp_load_btn,
@@ -1076,6 +1091,13 @@ class MeasurementLibraryPage(QWidget):
             self._sp_edit_btn,
             self._sp_delete_btn,
         )
+
+        self._spec_subtabs.addTab(parameter_spec_tab, "參數規格")
+        self.stencil_document_manager = StencilDocumentManager()
+        self.stencil_document_manager.versions_changed.connect(
+            self.stencil_document_versions_changed.emit
+        )
+        self._spec_subtabs.addTab(self.stencil_document_manager, "開窗文件")
 
         self.tabs.addTab(spec_tab, "規格管理")
 
@@ -1140,6 +1162,7 @@ class MeasurementLibraryPage(QWidget):
         self._sup_delete_btn = QPushButton("刪除資料")
         self._sup_delete_btn.setProperty("class", "danger")
         self._sup_delete_btn.clicked.connect(self._on_supplier_delete_clicked)
+        bind_table_delete_shortcut(self._sup_table, self._sup_delete_btn)
         self._apply_uniform_action_button_size(
             self._sup_add_btn,
             self._sup_edit_btn,
@@ -1285,12 +1308,19 @@ class MeasurementLibraryPage(QWidget):
         # 更新 header 狀態燈
         self._set_status_state("success" if sessions else "idle", "就緒" if sessions else "尚無記錄")
 
-    def set_product_filter(self, product_name: str) -> None:
-        """由外部設定產品篩選（通常在產品切換後連動）。"""
-        idx = self._product_combo.findText(product_name)
-        if idx >= 0:
-            self._product_combo.setCurrentIndex(idx)
-        self.refresh()
+
+    def open_stencil_documents(self, product_name: str = "") -> None:
+        """Keep the top-level tab contract while opening the functional subpage."""
+        self.tabs.setCurrentIndex(2)
+        self._spec_subtabs.setCurrentIndex(1)
+        if product_name:
+            self.stencil_document_manager.set_product_name(product_name)
+        else:
+            self.stencil_document_manager.refresh()
+
+    def refresh_stencil_documents(self) -> None:
+        """Reload the 開窗文件 list after a version change made on another page."""
+        self.stencil_document_manager.reload()
 
     # ─── Private helpers ──────────────────────────────────────────────────────
 
@@ -1464,7 +1494,7 @@ class MeasurementLibraryPage(QWidget):
         if not confirm_double_delete(
             self,
             f"確定要刪除記錄「{fname}」嗎？\n（本機量測檔案不會被刪除）",
-            second_message="此動作無法復原，您真的確定要刪除此記錄嗎？",
+            second_message="此動作無法復原，確定刪除此記錄？",
         ):
             return
         session_id = session.get("id")
@@ -1596,7 +1626,7 @@ class MeasurementLibraryPage(QWidget):
         if not confirm_double_delete(
             self,
             f"確定要刪除座標記錄「{os.path.basename(str(v['file_path']))}」嗎？",
-            second_message="此動作無法復原，您真的確定要刪除此座標記錄嗎？",
+            second_message="此動作無法復原，確定刪除此座標記錄？",
         ):
             return
         if delete_coordinate_version(int(v["id"])):
@@ -1966,7 +1996,7 @@ class MeasurementLibraryPage(QWidget):
         if not confirm_double_delete(
             self,
             f"確定要刪除產品「{product_name}」的此筆規格記錄嗎？\n（同時移除錫膏與鋼板兩側）",
-            second_message="此動作無法復原，您真的確定要刪除此規格記錄嗎？",
+            second_message="此動作無法復原，確定刪除此規格記錄？",
         ):
             return
         deleted_any = False
@@ -2112,7 +2142,7 @@ class MeasurementLibraryPage(QWidget):
                 f"確定要刪除供應商「{record.get('supplier_code')} / {record.get('supplier_name')}」"
                 f"的鋼板「{record.get('steel_plate_no')}」資料嗎？"
             ),
-            second_message="此動作無法復原，您真的確定要刪除此供應商資料嗎？",
+            second_message="此動作無法復原，確定刪除此供應商資料？",
         ):
             return
         try:
