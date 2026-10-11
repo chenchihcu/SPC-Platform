@@ -115,7 +115,8 @@ class ParetoEngine:
         lsl: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
-        Component-based Pareto: rank by abnormal_rate = (OOS + UCL + LCL violations) / total.
+        Component-based Pareto: abnormal point = OOS ∪ (>UCL) ∪ (<LCL), each point counted once
+        (SPC_RULES §16.1); abnormal_rate = abnormal_count / total.
         Returns data for chart and component list for click-to-filter.
         """
         if meas_df.empty or target_col not in meas_df.columns or group_col not in meas_df.columns:
@@ -130,16 +131,15 @@ class ParetoEngine:
         if df.empty:
             return invalid_chart_payload("Pareto", "無有效資料可進行元件 Pareto 分析。", target_col, mode="component")
         vals = df[target_col].astype(float).to_numpy()
-        oos = np.zeros(len(df), dtype=int)
-        ucl_v = np.zeros(len(df), dtype=int)
-        lcl_v = np.zeros(len(df), dtype=int)
+        # Union mask: a point beyond both a spec limit and a control limit counts once.
+        abnormal_mask = np.zeros(len(df), dtype=bool)
         if usl is not None and lsl is not None:
-            oos = ((vals < lsl) | (vals > usl)).astype(int)
+            abnormal_mask |= (vals < lsl) | (vals > usl)
         if ucl is not None:
-            ucl_v = (vals > ucl).astype(int)
+            abnormal_mask |= vals > ucl
         if lcl is not None:
-            lcl_v = (vals < lcl).astype(int)
-        abnormal = oos + ucl_v + lcl_v
+            abnormal_mask |= vals < lcl
+        abnormal = abnormal_mask.astype(int)
         df = df.copy()
         df["_abnormal"] = abnormal
         agg = df.groupby(group_col, dropna=False).agg(

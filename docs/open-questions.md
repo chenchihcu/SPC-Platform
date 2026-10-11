@@ -17,13 +17,15 @@ Last updated: 2026-07-14
 
 ## Active Risk Ledger
 
-- Scope: none (no active risk items)
-- Risk: none active
-- Current guardrail: 所有 dormant 項目保留原編號、重驗 gate 與機械重新啟用條件。
-- Next action (Owner: self): 僅在對應 reactivation condition 成立時恢復原項目，不建立重複編號。
-- Revalidation gate: `powershell -ExecutionPolicy Bypass -File scripts/harness_check.ps1` + 對應 dormant 項目所列 gate
-- Rollback: not applicable；若證據失效，將原項目移回 active 並恢復其完整 risk ledger 欄位。
-- Status: empty
+### 13. Component Pareto residual edge cases (post 2026-10-11 union-count fix)
+
+- Scope: `app/analytics/pareto_engine.py::compute_component_pareto`、`app/viewmodels/chart_analysis_viewmodel.py::_pareto_with_parttype_fallback`。
+- Risk: (a) 只有單邊規格且無 UCL/LCL 時回傳 `is_valid=True` 但計數全為 0（Pad/ImageID 變體無條件呼叫，會出現「無異常」的有效圖），違反「不可計算須明確回報原因」；(b) viewmodel 以 `(usl and lsl)` 真值判斷，LSL/USL=0 時誤走 spec-only fallback。
+- Current guardrail: SPC_RULES §16.1 明文 OOS 僅在雙邊規格皆有時判定；`tests/test_pareto_engine.py` 覆蓋聯集計數與 abnormal_rate ∈ [0,1]。
+- Next action (Owner: self): 開獨立任務——先在 SPC_RULES §16.1 決定單邊規格語意（spec-first，需使用者核准），再修 (a)(b) 並補對應測試。
+- Revalidation gate: `python -m pytest -q tests/test_pareto_engine.py tests/test_pad_image_group_variants.py` + `scripts/validate_db_chart_semantics.py --latest-session` + `run_matrix.py --quick`。
+- Rollback: 各修正獨立 commit，逐一 revert。
+- Status: open
 
 ## Moved Out Of Active (Converged / Dormant)
 
