@@ -126,3 +126,16 @@ def test_missing_subgroup_id_counts_as_boundary():
     # board change (1) + both MRs touching the missing id (2)
     assert result["statistics"]["mr_boundary_excluded"] == 3
     assert result["metadata"]["sigma_basis"] == "within_subgroup"
+
+
+def test_driver_bundle_unsorted_input_matches_single_feature_path():
+    # Rows shuffled out of board order: the driver bundle must sort by analysis
+    # order (PR #8) and take subgroup ids from that same sorted frame, giving the
+    # same I-MR as the single-feature path.
+    df = _boards(n_boards=4, per_board=6).sample(frac=1.0, random_state=11)
+    driver = _compute_driver_bundle(df, "Volume", {"usl": 400.0, "lsl": 0.0})["spc"]
+    single = _compute_single_feature_analysis(df, "Volume", usl=400.0, lsl=0.0)["spc"]
+    assert driver["metadata"]["sigma_basis"] == "within_subgroup"
+    assert driver["statistics"]["mr_boundary_excluded"] == 3
+    assert driver["statistics"]["sigma"] == pytest.approx(single["statistics"]["sigma"], rel=1e-12)
+    assert driver["statistics"]["mr_bar"] == pytest.approx(single["statistics"]["mr_bar"], rel=1e-12)

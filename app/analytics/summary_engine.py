@@ -16,7 +16,7 @@ from app.analytics.spc_engine import SPCEngine
 from app.utils.numeric_utils import safe_float
 from app.utils.dataframe_utils import detect_order_col, detect_subgroup_col, sort_by_order_col
 from app.analytics.cusum_engine import CUSUMEngine
-from app.analytics.ooc_utils import count_contiguous_ooc_clusters
+from app.analytics.ooc_utils import count_contiguous_ooc_clusters, ooc_run_positions
 from app.analytics.process_diagnosis_engine import run_process_diagnosis
 import scipy.stats as stats  # type: ignore[import-untyped]
 
@@ -511,7 +511,13 @@ def compute_summary(
         ooc_rate = _normalize_ooc_ratio(ooc_count, spc_n)
         if ooc_rate is not None:
             ooc_rates.append(ooc_rate)
-        ooc_clusters = count_contiguous_ooc_clusters(spc_data.get("out_of_control_indices") or [])
+        ooc_labels = spc_data.get("out_of_control_indices") or []
+        sequence_labels = spc_data.get("indices")
+        if sequence_labels:
+            # Contiguity is defined in run order, not by row-label adjacency.
+            ooc_clusters = count_contiguous_ooc_clusters(ooc_run_positions(ooc_labels, sequence_labels))
+        else:
+            ooc_clusters = count_contiguous_ooc_clusters(ooc_labels)
         cluster_counts.append(float(ooc_clusters))
 
         cusum = cusum_by_measure.get(col, {})

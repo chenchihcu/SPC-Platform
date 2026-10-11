@@ -16,7 +16,7 @@
 - Scope: `SPC_RULES.md` §4（新段）與 §7 交叉引用；`statistical_utils.py`、`spc_engine.py`、`capability_engine.py`（委派，行為不變）、`chart_analysis_viewmodel.py`（單特徵與 n=2/3 driver bundle 兩處傳入 subgroup ids）、`summary_engine.py`；`chart_registry.py` 的 `imr` / `imr_3f` / `histogram_spec` formula_text；`scripts/validate_db_chart_semantics.py` I-MR oracle 改板內 MR̄並新增 `imr_cap_sigma_parity` 檢查；新測試 `tests/test_imr_within_subgroup_sigma.py`。EWMA/CUSUM/pattern recognition 不在範圍（列 open-questions #14）。
 - Reason: 2026-10-10 圖表解讀稽核發現同一資料的 I-MR σ̂（整條序列 MR̄，含跨板 MR）與 Cpk σ_within（板內 MR̄）不同，使用者無法對帳。SMT/SPI 換板跳動（鋼板擦拭、板支撐/翹曲、錫膏滾動）屬板間變異；AIAG 規定 MR 不得跨 rational subgroup，以板內變異建界限才能揭露板間特殊原因。
 - Impact: 有板欄的資料 I-MR UCL/LCL 依板間位移幅度收窄，OOC 點數可能增加（屬正確化）；I-MR σ̂ 與 Cpk σ_st 完全相等；無板欄的資料數值逐位元不變。
-- Risk: n=2/3 driver bundle 的 I-MR 以未經 `sort_by_order_col` 排序的 filtered_df 計算（既有行為，本次未改排序），若載入順序與分析順序不同，邊界數與單特徵路徑可能不同。
+- Risk: 板序交錯（如 Time 排序跨多線）時 MR̄ 依 subgroup 歸組合併，不等於任一組畫出點的平均（SPC_RULES §4 已註明）。原「n=2/3 driver bundle 以未排序 filtered_df 計算」之風險已由 PR #8（driver 輸入改依分析順序排序）解除；合併後 driver bundle 的 subgroup ids 取自同一排序後資料框並以 series index 對齊。
 - Rollback: `subgroup_ids` 預設 None；反向套用 viewmodel / summary_engine 呼叫端 hunks 即回整條序列 I-MR，再還原 SPC_RULES §4 新段與 CHART_DESCRIPTIONS 三行。
 
 ## 2026-10-10 Density PNG Baseline: Refresh and Pin to matplotlib Version

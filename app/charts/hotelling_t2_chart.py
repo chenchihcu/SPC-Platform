@@ -6,6 +6,7 @@ import numpy as np
 from typing import Dict, Any
 
 from app.charts.base_chart import BaseChart
+from app.charts.run_order_axis import run_order_x
 from app.ui.theme.tokens import (
     CHART_ANNOTATION,
     CHART_CONTROL_LIMITS,
@@ -37,9 +38,10 @@ class HotellingT2Chart(BaseChart):
         data = engine_output.get("data", {})
         stats = engine_output.get("statistics", {})
 
-        indices = data.get("indices", [])
         t2_values = data.get("t2_values", [])
         ooc_flags = data.get("ooc_flags", [])
+        # X = 1-based position in analysis order, matching the other sequence charts.
+        indices = run_order_x(len(t2_values))
 
         ucl_value = stats.get("ucl_value", 0.0)
         mean_t2 = stats.get("mean_t2", 0.0)
