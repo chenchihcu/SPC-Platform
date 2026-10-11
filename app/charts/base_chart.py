@@ -385,9 +385,14 @@ def format_sample_disclosure(engine_output: Mapping[str, Any]) -> str:
 def add_sample_disclosure(ax, engine_output: Mapping[str, Any]) -> str:
     """Add a bottom-left chart disclosure once and return the rendered text."""
     text = format_sample_disclosure(engine_output)
-    if not text or getattr(ax, "_spc_sample_disclosure", False):
+    if not text:
         return text
-    ax.text(
+    # Keep the artist (not a bool): ax.clear() drops it from ax.texts, so a
+    # stale marker can never suppress the disclosure on a later re-render.
+    existing = getattr(ax, "_spc_sample_disclosure", None)
+    if existing is not None and existing in ax.texts:
+        return text
+    artist = ax.text(
         0.01,
         0.01,
         text,
@@ -398,7 +403,7 @@ def add_sample_disclosure(ax, engine_output: Mapping[str, Any]) -> str:
         color=CHART_ANNOTATION,
         bbox={"boxstyle": "round,pad=0.35", "fc": CHART_AXES_BG, "ec": CHART_GRID, "alpha": 0.86},
     )
-    setattr(ax, "_spc_sample_disclosure", True)
+    setattr(ax, "_spc_sample_disclosure", artist)
     return text
 
 

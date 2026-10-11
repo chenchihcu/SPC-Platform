@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QApplication
 
 from app.charts.base_chart import BaseChart, format_sample_disclosure
 from app.charts.cusum_3f_chart import CUSUM3F
+from app.charts.heatmap_chart import HeatmapChart
 from app.charts.ewma_3f_chart import EWMA3F
 from app.charts.imr_3f_chart import IMR3F
 from app.charts.multi_feature_panels import zscore_scale
@@ -131,3 +132,17 @@ def test_chart_placeholder_literals_follow_wording_convention() -> None:
             if text.endswith("。") or re.search(r"\([A-Za-z][A-Za-z ]+\)$", text):
                 offenders.append(f"{path.name}: {text}")
     assert offenders == []
+
+
+def test_sample_disclosure_survives_repeated_renders_after_axis_clear() -> None:
+    _ensure_app()
+    chart = HeatmapChart()
+    payload = {
+        "metadata": {"is_valid": True, "mode": "value"},
+        "data": {"x": [0.0, 1.0, 2.0], "y": [0.0, 1.0, 2.0], "values": [1.0, 2.0, 3.0]},
+        "statistics": {"sampled_for_display": True, "displayed_n": 3200, "n": 120000, "aggregation_bins": 80},
+    }
+    for _ in range(3):  # each draw_chart() runs BaseChart.clear() -> ax.clear()
+        chart.draw_chart(payload)
+        texts = _texts(chart.ax)
+        assert sum("shown=3200/120000" in t and "grid=80x80" in t for t in texts) == 1
