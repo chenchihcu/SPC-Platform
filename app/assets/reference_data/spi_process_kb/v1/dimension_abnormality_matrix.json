@@ -1,0 +1,134 @@
+{
+  "entries": [
+    {
+      "spi_dimension": "Volume",
+      "abnormality_type": "Drift",
+      "stencil": "鋼板開口逐漸堵塞 累積殘錫",
+      "squeegee": "刮刀壓力漸變 （彈性疲勞）",
+      "paste": "黏度隨使用時間 上升→轉印率↓",
+      "pcb_pad": "",
+      "alignment": "",
+      "environment": "溫度↑→黏度↓ 流動性增加"
+    },
+    {
+      "spi_dimension": "Volume",
+      "abnormality_type": "Shift",
+      "stencil": "鋼板更換/清潔後 開口尺寸差異",
+      "squeegee": "刮刀更換/壓力 設定改變",
+      "paste": "換料批次黏度 規格差異",
+      "pcb_pad": "",
+      "alignment": "",
+      "environment": ""
+    },
+    {
+      "spi_dimension": "Volume",
+      "abnormality_type": "Cluster",
+      "stencil": "局部開口堵塞 （特定 Pad 群）",
+      "squeegee": "刮刀局部磨損 （特定 X 位置）",
+      "paste": "錫膏局部乾燥 結塊",
+      "pcb_pad": "Pad 氧化群聚 （同排元件）",
+      "alignment": "",
+      "environment": ""
+    },
+    {
+      "spi_dimension": "Volume",
+      "abnormality_type": "Non-normal",
+      "stencil": "",
+      "squeegee": "刮刀壓力不穩定 造成雙峰",
+      "paste": "兩種黏度錫膏 混用→雙峰",
+      "pcb_pad": "",
+      "alignment": "",
+      "environment": ""
+    },
+    {
+      "spi_dimension": "Height",
+      "abnormality_type": "Drift",
+      "stencil": "鋼板厚度磨損 （長期使用）",
+      "squeegee": "",
+      "paste": "錫膏流動性 變化",
+      "pcb_pad": "",
+      "alignment": "",
+      "environment": "溫度→黏度→ 高度變化"
+    },
+    {
+      "spi_dimension": "Height",
+      "abnormality_type": "Variation",
+      "stencil": "",
+      "squeegee": "刮刀壓力不均 （左右/前後）",
+      "paste": "",
+      "pcb_pad": "PCB 翹曲→ 離板距離不均",
+      "alignment": "",
+      "environment": ""
+    },
+    {
+      "spi_dimension": "Area",
+      "abnormality_type": "Shift",
+      "stencil": "開口變小 （堵塞/磨損）",
+      "squeegee": "",
+      "paste": "黏度過高→ 鋪展性不足",
+      "pcb_pad": "Pad 氧化→ 潤濕面積↓",
+      "alignment": "",
+      "environment": ""
+    },
+    {
+      "spi_dimension": "Area",
+      "abnormality_type": "Cluster",
+      "stencil": "特定開口群 尺寸偏差",
+      "squeegee": "",
+      "paste": "",
+      "pcb_pad": "特定元件 Pad 表面處理不良",
+      "alignment": "",
+      "environment": ""
+    },
+    {
+      "spi_dimension": "X-offset",
+      "abnormality_type": "Drift",
+      "stencil": "",
+      "squeegee": "",
+      "paste": "",
+      "pcb_pad": "PCB X向 熱膨脹",
+      "alignment": "視覺系統 X軸漂移",
+      "environment": "溫度→機台 X向熱膨脹"
+    },
+    {
+      "spi_dimension": "X-offset",
+      "abnormality_type": "Shift",
+      "stencil": "鋼板重新安裝  X位置偏差",
+      "squeegee": "",
+      "paste": "",
+      "pcb_pad": "",
+      "alignment": "Calibration 重置異常",
+      "environment": ""
+    },
+    {
+      "spi_dimension": "Y-offset",
+      "abnormality_type": "Drift",
+      "stencil": "",
+      "squeegee": "",
+      "paste": "",
+      "pcb_pad": "PCB Y向 熱膨脹",
+      "alignment": "視覺系統 Y軸漂移",
+      "environment": "溫度→機台 Y向熱膨脹"
+    },
+    {
+      "spi_dimension": "Y-offset",
+      "abnormality_type": "Cluster",
+      "stencil": "鋼板局部變形 （特定 Pad 群）",
+      "squeegee": "",
+      "paste": "",
+      "pcb_pad": "PCB 翹曲→ 局部對位偏差",
+      "alignment": "Fiducial 污染 →區域誤差",
+      "environment": ""
+    },
+    {
+      "spi_dimension": "Cpk/Ppk",
+      "abnormality_type": "Variation",
+      "stencil": "開口尺寸 一致性差",
+      "squeegee": "壓力/速度 不穩定",
+      "paste": "黏度批間 差異大",
+      "pcb_pad": "Pad 尺寸 製造公差大",
+      "alignment": "對位重複性 （Repeatability）↓",
+      "environment": "溫濕度變動 大"
+    }
+  ]
+}

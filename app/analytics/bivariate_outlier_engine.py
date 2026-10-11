@@ -34,7 +34,7 @@ class BivariateOutlierEngine:
                 "statistics": {},
                 "metadata": {"is_valid": False, "error": f"缺少欄位 {col_x} 或 {col_y}."},
             }
-        valid = filtered_df[[col_x, col_y]].dropna()
+        valid = filtered_df[[col_x, col_y]].replace([np.inf, -np.inf], np.nan).dropna()
         if len(valid) < 3:
             return {
                 "chart_type": "BivariateOutlier",

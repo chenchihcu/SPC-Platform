@@ -3,6 +3,7 @@ Radar chart payload helper — slices existing engine outputs into radar format.
 """
 from typing import Any, Dict, List, Optional, Sequence
 
+import numpy as np
 import pandas as pd
 
 
@@ -48,7 +49,8 @@ def build_radar_payload(
         return {
             "chart_type": "radar",
             "payload_key": "radar",
-            "data": {"categories": [], "series": []},
+            "data": {},
+            "statistics": {},
             "metadata": {
                 "is_valid": False,
                 "n_series": 0,
@@ -77,8 +79,13 @@ def build_radar_payload(
             "categories": categories,
             "series": series,
         },
+        "statistics": {
+            "n_series": len(series),
+            "n_categories": len(categories),
+        },
         "metadata": {
             "is_valid": True,
+            "error": "",
             "n_series": len(series),
             "n_categories": len(categories),
             "category_label": category_label,
@@ -164,7 +171,11 @@ def build_radar_from_dataframe_groups(
     if df is None or df.empty or group_col is None or not cols:
         return build_radar_payload({}, category_label="features")
 
-    valid = df[[group_col, *cols]].dropna()
+    valid = (
+        df[[group_col, *cols]]
+        .replace([np.inf, -np.inf], np.nan)
+        .dropna()
+    )
     if valid.empty:
         return build_radar_payload({}, category_label="features")
 

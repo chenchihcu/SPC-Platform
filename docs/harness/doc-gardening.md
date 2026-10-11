@@ -7,11 +7,12 @@ Doc gardening keeps the SPC/SPI repo knowledge base useful for agent work withou
 Inspect:
 
 - `AGENTS.md`
-- `AI_RULES.md`
+- `.claude/rules/ui_theme.md`
 - `CLAUDE.md`
 - `.agents/rules/agents_gateway.md`
 - `.cursor/rules/agents_gateway.mdc`
-- `.cursor/rules/vibe-tools.mdc`
+- `.agents/skills/spc-change-router/route-table.json`
+- `.claude/skills/spc-change-router/route-table.json`
 - `.codex/rules/project.rules`
 - `scripts/verify.ps1`
 - `scripts/harness_check.ps1`
@@ -30,7 +31,8 @@ Also check:
 - Source-control boundary: repo root, tracked-file baseline, `git status --short`, and `.gitignore` coverage for generated data/output/local tool state.
 - Source baseline manifest: check `source_baseline_status`, `recommended-track-list`, `recommended-ignore-list`, `needs-user-decision-list`, `do-not-track-list`, and role review results.
 - AI rules size budget: Codex `AGENTS.md` under 32 KiB default project-doc budget, Claude `CLAUDE.md` under 200 lines, Cursor rules under 500 lines, and Antigravity rules under 12,000 characters.
-- Cursor noise control: `agents_gateway.mdc` remains always-on and `vibe-tools.mdc` remains optional, not always-on.
+- Cursor noise control: `agents_gateway.mdc` remains the always-on gateway; optional CLI references are not required project gates.
+- Routing data: canonical JSON, Claude projection, human-readable skill tables, document targets, and V0–V3 conditions remain consistent.
 - Windows command reliability: prefer `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe` in verification notes when short `powershell` is not available through PATH.
 - One-writer safety: report if automation would run in a noisy checkout or before a reviewed source baseline commit exists.
 - Automation self-check: confirm the active TOML is one-project scoped, `ACTIVE`, `local`, report-only, and not a duplicate automation.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import json
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -8,6 +9,11 @@ import pandas as pd
 from app.data.session_store import SessionStore, _analysis_cache_key, filter_analysis_df
 from app.services.analysis_context import AnalysisFilterContext, AnalysisRunContext
 from app.services.spec_resolver import can_run_analysis, resolve_workorder_spec
+from app.services.stencil_document_service import (
+    derive_percentage_dataframe,
+    infer_measurement_side,
+    percentage_workorder_spec,
+)
 from app.utils.constants import RANGE_SPECIFY
 
 STATUS_MISSING_FEATURE = "missing_feature"
@@ -23,9 +29,9 @@ class AnalysisPreparation:
     message: str = ""
     selected_features: List[str] = field(default_factory=list)
     filtered_df: Optional[pd.DataFrame] = None
-    usl: float = 0.0
-    lsl: float = 0.0
-    target: float = 0.0
+    usl: Optional[float] = None
+    lsl: Optional[float] = None
+    target: Optional[float] = None
     batch: str = ""
     refdes: str = ""
     part_type: str = ""
@@ -33,6 +39,8 @@ class AnalysisPreparation:
     cached_payload: Optional[Dict[str, Any]] = None
     filter_context: Optional[AnalysisFilterContext] = None
     run_context: Optional[AnalysisRunContext] = None
+    workorder_spec: Dict[str, Any] = field(default_factory=dict)
+    analysis_metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 class AnalysisOrchestrator:
@@ -48,7 +56,14 @@ class AnalysisOrchestrator:
             ok, msg = can_run_analysis(product_name)
             if not ok:
                 return None, msg or "無法分析"
-            workorder_spec, err = resolve_workorder_spec(product_name)
+            # Data units (from the loader) drive Height spec resolution: mm data
+            # must be scored against absolute mm limits, not a percent spec.
+            measurement_units = (getattr(store, "meas_meta", None) or {}).get(
+                "measurement_units"
+            )
+            workorder_spec, err = resolve_workorder_spec(
+                product_name, measurement_units=measurement_units
+            )
             if err or workorder_spec is None:
                 return None, err or "規格解析失敗"
             store.workorder_spec = workorder_spec
@@ -64,22 +79,25 @@ class AnalysisOrchestrator:
     def _resolve_primary_limits(
         workorder_spec: Dict[str, Any],
         primary_feature: str,
-    ) -> tuple[Optional[tuple[float, float, float]], Optional[str]]:
+    ) -> tuple[Optional[tuple[Optional[float], Optional[float], Optional[float]]], Optional[str]]:
         spec_key = primary_feature.lower()
         spec_entry = (workorder_spec or {}).get(spec_key) or {}
+
+        def _opt_float(raw: Any) -> Optional[float]:
+            if raw is None or (isinstance(raw, str) and not raw.strip()):
+                return None
+            return float(raw)
+
         try:
-            usl_raw = spec_entry.get("usl")
-            lsl_raw = spec_entry.get("lsl")
-            target_raw = spec_entry.get("target")
-            if usl_raw is None and lsl_raw is None:
+            usl = _opt_float(spec_entry.get("usl"))
+            lsl = _opt_float(spec_entry.get("lsl"))
+            target = _opt_float(spec_entry.get("target"))
+            if usl is None and lsl is None:
                 return None, f"分析失敗: 工單規格缺少 {primary_feature} 的 USL/LSL，請先建立規格。"
-            usl = float(usl_raw) if usl_raw is not None else 0.0
-            lsl = float(lsl_raw) if lsl_raw is not None else 0.0
-            target = float(target_raw) if target_raw is not None else 0.0
-            if not target and (usl or lsl):
+            # One-sided spec keeps the missing limit as None so downstream engines
+            # report an explicit "Missing USL/LSL" reason instead of using a fake 0.0.
+            if target is None and usl is not None and lsl is not None:
                 target = (usl + lsl) / 2.0
-            elif not target:
-                target = 100.0
             return (usl, lsl, target), None
         except (TypeError, ValueError):
             return None, "分析失敗: 工單規格 (USL/LSL) 必須為有效數字"
@@ -127,11 +145,6 @@ class AnalysisOrchestrator:
         if spec_err:
             return AnalysisPreparation(status=STATUS_ERROR, message=spec_err, selected_features=selected)
 
-        limits, limits_err = self._resolve_primary_limits(workorder_spec or {}, selected[0])
-        if limits_err:
-            return AnalysisPreparation(status=STATUS_ERROR, message=limits_err, selected_features=selected)
-        usl, lsl, target = limits or (0.0, 0.0, 100.0)
-
         filters = self._build_filter_context(
             range_mode=range_mode,
             board_specify=board_specify,
@@ -139,7 +152,7 @@ class AnalysisOrchestrator:
             part_type=part_type,
             optional_filters=optional_filters,
         )
-        spec_token = store.spec_cache_token(getattr(store, "workorder_spec", None))
+        spec_token = store.spec_cache_token(workorder_spec)
         run_context = AnalysisRunContext(
             selected_features=tuple(selected),
             filters=filters,
@@ -189,6 +202,87 @@ class AnalysisOrchestrator:
                 run_context=run_context,
             )
 
+        effective_workorder_spec = dict(workorder_spec or {})
+        product_name = str((store.workorder_master or {}).get("product_name") or "").strip()
+        side = infer_measurement_side(filtered_df, getattr(store, "meas_meta", None) or {})
+        if product_name and side:
+            derived = derive_percentage_dataframe(
+                filtered_df,
+                product_name=product_name,
+                side=side,
+                measurement_units=(getattr(store, "meas_meta", None) or {}).get(
+                    "measurement_units"
+                )
+                or {},
+            )
+            filtered_df = derived.dataframe
+            analysis_metadata = derived.metadata
+            if analysis_metadata.get("value_domain") == "percent":
+                percent_spec = percentage_workorder_spec(product_name)
+                if percent_spec:
+                    effective_workorder_spec = percent_spec
+            else:
+                # Raw trends remain available, but every spec-dependent engine
+                # must fail closed while coverage/version/unit is VERIFY.
+                effective_workorder_spec = {}
+        elif product_name:
+            reason = "量測資料無法確認 Top/Bottom Side"
+            analysis_metadata = {
+                "value_domain": "raw",
+                "side": side or "",
+                "matched": 0,
+                "total": int(len(filtered_df)),
+                "coverage": 0.0,
+                "verify": True,
+                "verify_reasons": [reason],
+                "unmatched_pads": [],
+                "original_units": dict(
+                    ((getattr(store, "meas_meta", None) or {}).get("measurement_units") or {})
+                ),
+            }
+            effective_workorder_spec = {}
+        else:
+            # Legacy/manual sessions have no product context and therefore no
+            # stencil activation scope. Preserve their existing analysis path.
+            analysis_metadata = {
+                "value_domain": "legacy",
+                "side": "",
+                "matched": int(len(filtered_df)),
+                "total": int(len(filtered_df)),
+                "coverage": 1.0,
+                "verify": False,
+                "verify_reasons": [],
+                "unmatched_pads": [],
+                "original_units": dict(
+                    ((getattr(store, "meas_meta", None) or {}).get("measurement_units") or {})
+                ),
+            }
+        store.analysis_domain_meta = dict(analysis_metadata)
+
+        if analysis_metadata.get("verify"):
+            usl = lsl = target = None
+        else:
+            limits, limits_err = self._resolve_primary_limits(
+                effective_workorder_spec, selected[0]
+            )
+            if limits_err:
+                return AnalysisPreparation(
+                    status=STATUS_ERROR,
+                    message=limits_err,
+                    selected_features=selected,
+                    analysis_metadata=analysis_metadata,
+                )
+            usl, lsl, target = limits or (None, None, None)
+
+        spec_token = store.spec_cache_token(effective_workorder_spec) + "|" + json.dumps(
+            analysis_metadata, sort_keys=True, ensure_ascii=True, default=str
+        )
+        run_context = AnalysisRunContext(
+            selected_features=tuple(selected),
+            filters=filters,
+            spec_version=spec_token,
+        )
+
         cache_key = _analysis_cache_key(
             selected,
             filters.batch,
@@ -213,6 +307,8 @@ class AnalysisOrchestrator:
                 cached_payload=cached,
                 filter_context=filters,
                 run_context=run_context,
+                workorder_spec=effective_workorder_spec,
+                analysis_metadata=analysis_metadata,
             )
 
         return AnalysisPreparation(
@@ -228,6 +324,8 @@ class AnalysisOrchestrator:
             cache_key=cache_key,
             filter_context=filters,
             run_context=run_context,
+            workorder_spec=effective_workorder_spec,
+            analysis_metadata=analysis_metadata,
         )
 
     @staticmethod

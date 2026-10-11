@@ -99,3 +99,35 @@ Root cause: Feature compatibility, report expansion, payload semantics, and disp
 Fix: Make feature contexts explicit and authoritative, require renderer parity for the chart registry, include renderer-required aligned fields in valid payloads, precompute group variants, and cap only the Radar drawing layer while preserving the full payload.
 Harness update needed: yes (this entry and regression tests)
 Destination: `docs/harness/closed-loop-log.md`, chart/report registry tests, DB semantic validation, matrix validation, and PPTX artifact QA.
+
+## Entry: Evidence-driven active-risk convergence
+
+Date: 2026-07-14
+Task: Converge the repository active risk ledger without hiding unresolved release cost.
+Changes: Revalidated six active items, moved all six to dormant with explicit reactivation triggers, reduced duplicated 3F chart lifecycle code into `BaseChart`, made legacy validators delegate to `SchemaMapper`, and removed duplicate targeted-pack execution from the full audit profile.
+Impact: `docs/open-questions.md` now has zero active items instead of six; Watchlist #7 keeps its stable number; D3/D6 and avoidable full-audit orchestration overhead no longer remain active risks.
+Verification: lifecycle 18 tests PASS; 5-run 100k CoV 4.59%–6.80%; release gate 150 tests PASS; home-less launch PASS; CJK/readability 11 tests PASS; four pre/post 3F PNG hashes match; focused 33 tests PASS; matrix 129/129 PASS; full pytest 930 PASS / 1 SKIP; Qt audit and launch PASS.
+Residual risk: none active; full audit remains an accepted release-only cost at 351.79 seconds, with a 20% mechanical reactivation threshold.
+Next action: On the next release, reactivate #5 only if full total or `pytest_full` grows more than 20% above the 2026-07-14 baseline; do not reduce full coverage to keep the ledger empty.
+Debug/RCA (when applicable):
+Observed: The ledger claimed five active risks but listed six, several latest-evidence dates were stale, and one full-audit invocation exceeded an external 360-second observer timeout while its child pytest continued running.
+Root cause: Monitoring items were not retired after durable guards landed, D3/D6 remained deferred despite safe compatibility-preserving convergence paths, and observer timeout was shorter than the now seven-minute full test duration.
+Fix: Require current authoritative evidence plus a reactivation condition before moving an item dormant; use exact pre/post render hashes for presentation-only refactors; delegate compatibility wrappers to the single schema authority; measure full audit with a sufficient external window.
+Harness update needed: yes (this entry and active ledger update)
+Destination: `docs/open-questions.md`, `docs/harness/closed-loop-log.md`, regression tests, release/runtime reports, and matrix/launch gates.
+
+## Entry: Change router repair and optional CLI rule retirement
+
+Date: 2026-09-06
+Task: 002#修復 SPC 路由與退役舊工具規則；使用者核准退役、路由對齊及完整 harness 驗證三項工作。
+Changes: 退役 `.cursor/rules/vibe-tools.mdc` 並移除活躍依賴；保留 `.agents` 路由正本與 `.claude` 投影，同步兩份 SKILL 表；修正 UI 文件指標、V3 full pytest 與 H3 launch 條件；新增 JSON 結構、regex、文件目標與精確投影檢查。
+Impact: 必要 gate 不再依賴選用 CLI 文件。路徑建議維持五類路由，備份檔不會被額外粗略標記誤路由，無效 JSON 會回傳停用警告；hook 只提供建議。
+Verification: `tests/test_change_router.py` 的 9 項 unittest 通過，包含 21 種路徑案例、分隔符、重疊路由、純文字 fallback、負向 JSON 與兩版完整 harness。PowerShell 7.6.5 / Windows PowerShell 5.1.26100.9278 各 14 種資料/投影防護情境通過，包含 focused pytest 可留在 V1 的正向案例；新測試檔 ruff 通過。驗證範圍為 V0–V2 的 routing/harness 子系統。
+Residual risk: Claude 客戶端實際載入/觸發 hook 為 `not verified`；直接呼叫腳本的證據不等同客戶端整合。產品 Full/Qt/Release 未選定，本次未失效產品或資料契約。
+Next action: 後續路由修改應同步正本、投影與 SKILL 表，重跑路由測試及 harness；需要客戶端整合結論時另觀察實際 Claude hook 事件。
+Debug/RCA (when applicable):
+Observed: 空 JSON 物件在 StrictMode 下拋例外，`AGENTS.md.bak` 被誤路由，UI 路由引用不存在的 `AI_RULES.md` 且 launch 無條件。
+Root cause: `.surfaces` 存取位於 catch 外；已取得精確路徑後仍以全文標記新增假路徑；路由資料與現存文件/H3 條件不同步。另 PS5 測試子程序繼承 PS7 模組路徑，環境鍵值大小寫使原清除失效。
+Fix: 將讀取及路由錯誤收斂為停用警告；只在無精確路徑時使用 fallback；對齊 JSON 與文件；測試以不分大小寫方式清除繼承的 PSModulePath。
+Harness update needed: yes
+Destination: `.agents/skills/spc-change-router/`, `.claude/skills/spc-change-router/`, `.claude/hooks/changed-path-advisor.ps1`, `scripts/harness_check.ps1`, `tests/test_change_router.py`, `docs/harness/`。

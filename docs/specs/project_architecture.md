@@ -2,7 +2,7 @@
 
 ## 系統架構說明 (Current Architecture Snapshot)
 
-本文件描述 **2026-05-24 現行主線** 的可驗證架構（以程式碼與 `docs/decision-log.md` 為準）。
+本文件描述 **2026-07-27 現行主線** 的可驗證架構（以程式碼與 `docs/decision-log.md` 為準）。
 
 若架構、資料契約、輸出契約有變更，必須同步更新：
 - `docs/specs/spec_maintenance_and_alignment.md`
@@ -68,7 +68,7 @@ docs/
 
 主介面為混合導航兩欄式：
 - 左欄：`CollapsibleSidebar`（可見 `NavigationPanel` 流程導覽、全域篩選、特徵快捷、下一步、重新分析）
-- 右欄：`QTabWidget#workflowTabs` 內部頁面容器（保留 8 個可見 workflow page mapping，但 tab bar 隱藏）
+- 右欄：`QTabWidget#workflowTabs` 內部頁面容器（保留 7 個可見 workflow page mapping，但 tab bar 隱藏）
 
 主視窗尺寸由 `app/ui/theme/layout_policy.py` 的共用 helper 控制：新開視窗依目前螢幕可用工作區置中，現行初次開啟使用 `0.93` 可用區比例；`fit_top_level_to_available(...)` 同時套用於解讀、匯出確認與資料庫編輯對話框；從 `QSettings` 還原的幾何若離屏或超出工作區，會重設為安全尺寸後再建立 splitter 配比。
 
@@ -77,9 +77,11 @@ docs/
 
 量測 CSV 匯入由 `DataLoaderWorker` 讀取 `SessionStore.workorder_master["supplier"]` 後傳入 `MeasurementLoader.load(...)`。供應商限定 profile 只在 loader 層執行；目前 `振順豐` TOP 寬表 profile 會將 `Component ID/PAD ID/Volume(mm)<n>/Height(mm)<n>/Area(mm)<n>` 轉為標準長表，並保留單位 metadata，不改變全域 `SchemaMapper` 別名或 SPC 規格比對公式。`measurement_sessions` 會保存 `supplier` 供量測庫回載時重建供應商上下文，避免 profile 啟用只依賴原始檔案路徑。
 
+量測與座標的必要欄位判定以 `SchemaMapper.validate_*_schema()` 為單一來源；`app/data/validation/` 僅保留舊呼叫端相容 wrapper，不另行維護第二套欄位規則。
+
 ## 4.1 堆疊頁與左側流程導覽（權威：`app/ui/main_window.py`）
 
-**堆疊順序 `STACK_ORDER`**（索引 0..8）：
+**堆疊順序 `STACK_ORDER`**（索引 0..7）：
 | 索引 | 頁名 | 類別／說明 |
 |------|------|------------|
 | 0 | 資料 | `DataSetupPage`（整合座標、工單、量測匯入） |
@@ -89,20 +91,18 @@ docs/
 | 4 | 參考 | `DataManagementPage`（說明與參考資料） |
 | 5 | 診斷 | `DiagnosticPage`（診斷一：製程統計分析報告輸出，整合 Alarm/KPI、規格能力、組合矩陣與證據矩陣） |
 | 6 | 量測庫 | `MeasurementLibraryPage`（SQLite 主資料庫查詢與載入） |
-| 7 | 診斷二 | `DiagnosticMatrixPage`（診斷證據矩陣與組合分析） |
-| 8 | 統計資料 | `StatisticsDataPage`（OOC/Shift/Drift/Outlier 文字統計摘要一頁式資料瀏覽） |
+| 7 | 統計資料 | `StatisticsDataPage`（OOC/Shift/Drift/Outlier 文字統計摘要一頁式資料瀏覽） |
 
-**可見流程導覽 `VISIBLE_WORKFLOW_TABS`**（Nav 0..7；`統計圖表 / 統計資料` 與 `診斷一 / 診斷二` 並列，仍維持 6 個視覺列）：
+**可見流程導覽 `VISIBLE_WORKFLOW_TABS`**（Nav 0..6；`統計圖表 / 統計資料` 並列，仍維持 6 個視覺列）：
 - `資料設定` (Tab 0 -> Stack 0)
 - `資料庫` (Tab 1 -> Stack 6)
 - `統計圖表` (Tab 2 -> Stack 2)
-- `統計資料` (Tab 3 -> Stack 8)
-- `診斷一` (Tab 4 -> Stack 5)
-- `診斷二` (Tab 5 -> Stack 7)
-- `報告匯出` (Tab 6 -> Stack 3)
-- `說明` (Tab 7 -> Stack 4)
+- `統計資料` (Tab 3 -> Stack 7)
+- `製程診斷` (Tab 4 -> Stack 5)
+- `報告匯出` (Tab 5 -> Stack 3)
+- `說明` (Tab 6 -> Stack 4)
 
-`NAV_TO_STACK = [0, 6, 2, 8, 5, 7, 3, 4]` 為左側流程導覽映射。`TAB_TO_STACK = [0, 6, 2, 8, 5, 7, 3, 4]` 保留給內部 `QTabWidget#workflowTabs` 頁面容器與既有快捷鍵相容；tab bar 不顯示。相較於舊版，`WorkorderPage` 已整合至 `DataSetupPage`，且 `量測` 頁仍保留為內部頁面。
+`NAV_TO_STACK = [0, 6, 2, 7, 5, 3, 4]` 為左側流程導覽映射。`TAB_TO_STACK = [0, 6, 2, 7, 5, 3, 4]` 保留給內部 `QTabWidget#workflowTabs` 頁面容器與既有快捷鍵相容；tab bar 不顯示。`DiagnosticMatrixPage` 由 `DiagnosticPage` 作為內部內容管理，不再是獨立堆疊頁。相較於舊版，`WorkorderPage` 已整合至 `DataSetupPage`，且 `量測` 頁仍保留為內部頁面。
 
 側欄可尋性契約：左欄只放跨頁流程與全域分析控制，不承載表單內選檔/儲存/管理按鈕，也不承載資料表列操作。若側欄密度不足，優先收合分析條件，而不是加入更多側欄 action；流程導覽與 `下一步` / `重新分析` 必須保持可辨識。
 
@@ -166,7 +166,7 @@ docs/
 - **統計引擎**：`app/analytics/*_engine.py`（如 `spc_engine`, `xbar_r_engine`, `ewma_engine`, `cusum_engine` 等）。
 - **異常分析引擎**：`app/analytics/analysis_cards_engine.py` (OOC/Shift/Drift/Outlier)。
 - **知識庫與專家診斷**：`app/analytics/process_diagnosis_engine.py` 串接 `spi_process_kb_loader`。
-- **繪圖實作**：`app/charts/*_chart.py` (基於 Matplotlib)；`app/charts/base_chart.py` 統一收斂 chart presentation semantics（量測線、中心線、管制限、規格限、OOC/OOS marker、latest point、sample disclosure、legend style），確保 UI 與 PPTX chart evidence 走同一視覺語意。
+- **繪圖實作**：`app/charts/*_chart.py` (基於 Matplotlib)；`app/charts/base_chart.py` 統一收斂 chart presentation semantics（量測線、中心線、管制限、規格限、OOC/OOS marker、latest point、sample disclosure、legend style），確保 UI 與 PPTX chart evidence 走同一視覺語意。3F 並列圖另共用 `BaseChart._prepare_multi_feature_axes()` / `_finish_multi_feature_axes()` 的 payload guard、subplot/style 與 canvas lifecycle；各圖仍自行維護統計線、limit、OOC、標準化與標籤語意。
 
 # 7. 報告架構（Engineering / PPTX-only）
 
@@ -232,11 +232,15 @@ docs/
   - `supplier_records`（供應商管理；`supplier_code` 由系統自動維護）
   - `stencil_assignment_meta`
   - `stencil_assignments`
+  - `stencil_document_versions`（受管 aperture source + Pad CSV 不可變版本；每產品＋Side 單一 active；`gerber_*` 欄位名保留作相容契約）
+  - `stencil_pad_nominals`（版本＋Side＋RefDes＋Pad 唯一的開窗聯集面積、厚度與理論體積）
   - `audit_events`
 
 規格管理 UI（`MeasurementLibraryPage` 規格管理分頁）以合併表呈現同一產品的 active 錫膏印刷規格與 active 鋼板厚度規格；「新增規格」可直接建立既有或全新產品的兩側規格，產品料號保留在 `products.product_part_no`，新增後仍由使用者明確按「選用此規格」才套用到目前分析。
 
 規格解析契約（`app/services/spec_resolver.py`）：`Volume/Area` 取錫膏規格庫；`Height target` 取鋼板厚度規格庫基準（主厚度 100% 邏輯）；`Height LSL/USL` 取錫膏規格庫固定百分比值。`absolute` 模式僅在 resolver 以 `height_denominator_mm` 轉換為比對值域。
+
+鋼板文件契約：`app/services/stencil_aperture_loader.py` fail-closed 解析 RS-274X/X2 Gerber、受控 legacy `.pho`、Gerber ZIP、ODB++Design、IPC-2581 與 DXF 子集，統一輸出 mm Shapely polygon；`.pho` 只對已驗證舊語法做可揭露的 deterministic 正規化，並以 layer role/Side gate 排除 TXT/Legend。`app/services/stencil_document_service.py` 負責 Pad 匹配與 macro/region/window-pane 幾何聯集，對齊僅允許平移、90° 倍數旋轉及 Bottom 鏡射。`app/data/stencil_document_library.py` 將來源檔與解析快照原子保存至 `data/stencil_documents/`，現用版本不可刪除。`AnalysisOrchestrator` 在目前 Side 的篩選資料達 100% Pad 覆蓋時切換到 percent dataframe；不足 100% 時保留 raw 無規格趨勢並對能力、良率、OOS 與規格型圖表輸出 `VERIFY`。
 
 供應商管理契約（`app/data/supplier_library.py`）：新增資料時依 `SUP-####` 流水號自動給號；同名供應商沿用同一編號；編輯資料僅允許更新名稱/鋼板資訊，不允許人工修改 `supplier_code`。
 
@@ -284,6 +288,7 @@ UI 要求：
 
 | 日期 | 內容 |
 |-----|-----|
+| 2026-07-27 | 文件同步：依 `main_window.py` 與 `workflow_labels.py` 更新 UI shell 為 8 個內部堆疊頁、7 個可見流程項；`DiagnosticMatrixPage` 為 `DiagnosticPage` 內部內容，不再列為獨立流程頁。 |
 | 2026-06-30 | 統計圖表與統計資料分流：左側導覽新增 `統計資料`（與 `統計圖表` 並列），OOC/Shift/Drift/Outlier 文字摘要移至 `StatisticsDataPage` 一頁式資料表；圖表頁 selector 保持五組 visual charts，報告匯出新增 `統計資料` 分組。chart IDs、payload shape、SPC 公式、工程報告預設清單不變。 |
 | 2026-05-26 | Qt desktop layout/theme remediation：主視窗初次開啟改為 `0.93` 可用區 fitting；新增 `fit_top_level_to_available(...)` 並套用至解讀、匯出確認與資料庫編輯對話框；Data Setup 改為一頁式量化表格布局與 `DataSetupLayoutBudget` 診斷輸出；側欄高度不足時以可見 affordance 收合分析條件並保留 `下一步` / `重新分析`。 |
 | 2026-05-24 | 分析與 PPTX 匯出效能收斂：Nelson rule 3/4 與 summary 缺陷統計改為向量化；payload 組裝避免 selected feature 重算；ReportService 優先重用相符分析快取並加入單次匯出 chart image cache；PPTX 匯出改為背景 worker；圖表卡片改為 first-use lazy creation；performance harness 增加 Nelson 與 report cache reuse 觀測欄位。SPC 公式、chart ID、payload top-level shape、PPTX 內容契約不變。 |

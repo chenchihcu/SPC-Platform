@@ -39,8 +39,9 @@ from app.analytics.parallel_coord_engine import ParallelCoordEngine
 from app.analytics.pass_fail_engine import PassFailEngine
 from app.data.session_store import SessionStore, _analysis_cache_key, filter_analysis_df
 from app.analytics.analysis_payload_finalize import enrich_analysis_payload
+from app.analytics.statistical_utils import invalid_chart_payload
 from app.analytics.chart_registry import get_incompatible_reason
-from app.utils.dataframe_utils import detect_order_col
+from app.utils.dataframe_utils import detect_order_col, detect_subgroup_col, sort_by_order_col
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ def _board_ids_for_cusum(df: pd.DataFrame) -> Optional[pd.Series]:
     if not board_col:
         return None
     order_col = detect_order_col(df)
-    sorted_df = df.sort_values(order_col) if order_col else df
+    sorted_df = sort_by_order_col(df, order_col)
     return sorted_df[board_col]
 
 
@@ -106,6 +107,89 @@ def _incompatible_chart_payload(reason: str) -> Dict[str, Any]:
     }
 
 
+def _apply_stencil_statistical_contract(
+    payload: Dict[str, Any], analysis_metadata: Dict[str, Any]
+) -> None:
+    """Attach domain evidence and fail closed for spec-dependent outputs."""
+    if (analysis_metadata or {}).get("value_domain") == "legacy":
+        return
+    payload["stencil_analysis"] = dict(analysis_metadata or {})
+    if not analysis_metadata or not analysis_metadata.get("verify"):
+        return
+    reasons = analysis_metadata.get("verify_reasons") or ["鋼板開窗資料需複核"]
+    reason = "VERIFY：" + "；".join(str(item) for item in reasons)
+
+    def blocked(chart_type: str, target_col: str = "Measurement") -> Dict[str, Any]:
+        return invalid_chart_payload(
+            chart_type,
+            reason,
+            target_col=target_col,
+            verify=True,
+            value_domain="raw",
+            coverage=analysis_metadata.get("coverage"),
+            matched=analysis_metadata.get("matched"),
+            total=analysis_metadata.get("total"),
+        )
+
+    for key, chart_type in (
+        ("cap", "Capability"),
+        ("dist", "HistogramSpec"),
+        ("scatter_spec", "ScatterSpec"),
+        ("quadrant", "Quadrant"),
+        ("pass_fail_matrix", "PassFail"),
+        ("subgroup", "Subgroup"),
+        ("repeated_offender", "RepeatedOffender"),
+    ):
+        if key in payload:
+            payload[key] = blocked(chart_type)
+
+    for feature, bundle in (payload.get("parameters") or {}).items():
+        if not isinstance(bundle, dict):
+            continue
+        for key, chart_type in (
+            ("cap", "Capability"),
+            ("dist", "HistogramSpec"),
+            ("subgroup", "Subgroup"),
+            ("repeated_offender", "RepeatedOffender"),
+        ):
+            if key in bundle:
+                bundle[key] = blocked(chart_type, str(feature))
+        for key in ("density",):
+            chart = bundle.get(key)
+            if isinstance(chart, dict):
+                chart.setdefault("metadata", {})["spec_overlay_allowed"] = False
+                chart["metadata"]["verify_reason"] = reason
+
+    for pair_bundle in (payload.get("dual_parameters") or {}).values():
+        if not isinstance(pair_bundle, dict):
+            continue
+        for key, chart_type in (("scatter_spec", "ScatterSpec"), ("quadrant", "Quadrant")):
+            if key in pair_bundle:
+                pair_bundle[key] = blocked(chart_type)
+    triple = payload.get("triple_parameters") or {}
+    if isinstance(triple, dict) and "pass_fail_matrix" in triple:
+        triple["pass_fail_matrix"] = blocked("PassFail")
+
+    summary = payload.get("summary") or {}
+    if isinstance(summary, dict):
+        summary["stencil_analysis"] = dict(analysis_metadata)
+        for feature, measure in (summary.get("per_measure") or {}).items():
+            if isinstance(measure, dict):
+                measure["cap"] = blocked("Capability", str(feature))
+                measure["yield_pct"] = None
+        process = summary.get("process")
+        if isinstance(process, dict):
+            process.update(
+                {
+                    "min_cpk": None,
+                    "min_cpk_measure": None,
+                    "overall_yield_pct": None,
+                    "spec_conclusion": reason,
+                    "verify": True,
+                }
+            )
+
+
 def _parse_workorder_spec_entry(spec: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """Return dict with usl, lsl, target as floats if parseable; else None."""
     if not spec or not isinstance(spec, dict):
@@ -132,11 +216,15 @@ def _compute_single_feature_analysis(
 ) -> Dict[str, Any]:
     """Compute SPC, Capability, Distribution for a single feature."""
     _order_col = detect_order_col(df)
-    _df = df.sort_values(_order_col) if _order_col else df
+    _df = sort_by_order_col(df, _order_col)
     data_series = _df[target_col]
+    _subgroup_col = detect_subgroup_col(_df)
+    _subgroup_ids = _df[_subgroup_col] if _subgroup_col else None
 
     spc = SPCEngine.compute_imr(data_series, target_col)
-    cap = CapabilityEngine.compute_capability(data_series, usl, lsl)
+    cap = CapabilityEngine.compute_capability(
+        data_series, usl, lsl, subgroup_ids=_subgroup_ids
+    )
     dist = DistributionEngine.compute_histogram(data_series)
 
     return {
@@ -559,9 +647,9 @@ def _build_dual_feature_parameters(
 def compute_analysis_payload(
     filtered_df: pd.DataFrame,
     selected_features: List[str],
-    usl: float,
-    lsl: float,
-    target: float,
+    usl: Optional[float],
+    lsl: Optional[float],
+    target: Optional[float],
     workorder_spec: Optional[Dict[str, Any]] = None,
     workorder_master: Optional[Dict[str, Any]] = None,
     cancel_fn: Optional[Callable[[], bool]] = None,
@@ -959,6 +1047,8 @@ def compute_analysis_payload(
             )
         if progress_callback:
             progress_callback(95, "正在完成分析...")
+        analysis_metadata = workorder_master.get("_stencil_analysis") or {}
+        _apply_stencil_statistical_contract(payload, analysis_metadata)
         enrich_analysis_payload(payload)
         if progress_callback:
             progress_callback(100, "分析完成")

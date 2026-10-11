@@ -134,7 +134,7 @@ def build_process_diagnosis_report_payload(payload: Dict[str, Any]) -> Dict[str,
         "C_evidence": {
             "bridge_zh": str(
                 matrix_summary.get("verdict_zh")
-                or "圖表依用途分類之證據見「Chart Evidence Gallery」與異常診斷詳頁；請對照 Statistical Signals 之 evidence_refs。"
+                or "詳見圖表證據頁與異常診斷詳頁。"
             ),
             "combination_coverage_zh": str(matrix_summary.get("coverage_line_zh") or ""),
             "candidate_count": combo.get("candidate_count"),
@@ -146,6 +146,6 @@ def build_process_diagnosis_report_payload(payload: Dict[str, Any]) -> Dict[str,
             "readable_tabs": readable_tabs,
         },
         "D_data": {
-            "bridge_zh": "產品／工單／管制規格與統計摘要見本報告資料章節與附錄。",
+            "bridge_zh": "產品、工單與規格摘要見附錄。",
         },
     }

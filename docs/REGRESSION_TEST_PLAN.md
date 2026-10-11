@@ -1,6 +1,6 @@
 # REGRESSION_TEST_PLAN
 
-- Timestamp: `20260712_201313`
+- Timestamp: `20260722_212245`
 - Overall target: `pass`
 
 ## Required Regression Tests
@@ -30,5 +30,5 @@
 
 ## Rerun Evidence
 
-- Summary artifact: `C:/Users/user/Documents/SPC Platform/Outputs/final_audit/20260712_201313/summary.json`
-- Markdown artifact: `C:/Users/user/Documents/SPC Platform/Outputs/final_audit/20260712_201313/report.md`
+- Summary artifact: `C:/Users/user/Documents/SPC Platform/Outputs/final_audit/20260722_212245/summary.json`
+- Markdown artifact: `C:/Users/user/Documents/SPC Platform/Outputs/final_audit/20260722_212245/report.md`

@@ -4,49 +4,60 @@
 
 Redesign v2: 垂直表單結構，標籤在上、控件在下，避免窄欄擠壓文字。
 """
-from PySide6 import QtWidgets
-from PySide6.QtWidgets import (
-    QWidget, QLabel, QPushButton, QFileDialog, QLineEdit, QComboBox, QFrame,
-    QGridLayout, QHBoxLayout,
-    QSizePolicy,
-)
-from PySide6.QtCore import Signal, Qt, QThread, QTimer
-from PySide6.QtGui import QFontMetrics, QGuiApplication, QCursor
-from app.data.session_store import SessionStore
-from datetime import datetime
 import os
-from typing import Optional, cast
+from datetime import datetime
 
-from app.ui.theme import show_dark_warning, show_dark_information, stabilize_minimum_height
+import pandas as pd
+from PySide6 import QtWidgets
+from PySide6.QtCore import Qt, QThread, QTimer, Signal
+from PySide6.QtGui import QCursor, QGuiApplication
+from PySide6.QtWidgets import (
+    QComboBox,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QSizePolicy,
+    QWidget,
+)
+
+from app.data.coordinate_registry import (
+    get_path_by_product_name,
+    list_registered,
+)
+from app.data.coordinate_registry import (
+    register as registry_register,
+)
+from app.data.mapping.schema_mapper import SchemaMapper
+from app.data.session_store import SessionStore
+from app.ui.theme import (
+    show_dark_information,
+    show_dark_warning,
+    stabilize_minimum_height,
+)
+from app.ui.theme.tokens import (
+    DATA_SETUP_CARD_CONTENT_PADDING,
+    DATA_SETUP_CARD_SECTION_GAP,
+    DATA_SETUP_FIELD_MAX_WIDTH,
+    DATA_SETUP_PATH_ACTION_MIN_WIDTH,
+    DATA_SETUP_PRIMARY_CARD_MIN_HEIGHT,
+    DATA_SETUP_PRODUCT_COMBO_MIN_WIDTH,
+    DATA_SETUP_SECONDARY_CARD_MIN_HEIGHT,
+    DATA_SETUP_TABLE_LABEL_WIDTH,
+    DATA_SETUP_TABLE_ROW_MIN_HEIGHT,
+    FORM_COMBO_MIN_WIDTH,
+    SPACING_8,
+    SPACING_12,
+)
+from app.ui.widgets.csv_file_selector_pane import CsvFileSelectorPane
 from app.ui.widgets.page_templates import (
     CsvDropZoneMixin,
     form_field_row,
     page_margins_and_spacing,
-    set_drop_zone_active,
     setup_page_header_with_status,
 )
-from app.ui.theme.tokens import (
-    EMPTY_COORD_SET, SPACING_12, SPACING_8, DATA_SETUP_CARD_CONTENT_PADDING, DATA_SETUP_CARD_SECTION_GAP,
-    DATA_SETUP_PRIMARY_CARD_MIN_HEIGHT, DATA_SETUP_SECONDARY_CARD_MIN_HEIGHT,
-    FORM_COMBO_MIN_WIDTH,
-    DATA_SETUP_PRODUCT_COMBO_MIN_WIDTH,
-    DATA_SETUP_FIELD_MAX_WIDTH,
-    DATA_SETUP_PATH_ACTION_MIN_WIDTH,
-    DATA_SETUP_TABLE_LABEL_WIDTH,
-    DATA_SETUP_TABLE_ROW_MIN_HEIGHT,
-    PATH_LABEL_ELIDE_MIN_W,
-    PATH_LABEL_ELIDE_MARGIN,
-    DATA_SETUP_COMPACT_PATH_MIN_WIDTH,
-    DATA_SETUP_COMPACT_HINT_LABEL_WIDTH,
-    DATA_SETUP_COMPACT_META_LABEL_WIDTH,
-)
-from app.data.coordinate_registry import (
-    list_registered,
-    register as registry_register,
-    get_path_by_product_name,
-)
-from app.data.mapping.schema_mapper import SchemaMapper
-import pandas as pd
 
 
 class CoordValidationWorker(QThread):
@@ -103,8 +114,6 @@ class CoordinateManagerPage(CsvDropZoneMixin, QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         self.setAcceptDrops(True)
         self.current_coord_path = ""  # 由 MainWindow 在載入完成時設定
-        self._raw_path_text = f"目前載入座標檔：{EMPTY_COORD_SET}"
-        self.drop_zone: QFrame = cast(QFrame, self)
         root = QtWidgets.QVBoxLayout(self)
         if embedded:
             root.setContentsMargins(0, 0, 0, 0)
@@ -116,41 +125,30 @@ class CoordinateManagerPage(CsvDropZoneMixin, QWidget):
         if not self._embedded:
             self.header_lbl, self.status_lamp, self.status_text = setup_page_header_with_status(root, "座標")
 
+        # 共用 CSV 選檔區塊：embedded = 單行；standalone = 「座標檔設定」stepCard
+        self.file_pane = CsvFileSelectorPane(
+            embedded=embedded,
+            browse_text="選座標檔",
+            browse_tooltip="選擇並載入座標 CSV 至目前分析會話",
+            dialog_title="選擇 Gerber/CAD 匯出件 (*.csv)",
+            field_label="座標檔",
+            card_title="座標檔設定",
+            drop_hint_text="拖放座標 CSV，或按「選座標檔」",
+            card_min_height=DATA_SETUP_SECONDARY_CARD_MIN_HEIGHT,
+            card_accent="accentRed",
+            parent=self,
+        )
+        self.file_pane.file_selected.connect(self._start_validation)
+        self.btn_browse = self.file_pane.btn_browse
+        self.lbl_path = self.file_pane.lbl_path
+        self.lbl_meta = self.file_pane.lbl_meta
+        self.drop_zone: QFrame = self.file_pane.drop_zone
+        self.drop_zone_hint = self.file_pane.drop_zone_hint
+
         # ── 橫向高密度排版：將所有檔案資訊與統計放在一行 ──
         if self._embedded:
-            # Row 1: Coordinate File Selection & Metadata (High density)
-            row_file = QHBoxLayout()
-            row_file.setContentsMargins(0, 0, 0, 0)
-            row_file.setSpacing(SPACING_12)
+            root.addWidget(self.file_pane)
 
-            self.btn_browse = QPushButton("選座標檔")
-            self.btn_browse.setProperty("class", "secondary")
-            self.btn_browse.setMinimumWidth(DATA_SETUP_PATH_ACTION_MIN_WIDTH)
-            row_file.addWidget(self.btn_browse, 0)
-            self.btn_browse.setToolTip("選擇並載入座標 CSV 至目前分析會話")
-            self.btn_browse.setAccessibleName("選座標檔")
-
-            # Metadata info
-            self.lbl_meta = QLabel("列數：--")
-            self.lbl_meta.setProperty("class", "caption")
-            self.lbl_meta.setFixedWidth(DATA_SETUP_COMPACT_META_LABEL_WIDTH)
-            row_file.addWidget(self.lbl_meta, 0)
-
-            # Inline drop hint
-            self.drop_zone_hint = QLabel("可拖放 CSV")
-            self.drop_zone_hint.setProperty("class", "caption")
-            self.drop_zone_hint.setFixedWidth(DATA_SETUP_COMPACT_HINT_LABEL_WIDTH)
-            row_file.addWidget(self.drop_zone_hint, 0)
-
-            self.lbl_path = QLabel(EMPTY_COORD_SET)
-            self.lbl_path.setProperty("class", "caption")
-            self.lbl_path.setWordWrap(False)
-            self.lbl_path.setMinimumWidth(DATA_SETUP_COMPACT_PATH_MIN_WIDTH)
-            row_file.addWidget(self.lbl_path, 1)
-
-            row_file.addStretch(1)
-            root.addLayout(row_file)
-            
             # Row 2: Binding section (Accordion header)
             # Row 2: Product selection (for when not using external product mode)
             self._product_row_container = QtWidgets.QWidget()
@@ -167,10 +165,7 @@ class CoordinateManagerPage(CsvDropZoneMixin, QWidget):
             row_prod.addStretch(1)
             root.addWidget(self._product_row_container)
 
-            # Hook up slots
-            self.btn_browse.clicked.connect(self._open_file_dialog)
             self.btn_load_by_product.clicked.connect(self._on_load_by_product_clicked)
-            self.drop_zone = cast(QFrame, self)
             content_lay = root
         else:
             # Standalone page preserves multi-card large layout
@@ -206,56 +201,9 @@ class CoordinateManagerPage(CsvDropZoneMixin, QWidget):
             stabilize_minimum_height(step1_card, DATA_SETUP_PRIMARY_CARD_MIN_HEIGHT)
             root.addWidget(step1_card)
 
-            # ── 座標檔設定（ standalone 模式區塊）────────────────────────────
-            step2_card = QFrame()
-            step2_card.setObjectName("stepCard")
-            step2_card.setProperty("class", "accentRed")
-            step2_card.setMinimumHeight(DATA_SETUP_SECONDARY_CARD_MIN_HEIGHT)
-            step2_lay = QtWidgets.QVBoxLayout(step2_card)
-            step2_lay.setContentsMargins(_pad, _pad, _pad, _pad)
-            step2_lay.setSpacing(DATA_SETUP_CARD_SECTION_GAP)
-
-            step2_title = QLabel("座標檔設定")
-            step2_title.setProperty("class", "stepTitle")
-            step2_lay.addWidget(step2_title)
-
-            # 座標檔路徑
-            self.lbl_path = QLabel(EMPTY_COORD_SET)
-            self.lbl_path.setProperty("class", "caption")
-            self.lbl_path.setWordWrap(False)
-            self.lbl_path.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-            self.lbl_path.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            self.btn_browse = QPushButton("選座標檔")
-            self.btn_browse.setProperty("class", "secondary")
-            self.btn_browse.setMinimumWidth(DATA_SETUP_PATH_ACTION_MIN_WIDTH)
-            self.btn_browse.clicked.connect(self._open_file_dialog)
-
-            step2_lay.addLayout(
-                form_field_row(
-                    "座標檔", self.lbl_path, self.btn_browse,
-                    label_min_width=DATA_SETUP_TABLE_LABEL_WIDTH,
-                    row_min_height=DATA_SETUP_TABLE_ROW_MIN_HEIGHT,
-                    action_min_width=DATA_SETUP_PATH_ACTION_MIN_WIDTH,
-                )
-            )
-            self.lbl_meta = QLabel("檔名：-- | 列數：-- | 時間：--")
-            self.lbl_meta.setProperty("class", "caption")
-            step2_lay.addWidget(self.lbl_meta)
-
-            # 拖放提示區
-            self.drop_zone = QFrame()
-            self.drop_zone.setProperty("class", "dropZone")
-            drop_zone_lay = QtWidgets.QVBoxLayout(self.drop_zone)
-            drop_zone_lay.setContentsMargins(SPACING_8, SPACING_8, SPACING_8, SPACING_8)
-            self.drop_zone_hint = QLabel("拖放座標 CSV，或按「選座標檔」")
-            self.drop_zone_hint.setProperty("class", "caption")
-            self.drop_zone_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            drop_zone_lay.addWidget(self.drop_zone_hint)
-            step2_lay.addWidget(self.drop_zone)
-            stabilize_minimum_height(step2_card, DATA_SETUP_SECONDARY_CARD_MIN_HEIGHT)
-            root.addWidget(step2_card)
-            content_lay = step2_lay
-
+            # ── 座標檔設定（standalone 模式區塊 = file_pane stepCard）──────────
+            root.addWidget(self.file_pane)
+            content_lay = self.file_pane.content_layout()
 
         # 綁定座標 → 產品（embedded 模式收合為手風琴，減少視覺噪音）
         if self._embedded:
@@ -327,7 +275,7 @@ class CoordinateManagerPage(CsvDropZoneMixin, QWidget):
         
         self._store = SessionStore()
         self.refresh_registered_list()
-        self._validation_worker: Optional[CoordValidationWorker] = None
+        self._validation_worker: CoordValidationWorker | None = None
         # Monotonic counter so rapid re-validation does not apply a stale worker result.
         self._coord_validation_seq: int = 0
 
@@ -365,35 +313,20 @@ class CoordinateManagerPage(CsvDropZoneMixin, QWidget):
         """Return the currently selected product key from the dropdown."""
         return str(self.product_combo.currentData() or "")
 
-    def show_registration(self, show: bool = True) -> None:
-        """Toggle the visibility of the product-coordinate binding section and focus input."""
-        if hasattr(self, "_btn_bind_section"):
-            self._btn_bind_section.setChecked(show)
-        self._bind_container.setVisible(show)
-        if show:
-            self.product_name_edit.setFocus()
             # Ensure it's scrolled into view if needed by host
 
     def reset_upload_state(self) -> None:
         """產品切換時清空座標檔狀態，避免跨產品誤用。"""
         self.current_coord_path = ""
-        self.set_path_text(f"目前載入座標檔：{EMPTY_COORD_SET}")
-        self.set_metadata(None, None, None)
+        self.file_pane.reset()
 
     def set_path_text(self, text: str) -> None:
         """Display the given file path in the path label widget."""
-        self._raw_path_text = text or ""
-        self.lbl_path.setToolTip(self._raw_path_text)
-        self._refresh_elided_path()
+        self.file_pane.set_path_text(text)
 
     def set_metadata(self, filename: str | None, row_count: int | None, timestamp: str | None) -> None:
         """Update filename/row-count/timestamp metadata shown under the upload card."""
-        name_txt = filename or "--"
-        row_txt = str(row_count) if row_count is not None and row_count >= 0 else "--"
-        time_txt = timestamp or "--"
-        self.lbl_meta.setText(f"列數：{row_txt}")
-        if filename:
-            self.lbl_path.setToolTip(f"檔名：{name_txt} | 時間：{time_txt}")
+        self.file_pane.set_metadata(filename, row_count, timestamp)
 
     def refresh_registered_list(self) -> None:
         """重新從註冊表載入清單，更新下拉與列表。"""
@@ -446,13 +379,6 @@ class CoordinateManagerPage(CsvDropZoneMixin, QWidget):
         self.coord_uploaded.emit(path)
         return True
 
-
-    def _open_file_dialog(self):
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "選擇 Gerber/CAD 匯出件 (*.csv)", "", "CSV Files (*.csv);;All Files (*)"
-        )
-        if file_path:
-            self._start_validation(file_path)
 
     def _start_validation(self, file_path: str) -> None:
         self.current_coord_path = file_path
@@ -544,16 +470,11 @@ class CoordinateManagerPage(CsvDropZoneMixin, QWidget):
         """CsvDropZoneMixin hook: trigger coordinate validation for the file."""
         self._start_validation(file_path)
 
-    def resizeEvent(self, event) -> None:
-        """Adjust layout on widget resize."""
-        super().resizeEvent(event)
-        self._refresh_elided_path()
-
     def _set_lamp(self, state_name: str, message: str) -> None:
         """Update the status indicator lamp and label if they exist (standalone mode)."""
         if not hasattr(self, "status_lamp") or not self.status_lamp:
             return
-        state_map = {"ok": "success", "error": "warning", "loading": "loading", "idle": "idle"}
+        state_map = {"ok": "success", "error": "error", "loading": "loading", "idle": "idle"}
         state = state_map.get(state_name, "idle")
         self.status_lamp.setProperty("state", state)
         self.status_lamp.style().unpolish(self.status_lamp)
@@ -563,20 +484,4 @@ class CoordinateManagerPage(CsvDropZoneMixin, QWidget):
 
     def _set_drop_zone_active(self, active: bool) -> None:
         """Apply visual feedback to the drop zone when dragging files over it."""
-        if not hasattr(self, "drop_zone") or not self.drop_zone:
-            return
-        set_drop_zone_active(self.drop_zone, active)
-
-    def _refresh_elided_path(self) -> None:
-        raw = self._raw_path_text or ""
-        if not raw:
-            self.lbl_path.setText("")
-            return
-        # 只顯示路徑部分（去掉 prefix）
-        body = raw
-        if "：" in raw:
-            _, body = raw.split("：", 1)
-            body = body.strip()
-        metrics = QFontMetrics(self.lbl_path.font())
-        usable = max(PATH_LABEL_ELIDE_MIN_W, self.lbl_path.width() - PATH_LABEL_ELIDE_MARGIN)
-        self.lbl_path.setText(metrics.elidedText(body, Qt.TextElideMode.ElideMiddle, usable))
+        self.file_pane.set_drop_zone_active(active)

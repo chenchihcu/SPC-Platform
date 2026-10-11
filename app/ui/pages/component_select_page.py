@@ -131,10 +131,6 @@ class ComponentSelectPage(QWidget):
         if emit:
             self.selection_changed.emit(selected)
 
-    def refresh_state(self) -> None:
-        """Show/hide empty hint based on whether measurement data is loaded."""
-        has_data = self._store.meas_df is not None
-        self._empty_hint.setVisible(not has_data)
 
     def get_selected_features(self) -> list:
         """Return list of selected feature column names (e.g. ['Volume', 'Area'])."""

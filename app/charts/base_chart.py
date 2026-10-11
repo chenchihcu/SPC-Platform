@@ -507,6 +507,53 @@ class BaseChart(QWidget):
         """Store the payload used by the draw wrapper for report/screen parity."""
         self._last_engine_output = engine_output or {}
 
+    def _prepare_multi_feature_axes(
+        self,
+        engine_output: Dict[str, Any],
+        *,
+        columns: int = 1,
+    ) -> tuple[list[str], dict[str, dict], bool, list[Any]] | None:
+        """Validate a multi-feature payload and create consistently styled axes.
+
+        This owns only the shared render lifecycle. Statistical lines, limits,
+        normalization, annotations, and per-chart labels remain in each chart.
+        """
+        self._set_visual_contract_payload(engine_output or {})
+        metadata = engine_output.get("metadata", {})
+        if not metadata.get("is_valid", False):
+            self._show_placeholder(metadata.get("error", "未知錯誤"))
+            return None
+
+        features = list(engine_output.get("_features", []))
+        feature_data = dict(engine_output.get("_feature_data", {}))
+        if not features or not feature_data:
+            self._show_placeholder("無多特徵資料")
+            return None
+
+        if columns < 1:
+            raise ValueError("columns must be at least 1")
+
+        self.figure.clear()
+        raw_axes = self.figure.subplots(len(features), columns, sharex=True)
+        axes = [raw_axes] if len(features) == 1 else list(raw_axes)
+        for row in axes:
+            row_axes = row if columns > 1 else [row]
+            for axis in row_axes:
+                _apply_mpl_app_style(self.figure, axis)
+
+        return (
+            features,
+            feature_data,
+            bool(engine_output.get("_normalized", False)),
+            axes,
+        )
+
+    def _finish_multi_feature_axes(self, axes: list[Any], *, columns: int = 1) -> None:
+        """Finalize the shared multi-feature canvas lifecycle."""
+        self.ax = axes[0][0] if columns > 1 else axes[0]
+        self._show_canvas()
+        self.canvas.draw()
+
     def _finalize_visual_contract_before_draw(self) -> None:
         """Apply shared presentation finishing to every BaseChart render path."""
         if self._visual_contract_finalizing:

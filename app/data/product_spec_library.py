@@ -10,9 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from app.data.master_data_db import db_conn
 from app.data.paste_printing_spec_library import (
-    delete_paste_printing_spec_version,
     list_paste_printing_spec_versions,
-    set_active_paste_printing_spec_version,
     update_paste_printing_spec_metadata,
 )
 from app.data.stencil_thickness_registry import UNIT_MODE_ABSOLUTE
@@ -87,14 +85,6 @@ def list_spec_versions(
     return merged
 
 
-def set_active_spec_version(version_id: int) -> bool:
-    """相容 API：切換錫膏印刷規格 active 版本。"""
-    return set_active_paste_printing_spec_version(version_id)
-
-
-def delete_spec_version(version_id: int) -> bool:
-    """相容 API：刪除錫膏印刷規格版本。"""
-    return delete_paste_printing_spec_version(version_id)
 
 
 def update_spec_metadata(

@@ -30,8 +30,8 @@ REQUIRED_FIELDS = (
 
 
 def _data_path() -> Path:
-    root = Path(__file__).resolve().parent.parent.parent
-    return root / "data" / "ipc_jstd_pillar_seed.json"
+    # Versioned reference data (not the git-ignored runtime /data/ directory).
+    return Path(__file__).resolve().parents[1] / "assets" / "reference_data" / "ipc_jstd_pillar_seed.json"
 
 
 def _is_non_empty_str(value: Any) -> bool:

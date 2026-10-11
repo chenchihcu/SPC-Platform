@@ -64,8 +64,10 @@ QSS in `app/ui/theme/dark_stylesheet.py` references these tokens for `state` or 
 | Drop zones | active | Coordinate and measurement upload drag-over feedback must use `set_drop_zone_active(...)`, which sets `state="active"` so `QFrame[class="dropZone"][state="active"]` and embedded drop targets share one contract. |
 | Page status lamps | idle, loading, success, warning, error | Page-level status indicators use `create_status_lamp()` plus `apply_status_accessibility(...)`; measurement library refresh maps loading to `loading`, records present to `success`, and empty to `idle`. |
 | Secondary tab groups | selected, hover, disabled | Library, IPC pillar, and diagnostic matrix tabs set `class="secondaryTabs"` and use the shared `QTabWidget[class~="secondaryTabs"]` selected/hover/disabled QSS. Page-specific pane/card differences may add another class such as `processMatrixTabs`. |
+| Stencil document import / management | empty, loading, warning, error, success, VERIFY | 四步精靈的開窗來源支援 Gerber/ZIP、受控 legacy `.pho`、ODB++、IPC-2581、DXF；`.pho` 只接受可明確判定為 SMD/Paste 且 Side 可判定的 layer，TXT/Legend layer 顯示 error 並拒絕；DXF 無 `$INSUNITS` 時必須明選 mm/inch。摘要以文字揭露實際格式、Paste layer、parser version、legacy 正規化計數與所有警告。「規格管理 > 開窗文件」及疊圖例外明列 `AMBIGUOUS`、`EXTRA`、`UNMATCHED_PAD`、`NON_COMPONENT`，不得只用顏色。未達啟用契約時摘要顯示 `VERIFY` 並停用「立即設為現用」。 |
 | Shared empty states | empty | Use `empty_state_label(...)` for chart and feature-selection placeholders. Presentation-only emoji are not part of the visible empty-state contract. |
 | Shared table roles | default, reference, library, diagnostic | Use `style_table(table, role=...)` for edit trigger, row selection, header alignment, word-wrap, and diagnostic overflow behavior instead of page-local repeated table setup. |
+| 可刪除的資料庫清單 | disabled, selected | 使用 `bind_table_delete_shortcut(table, delete_button)`：只有表格或其子元件取得焦點且已選列時，`Delete` 才會觸發該清單的刪除按鈕。按鈕未選取時維持 disabled，刪除流程仍必須使用 `confirm_double_delete(...)` 與服務層驗證。唯讀表格不可綁定此快捷鍵。 |
 
 When adding new pages or controls that have "can use / cannot use" or "condition mismatch" semantics, set the appropriate `state` or `class` and reuse these tokens in QSS so behaviour stays consistent.
 

@@ -2,6 +2,7 @@
 Subgroup comparison engine: per-group (PartType/RefDes) stats and violation rate.
 Phase 4 P1: compare subgroups by mean and optionally out-of-spec rate.
 """
+import numpy as np
 import pandas as pd
 from typing import Dict, Any, Optional
 from app.analytics.statistical_utils import invalid_chart_payload
@@ -27,7 +28,11 @@ class SubgroupEngine:
         group_col = group_col if group_col in df.columns else "RefDes"
         if group_col not in df.columns:
             return invalid_chart_payload("Subgroup", "缺少分組欄位 (PartType/RefDes)。", target_col)
-        valid = df[[group_col, target_col]].dropna()
+        valid = (
+            df[[group_col, target_col]]
+            .replace([np.inf, -np.inf], np.nan)
+            .dropna()
+        )
         if valid.empty:
             return invalid_chart_payload("Subgroup", "無有效分組資料。", target_col)
         grp = valid.groupby(group_col)[target_col]

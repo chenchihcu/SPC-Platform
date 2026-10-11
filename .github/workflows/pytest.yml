@@ -9,7 +9,8 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # The app is Windows-only (pythonw/.vbs launcher, Windows fonts); CI mirrors that host.
+    runs-on: windows-latest
     env:
       QT_QPA_PLATFORM: offscreen
       MPLBACKEND: Agg

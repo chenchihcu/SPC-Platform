@@ -27,7 +27,7 @@
 ```
 
 左欄（`CollapsibleSidebar`）內含：
-- `NavigationPanel` 可見流程導覽（6 個 workflow buttons）
+- `NavigationPanel` 可見流程導覽（7 個 workflow 項，排成 6 個視覺列）
 - 分析條件（Control Panel）
 - 特徵快捷（高度 / 面積 / 體積）
 - 全域動作按鈕（下一步 / 重新分析）
@@ -78,17 +78,16 @@ MainWindow
 - `資料庫`
 - `統計圖表`
 - `統計資料`
-- `診斷一`
-- `診斷二`
+- `製程診斷`
 - `報告匯出`
 - `說明`
 
 行為：
 - 單選模式
 - active item highlight
-- `統計圖表 / 統計資料` 與 `診斷一 / 診斷二` 各自並列，按鈕數為 8 但維持 6 個視覺列
-- 導覽切換透過 `NAV_TO_STACK = [0, 6, 2, 8, 5, 7, 3, 4]` 對應 legacy stack index
-- 右側 `QTabWidget#workflowTabs` 保留 8 個可見 workflow page mapping 與 `TAB_TO_STACK = [0, 6, 2, 8, 5, 7, 3, 4]`，但 tab bar 隱藏，只作內容容器與相容層。
+- `統計圖表 / 統計資料` 並列，流程項為 7 個但維持 6 個視覺列
+- 導覽切換透過 `NAV_TO_STACK = [0, 6, 2, 7, 5, 3, 4]` 對應 stack index
+- 右側 `QTabWidget#workflowTabs` 保留 7 個可見 workflow page mapping 與 `TAB_TO_STACK = [0, 6, 2, 7, 5, 3, 4]`，但 tab bar 隱藏，只作內容容器與相容層。
 
 # 5. Control Panel
 
@@ -119,7 +118,7 @@ MainWindow
 收合狀態下由 minimal controls 提供相同行為入口。
 
 ## 5.5 側欄密度與可尋性門檻
-- 左欄同時可見的主要流程導覽為 8 個按鈕 / 6 個視覺列（`統計圖表 / 統計資料`、`診斷一 / 診斷二` 並列）+ 2 個全域動作按鈕。
+- 左欄同時可見的主要流程導覽為 7 個流程項 / 6 個視覺列（`統計圖表 / 統計資料` 並列）+ 2 個全域動作按鈕。
 - 篩選與特徵為控制項，不加入頁面型 action。
 - 若導覽、分析條件、特徵與動作在預設視窗高度下出現重疊、裁切或底部動作不可見，優先壓縮 token spacing / 字級；仍不足時收合分析條件，不收合流程導覽或底部主動作。
 - 視窗最小高度以側欄可讀性為準；在最小高度附近，`分析條件` 預設收合並顯示「已收合、已保留篩選值」的可見 affordance，`分析特徵`、`下一步`、`重新分析` 仍須完整顯示。

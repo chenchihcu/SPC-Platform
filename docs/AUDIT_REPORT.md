@@ -1,7 +1,7 @@
 # AUDIT_REPORT
 
-- Timestamp: `20260712_201313`
-- Profile: `quick`
+- Timestamp: `20260722_212245`
+- Profile: `full`
 - Overall: `pass`
 - Exception findings: `0`
 
@@ -11,10 +11,7 @@
 |---|---|---|---:|---|
 | ruff_all | baseline | pass | 0 | true |
 | mypy_app | baseline | pass | 0 | true |
-| pytest_statistics_pack | statistical_correctness | pass | 0 | true |
-| pytest_chart_feature_pack | chart_feature_cross | pass | 0 | true |
-| pytest_release_validation_pack | release_validation | pass | 0 | true |
-| pytest_performance_pack | performance_baseline | pass | 0 | true |
+| pytest_full | baseline | pass | 0 | true |
 | qt_policy_audit | qt_policy | pass | 0 | false |
 
 ## Failed Gate
@@ -34,8 +31,8 @@
 
 ## Rerun Evidence
 
-- Summary JSON: `C:/Users/user/Documents/SPC Platform/Outputs/final_audit/20260712_201313/summary.json`
-- Run report: `C:/Users/user/Documents/SPC Platform/Outputs/final_audit/20260712_201313/report.md`
+- Summary JSON: `C:/Users/user/Documents/SPC Platform/Outputs/final_audit/20260722_212245/summary.json`
+- Run report: `C:/Users/user/Documents/SPC Platform/Outputs/final_audit/20260722_212245/report.md`
 - Commands:
 - `python -m ruff check .`
 - `python -m mypy app`

@@ -5,6 +5,10 @@ from typing import Any, Dict
 from app.charts.base_chart import BaseChart, annotate_latest_point, draw_reference_line
 from app.ui.theme.tokens import CHART_OOC, CHART_SERIES, CHART_FONT_ANNOTATION
 
+# Above this many points a full-weight line over oscillating data fills the axis
+# into a solid band and buries the rule-hit markers; thin it out instead.
+_DENSE_SERIES_THRESHOLD = 300
+
 
 class PatternRecognitionChart(BaseChart):
     """Line chart with Nelson-rule hit markers and summary."""
@@ -32,7 +36,14 @@ class PatternRecognitionChart(BaseChart):
             self._show_placeholder("Pattern recognition 資料不足。")
             return False
 
-        self.ax.plot(indices, values, color=CHART_SERIES, linewidth=1.2, label="Series")
+        if len(values) > _DENSE_SERIES_THRESHOLD:
+            # Dense series: connecting wildly oscillating points fills the axis into a
+            # solid band. Drop the line and show a faint scatter so the rule-hit
+            # markers and distribution stay legible.
+            self.ax.plot(indices, values, color=CHART_SERIES, linestyle="none",
+                         marker="o", markersize=1.5, alpha=0.25, label="Series")
+        else:
+            self.ax.plot(indices, values, color=CHART_SERIES, linewidth=1.2, label="Series")
         hit_x = [idx for idx in indices if idx in hit_indices]
         idx_to_pos = {idx: i for i, idx in enumerate(indices)}
         hit_y = [values[idx_to_pos[idx]] for idx in hit_x]

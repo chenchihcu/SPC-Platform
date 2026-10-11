@@ -1,11 +1,11 @@
 """
-Load SPI process knowledge base JSON bundles from data/spi_process_kb/v1/.
+Load SPI process knowledge base JSON bundles from app/assets/reference_data/spi_process_kb/v1/.
 
 Read-only; used by multi_signal_diagnosis and report builders.
 
 **Authoritative human-maintained source** (not committed to the repo by default):
 `SPI_製程對應知識庫_v1.0.xlsx` — import to JSON via ``scripts/import_spi_process_kb_xlsx.py``.
-Shipped runtime data is the JSON bundle under ``data/spi_process_kb/v1/``; ``manifest.json``
+Shipped runtime data is the JSON bundle under ``app/assets/reference_data/spi_process_kb/v1/``; ``manifest.json``
 may record ``source_xlsx_basename`` and ``source_xlsx_sha256`` after import.
 """
 from __future__ import annotations
@@ -15,7 +15,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-DEFAULT_RELATIVE_DIR = Path("data") / "spi_process_kb" / "v1"
+# Versioned reference data under app/assets (the repo-root /data/ dir is git-ignored runtime state).
+DEFAULT_RELATIVE_DIR = Path("app") / "assets" / "reference_data" / "spi_process_kb" / "v1"
 
 # Canonical workbook filename (v1 pipeline). Sheet names expected by the importer are
 # documented in scripts/import_spi_process_kb_xlsx.py (--sheet-* defaults).

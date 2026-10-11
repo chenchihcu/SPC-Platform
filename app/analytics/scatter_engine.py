@@ -3,6 +3,7 @@ Scatter + Spec Zones: bivariate plot with optional USL/LSL rectangles for SMT fa
 """
 import math
 
+import numpy as np
 import pandas as pd
 
 from app.analytics.pearson_utils import pearson_r_safe
@@ -28,7 +29,7 @@ class ScatterEngine:
             return invalid_chart_payload("ScatterSpec", "無資料 (No data).", col_x)
         if col_x not in filtered_df.columns or col_y not in filtered_df.columns:
             return invalid_chart_payload("ScatterSpec", f"缺少欄位 {col_x} 或 {col_y}.", col_x)
-        valid = filtered_df[[col_x, col_y]].dropna()
+        valid = filtered_df[[col_x, col_y]].replace([np.inf, -np.inf], np.nan).dropna()
         if len(valid) < 2:
             return invalid_chart_payload("ScatterSpec", "有效點數不足 (N<2).", col_x)
         x_vals = valid[col_x].tolist()

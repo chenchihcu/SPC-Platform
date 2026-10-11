@@ -4,9 +4,9 @@ from typing import Any, Callable, Dict
 
 
 _NO_CHART_FALLBACK: Dict[str, str] = {
-    "boxplot": "元件分組不足（需 ≥ 2 個 RefDes 群組；單特徵且 RefDes 全部相同時無法繪製）",
+    "boxplot": "元件分組不足（需 ≥ 2 個 RefDes 群組）",
     "boxplot_3f": "元件分組不足（需 ≥ 2 個 RefDes 群組）",
-    "spatial_heatmap": "缺乏有效座標映射資料（請確認座標檔已匯入且關聯成功率 > 0%）",
+    "spatial_heatmap": "缺乏有效座標映射資料（請確認座標檔已匯入）",
 }
 
 

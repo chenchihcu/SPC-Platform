@@ -8,6 +8,13 @@ _D2_N2 = 1.128   # Bias-correction factor for moving range (subgroup n=2)
 _CP_SIGMA_SPAN = 6  # Cp denominator: total process spread = ±3σ = 6σ
 _ONE_SIDED_SIGMA = 3  # Cpu/Cpl numerator multiplier (one-sided 3σ)
 
+# A real SPC process never approaches |Cpk| this large. When |Cpk| blows past
+# it, the mean sits >150σ outside the spec — physically impossible for a genuine
+# (even catastrophic) process. It signals the measurement values and the spec
+# limits are on different scales/units (e.g. mm data vs a percent spec), so the
+# indices are not directly-computed fact and must be flagged, not trusted.
+_SCALE_MISMATCH_ABS_CPK = 50.0
+
 
 class CapabilityEngine:
     """
@@ -15,15 +22,55 @@ class CapabilityEngine:
     """
     
     @staticmethod
-    def compute_capability(data: pd.Series, usl: Optional[float], lsl: Optional[float]) -> Dict[str, Any]:
+    def _short_term_sigma(
+        valid_data: pd.Series, subgroup_ids: Optional[pd.Series]
+    ) -> float:
+        """Short-term sigma = MR̄ / d2 (AIAG within-subgroup variation).
+
+        When ``subgroup_ids`` (board/panel) is supplied, moving ranges are taken
+        WITHIN each subgroup and pooled — a moving range that straddles a board
+        boundary would inject between-board variation into the within-board
+        estimate. Falls back to the whole-series moving range when no usable
+        subgroup structure is present (preserves legacy single-series behavior).
+        """
+        # reindex() raises on duplicate labels; without a unique index the
+        # subgroup alignment is ambiguous, so use the whole-series fallback.
+        if (
+            subgroup_ids is not None
+            and subgroup_ids.index.is_unique
+            and valid_data.index.is_unique
+        ):
+            aligned = subgroup_ids.reindex(valid_data.index)
+            if aligned.notna().any():
+                within_mr = [
+                    StatisticalUtils.calculate_moving_range(grp).dropna()
+                    for _, grp in valid_data.groupby(aligned, sort=False)
+                ]
+                pooled = pd.concat(within_mr) if within_mr else pd.Series(dtype=float)
+                if not pooled.empty:
+                    return float(pooled.mean() / _D2_N2)
+        # Fallback: whole-series moving range (no rational subgroups available).
+        return float(StatisticalUtils.calculate_moving_range(valid_data).mean() / _D2_N2)
+
+    @staticmethod
+    def compute_capability(
+        data: pd.Series,
+        usl: Optional[float],
+        lsl: Optional[float],
+        subgroup_ids: Optional[pd.Series] = None,
+    ) -> Dict[str, Any]:
         """
         Computes Cp, Cpk (Short Term) and Pp, Ppk (Long Term).
         Complies with minimum sample requirements from docs/governance/SPC_RULES.md.
+
+        subgroup_ids: optional board/panel id series (aligned by index). When
+            given, short-term sigma uses within-subgroup moving ranges so board
+            boundaries do not contaminate the within-board estimate.
         """
         is_valid, msg = StatisticalUtils.is_valid_for_spc(data)
         if not is_valid:
              return invalid_chart_payload("Capability", msg)
-            
+
         if usl is None or lsl is None:
              return invalid_chart_payload("Capability", "Missing USL or LSL specifications. Capability cannot be computed.")
 
@@ -32,10 +79,9 @@ class CapabilityEngine:
 
         valid_data = data.replace([np.inf, -np.inf], np.nan).dropna()
         mean_val = valid_data.mean()
-        
-        # Sigma ST from MR / d2 (AIAG: short-term, within-subgroup variation)
-        mr_series = StatisticalUtils.calculate_moving_range(valid_data)
-        sigma_st = mr_series.mean() / _D2_N2
+
+        # Sigma ST from within-subgroup MR / d2 (AIAG: short-term variation)
+        sigma_st = CapabilityEngine._short_term_sigma(valid_data, subgroup_ids)
 
         # Sigma LT (total sample std dev — long-term, overall variation)
         sigma_lt = np.std(valid_data, ddof=1)
@@ -60,7 +106,20 @@ class CapabilityEngine:
 
         # Interpretation defined by docs/governance/SPC_RULES.md (Cpk < 1.0 unacceptable)
         defect_risk_level = "High risk" if cpk < 1.0 else "Acceptable" if cpk >= 1.33 else "Medium risk"
-            
+
+        # Unit/scale-mismatch sentinel: an impossibly large |Cpk| means the data
+        # and the spec are on different scales (mm data vs % spec, etc.). The
+        # numbers are still returned (is_valid stays True so charts render), but
+        # flagged so trust labels and diagnosis narrative do not present them as
+        # directly-computed capability fact.
+        scale_mismatch = abs(cpk) > _SCALE_MISMATCH_ABS_CPK
+        scale_reason = (
+            f"能力指標尺度異常（|Cpk|={abs(cpk):.0f} 遠超真實製程範圍）：量測值與規格"
+            f"疑似單位/尺度不符（如 mm 資料對百分比規格）。數值僅供參考，"
+            f"請先確認量測單位與規格單位一致（Height 可設鋼板厚度絕對模式）。"
+            if scale_mismatch else ""
+        )
+
         return {
             "chart_type": "Capability",
             "data": {},  # Geometry handled by distribution engine
@@ -78,6 +137,8 @@ class CapabilityEngine:
                 "usl": usl,
                 "lsl": lsl,
                 "risk_level": defect_risk_level,
+                "scale_mismatch": bool(scale_mismatch),
+                "scale_mismatch_reason": scale_reason,
                 "error": ""
             }
         }
