@@ -54,6 +54,7 @@ from app.ui.widgets.page_templates import (
     apply_status_accessibility,
     bind_label_to_widget,
     create_status_lamp,
+    set_status,
 )
 from app.ui.widgets.stencil_spec_editor import StencilSpecEditor
 
@@ -526,12 +527,7 @@ class DataSetupPage(QWidget):
             self.supplier_input.blockSignals(False)
 
     def _set_lamp_state(self, lamp: QFrame, state: str) -> None:
-        lamp.setProperty("state", state)
-        label = self._status_label_by_lamp.get(lamp)
-        if label is not None:
-            apply_status_accessibility(lamp, label, state=state)
-        lamp.style().unpolish(lamp)
-        lamp.style().polish(lamp)
+        set_status(lamp, self._status_label_by_lamp.get(lamp), state)
 
     def _on_product_changed(self) -> None:
         product = str(self.product_combo.currentData() or "")

@@ -261,6 +261,37 @@ def apply_status_accessibility(
         label.setAccessibleDescription(f"狀態：{state_text}")
 
 
+_STATUS_STATE_ALIASES: dict[str, str] = {"ok": "success"}
+
+
+def set_status(
+    lamp: QFrame,
+    label: QLabel | None,
+    state: str,
+    text: str | None = None,
+) -> str:
+    """Single entry point for statusBarLamp + status text updates.
+
+    Normalizes state aliases (``ok`` -> ``success``) to the statusBarLamp QSS
+    vocabulary, sets the ``state`` property, updates the label text (``None``
+    keeps the current text), refreshes accessibility metadata and repolishes
+    both widgets. Returns the normalized state.
+    """
+    normalized = (state or "idle").strip() or "idle"
+    normalized = _STATUS_STATE_ALIASES.get(normalized, normalized)
+    lamp.setProperty("state", normalized)
+    widgets: list[QWidget] = [lamp]
+    if label is not None:
+        if text is not None:
+            label.setText(text)
+        apply_status_accessibility(lamp, label, state=normalized, text=text)
+        widgets.append(label)
+    for widget in widgets:
+        widget.style().unpolish(widget)
+        widget.style().polish(widget)
+    return normalized
+
+
 def set_button_role(button: QPushButton, role: str) -> None:
     """Set the semantic button role consumed by the global QSS."""
     button.setProperty("class", role)
@@ -320,35 +351,43 @@ class CsvDropZoneMixin:
         super().dragLeaveEvent(event)  # type: ignore[misc]
 
 
+def confirm_action(parent: QWidget | None, title: str, msg: str) -> bool:
+    """Themed confirmation with localized buttons (確認 left, 取消 right).
+
+    Returns True only when the user clicks 確認; the default and Escape button
+    is 取消 so an accidental Enter/Esc never confirms.
+    """
+    from app.ui.theme import apply_dark_palette_to_message_box
+
+    box = QMessageBox(QMessageBox.Icon.Question, title, msg, QMessageBox.StandardButton.NoButton, parent)
+    # Theme first: restyling after addButton() can recreate the buttons and
+    # leave stale Python wrappers behind.
+    apply_dark_palette_to_message_box(box)
+    box.addButton("確認", QMessageBox.ButtonRole.AcceptRole)
+    cancel_btn = box.addButton("取消", QMessageBox.ButtonRole.RejectRole)
+    box.setDefaultButton(cancel_btn)
+    box.setEscapeButton(cancel_btn)
+    box.exec()
+    clicked = box.clickedButton()
+    return clicked is not None and box.buttonRole(clicked) == QMessageBox.ButtonRole.AcceptRole
+
+
 def confirm_double_delete(
     parent: QWidget,
     first_message: str,
     *,
     first_title: str = "確認刪除",
     second_message: str = "此動作無法復原，確定刪除？",
+    second_title: str = "二次確認",
 ) -> bool:
-    """Data Deletion Safety (AGENTS.md): two sequential Yes/No confirmations.
+    """Data Deletion Safety (AGENTS.md): two sequential confirmations.
 
-    Returns True only when the user answers Yes to BOTH prompts; the default
-    button is always No. Every persistent-record delete flow must gate on this.
+    Returns True only when the user confirms BOTH prompts; the default
+    button is always 取消. Every persistent-record delete flow must gate on this.
     """
-    reply = QMessageBox.question(
-        parent,
-        first_title,
-        first_message,
-        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        QMessageBox.StandardButton.No,
-    )
-    if reply != QMessageBox.StandardButton.Yes:
+    if not confirm_action(parent, first_title, first_message):
         return False
-    reply2 = QMessageBox.question(
-        parent,
-        "二次確認",
-        second_message,
-        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        QMessageBox.StandardButton.No,
-    )
-    return reply2 == QMessageBox.StandardButton.Yes
+    return confirm_action(parent, second_title, second_message)
 
 
 def bind_table_delete_shortcut(
