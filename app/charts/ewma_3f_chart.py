@@ -91,7 +91,7 @@ class EWMA3F(BaseChart):
                     linewidth=1.5, label=f"EWMA ({feat})")
 
             if ooc:
-                ooc_idx, ooc_vals = marker_points(ooc, label_pos, values_plot)
+                ooc_idx, ooc_vals = marker_points(ooc, label_pos, values_plot, indices)
                 if ooc_idx and ooc_vals:
                     ax.scatter(ooc_idx, ooc_vals, color=CHART_OOC, zorder=5, s=25, label="OOC")
 

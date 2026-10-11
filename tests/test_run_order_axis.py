@@ -65,7 +65,7 @@ def _payload(df, features):
 def test_helpers_map_labels_to_positions():
     x, pos = series_axis([7, 3, 9], 3)
     assert x == [1, 2, 3]
-    assert marker_points([9, 42], pos, [1.0, 2.0, 3.0]) == ([3], [3.0])
+    assert marker_points([9, 42], pos, [1.0, 2.0, 3.0], x) == ([3], [3.0])
     assert mr_positions([3, 9], pos, 2) == [2, 3]
     # Mismatched labels fall back to 2..N for MR and an empty marker mapping.
     x, pos = series_axis([1], 3)
@@ -191,3 +191,56 @@ def test_three_feature_shared_axis_keeps_samples_aligned_when_one_feature_drops_
     assert list(imr.figure.axes[2].lines[0].get_xdata()) == [
         p for p in range(1, len(labels) + 1) if p != gap
     ]
+
+
+def test_marker_points_use_own_value_index_on_shared_axis_with_dropped_row():
+    full = ["a", "b", "c", "d", "e"]
+    dropped = ["a", "b", "d", "e"]
+    vals = [10.0, 20.0, 40.0, 50.0]
+    shared = shared_label_positions([full, dropped, full])
+    x, pos = aligned_axis(dropped, len(vals), shared)
+    assert x == [1, 2, 4, 5]
+    # X stays on the shared position; Y is this feature's own value for that label.
+    assert marker_points(["d", "e"], pos, vals, x) == ([4, 5], [40.0, 50.0])
+    # A label this feature dropped has no own sample -> no marker.
+    assert marker_points(["c"], pos, vals, x) == ([], [])
+    # Single-feature axis (pos == own index) is unchanged.
+    x1, pos1 = series_axis(full, 5)
+    assert marker_points(["c", "e"], pos1, [1.0, 2.0, 3.0, 4.0, 5.0], x1) == ([3, 5], [3.0, 5.0])
+
+
+def test_three_feature_ooc_markers_sit_on_own_value_when_feature_drops_a_row():
+    from app.charts.ewma_3f_chart import EWMA3F
+
+    _ensure_qapp()
+    df = _shuffled_df()
+    feats = ["Volume", "Area", "Height"]
+    # Volume's outlier (row 17) sits after the dropped row in run order, so a
+    # shared-position lookup into Volume's own values would pick the wrong sample.
+    order = _expected_order(df)
+    drop = order[order.index(17) - 3]
+    df.loc[drop, "Volume"] = np.nan
+    params = _payload(df, feats)["parameters"]
+
+    def _assert_scatter_on_line(ax):
+        line = ax.lines[0]
+        on_line = dict(zip(line.get_xdata(), line.get_ydata()))
+        offsets = [tuple(p) for c in ax.collections for p in c.get_offsets()]
+        assert offsets, "expected OOC markers"
+        for x, y in offsets:
+            assert on_line[x] == pytest.approx(y)
+        return offsets
+
+    imr = IMR3F()
+    spc = {f: params[f]["spc"] for f in feats}
+    assert 17 in spc["Volume"]["data"]["out_of_control_indices"]
+    assert imr.draw_chart({"metadata": {"is_valid": True}, "_features": feats, "_feature_data": spc})
+    offsets = _assert_scatter_on_line(imr.figure.axes[0])
+    assert (order.index(17) + 1, pytest.approx(160.0)) in offsets
+
+    ewma = {f: params[f]["ewma"] for f in feats}
+    if not ewma["Volume"]["data"].get("out_of_control_indices"):
+        pytest.skip("EWMA produced no OOC points for this fixture")
+    ewma3f = EWMA3F()
+    assert ewma3f.draw_chart({"metadata": {"is_valid": True}, "_features": feats, "_feature_data": ewma})
+    _assert_scatter_on_line(ewma3f.figure.axes[0])

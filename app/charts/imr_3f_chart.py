@@ -85,7 +85,7 @@ class IMR3F(BaseChart):
                       linestyle="-", markersize=_msize, label=feat)
 
             if ooc:
-                ooc_idx, ooc_vals = marker_points(ooc, label_pos, y_values)
+                ooc_idx, ooc_vals = marker_points(ooc, label_pos, y_values, indices)
                 if ooc_idx and ooc_vals:
                     _s = CHART_OOC_MARKER_SIZE ** 2 if _n <= 300 else max(3, CHART_OOC_MARKER_SIZE - 4) ** 2
                     ax_i.scatter(ooc_idx, ooc_vals, color=CHART_OOC, s=_s, zorder=5)

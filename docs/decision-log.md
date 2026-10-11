@@ -1,5 +1,14 @@
 # Decision Log
 
+## 2026-10-11 Run-order 標記 Y 值改依特徵自身索引
+
+- Decision: `app/charts/run_order_axis.py::marker_points` 新增必要參數 `x_positions`（該序列自身的 X 清單，來自 `series_axis` / `aligned_axis`）；X 仍為 label 在 mapping 中的位置，Y 改取「自身 X 等於該位置」的那個樣本值，不再用 `values[pos - 1]`。全部 5 個呼叫端（`control_chart`、`ewma_chart`、`pattern_recognition_chart`、`imr_3f_chart`、`ewma_3f_chart`）改傳自身 X。
+- Scope: 上述 6 個檔案、`tests/test_run_order_axis.py`、本條；不改任何統計值、管制界線、序列線 X 位置或 payload。
+- Reason: PR #8 引入的多特徵共享軸中，mapping 是所有特徵 label 的聯集位置；某特徵因 NaN/inf 少一列時，共享位置 ≠ 該特徵 values 的索引，IMR3F / EWMA3F 的 OOC 標記會取到下一個樣本的值，且最後一個 OOC 點因 `pos > len(values)` 被靜默丟棄。單特徵路徑 X = 1..n，新舊結果相同。
+- Verification: 新增 `marker_points` 掉列案例與 IMR3F/EWMA3F 散點座標必須落在自身折線上的測試；以舊查值邏輯替換後 3F 測試失敗（Y 取到 160.0 而非該 X 的折線值），修正後通過。其餘 gate 見 PR 描述。
+- Risk: `mr_positions` 只回傳 X（MR 值依序繪製），不受影響；若未來新增呼叫端仍須傳自身 X，簽名為必要參數以避免漏傳。
+- Rollback: 回退本條所列檔案；不涉及 schema 或持久資料。
+
 ## 2026-10-11 Component Pareto 異常點聯集計數
 
 - Decision: `ParetoEngine.compute_component_pareto` 的異常判定由加總（`oos + >UCL + <LCL`）改為聯集（`oos | >UCL | <LCL`），每點最多計一次；規則先寫入 `docs/governance/SPC_RULES.md` §16.1（spec-first，使用者核准）。
