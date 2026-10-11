@@ -1,6 +1,7 @@
 from app.charts.base_chart import BaseChart
 from typing import Dict, Any
 from app.ui.theme.tokens import (
+    CHART_EMPTY_NO_DATA,
     CHART_BAR_NEUTRAL,
     CHART_OOC,
     CHART_AXES_BG,
@@ -32,7 +33,7 @@ class BivariateOutlierChart(BaseChart):
         stats = engine_output.get("statistics", {})
         method = (meta.get("method") or "").strip()
         if not x_vals or not y_vals:
-            self._show_placeholder("無資料")
+            self._show_placeholder(CHART_EMPTY_NO_DATA)
             return False
         in_x, in_y, out_x, out_y = [], [], [], []
         for i, (x, y) in enumerate(zip(x_vals, y_vals)):

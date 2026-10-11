@@ -1,7 +1,7 @@
 
 from app.charts.base_chart import BaseChart, _apply_mpl_app_style, get_feature_color
 from typing import Dict, Any
-from app.ui.theme.tokens import CHART_FONT_LABEL, CHART_SERIES, TEXT_SECONDARY
+from app.ui.theme.tokens import CHART_EMPTY_NO_DATA, CHART_FONT_LABEL, CHART_SERIES, TEXT_SECONDARY
 
 
 class DensityChart(BaseChart):
@@ -40,7 +40,7 @@ class DensityChart(BaseChart):
             y_density = data.get("density", [])
             col = data.get("col", "Value")
             if not x_grid or not y_density:
-                self._show_placeholder("無資料")
+                self._show_placeholder(CHART_EMPTY_NO_DATA)
                 return False
             self.ax.set_xlabel(col)
             self.ax.set_ylabel("Density")
@@ -56,7 +56,7 @@ class DensityChart(BaseChart):
         col_y = data.get("col_y", "Y")
         gridsize = stats.get("gridsize", 30)
         if not x_vals or not y_vals:
-            self._show_placeholder("無資料")
+            self._show_placeholder(CHART_EMPTY_NO_DATA)
             return False
         self.ax.set_xlabel(col_x)
         self.ax.set_ylabel(col_y)

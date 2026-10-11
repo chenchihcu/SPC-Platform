@@ -56,7 +56,7 @@ class XbarRChart(BaseChart):
         xbar_values = list(data.get("xbar_values", []))
         r_values = list(data.get("r_values", []))
         if not labels or not xbar_values or not r_values:
-            self._show_placeholder("無有效 Xbar-R 子群資料。")
+            self._show_placeholder("無有效 Xbar-R 子群資料")
             return False
 
         x = list(range(len(labels)))

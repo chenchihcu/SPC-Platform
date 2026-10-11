@@ -78,8 +78,7 @@ class HistogramChart(BaseChart):
 
         metadata = engine_output.get("metadata", {})
         if not metadata.get("is_valid", False):
-            error_msg = metadata.get("error", "未知錯誤 / Unknown Error")
-            self._show_placeholder(error_msg, self._placeholder_class_for(metadata, error_msg))
+            self._show_invalid_placeholder(metadata)
             return False
 
         self._show_canvas()

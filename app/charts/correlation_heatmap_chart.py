@@ -34,7 +34,7 @@ class CorrelationHeatmapChart(BaseChart):
         labels = list(data.get("labels", []))
         matrix = np.array(data.get("matrix", []), dtype=float)
         if len(labels) < 2 or matrix.size == 0:
-            self._show_placeholder("Correlation matrix 資料不足。")
+            self._show_placeholder("相關矩陣資料不足")
             return False
 
         im = self.ax.imshow(matrix, cmap="RdYlBu_r", vmin=-1.0, vmax=1.0)

@@ -5,17 +5,17 @@
 支援標準化模式（Z-score）以消除不同量綱的影響。
 """
 import numpy as np
-from app.charts.base_chart import feature_line_color as _color_for, BaseChart
+from app.charts.base_chart import BaseChart, feature_line_color, add_sample_disclosure, draw_reference_line
+from app.charts.multi_feature_panels import (
+    zscore_array,
+    zscore_scale,
+)
 from typing import Dict, Any
 from app.ui.theme.tokens import (
-    CHART_ANNOTATION,
-    CHART_CENTERLINE,
-    CHART_LINE_STYLE_SECONDARY,
     CHART_FONT_LABEL,
     CHART_FONT_TICK,
     CHART_FONT_LEGEND,
     CHART_FONT_TITLE,
-    CHART_FONT_MICRO,
 )
 
 
@@ -47,28 +47,22 @@ class RunChart3F(BaseChart):
         for i, feat in enumerate(features):
             ax = axes[i]
             fd = feature_data.get(feat, {})
-            feat_meta = fd.get("metadata", {})
-
-            if not feat_meta.get("is_valid", False):
-                ax.text(0.5, 0.5, f"{feat} 無資料", ha="center", va="center",
-                        transform=ax.transAxes, fontsize=CHART_FONT_LABEL)
-                ax.set_ylabel(feat, fontsize=CHART_FONT_LABEL)
+            if not fd.get("metadata", {}).get("is_valid", False):
+                self._draw_invalid_feature_panel([ax], feat)
                 continue
-
+            color = feature_line_color(feat, i)
             data = fd.get("data", {})
             stats = fd.get("statistics", {})
             values = data.get("values", [])
             indices = data.get("indices", list(range(len(values))))
             center = stats["center_line"] if "center_line" in stats else (float(np.mean(values)) if values else 0)
 
-            color = _color_for(feat, i)
-
             if normalized and values:
-                mean_val = float(stats.get("normalize_mean", np.mean(values)))
-                std_val = float(stats.get("normalize_std", np.std(values, ddof=1)))
-                if not np.isfinite(std_val) or std_val == 0.0:
-                    std_val = 1.0
-                values_plot = [(v - mean_val) / std_val for v in values]
+                # Engine-provided normalization basis wins over the displayed sample.
+                mean_val, std_val = zscore_scale(
+                    values, mean=stats.get("normalize_mean"), std=stats.get("normalize_std")
+                )
+                values_plot = zscore_array(values, mean_val, std_val).tolist()
                 center_plot = 0.0
                 ylabel = "Z-score"
             else:
@@ -80,20 +74,11 @@ class RunChart3F(BaseChart):
             _msize = 3 if _marker else 0
             ax.plot(indices, values_plot, color=color, linestyle="-",
                     linewidth=1, marker=_marker, markersize=_msize, label=feat)
-            ax.axhline(center_plot, color=CHART_CENTERLINE, linestyle=CHART_LINE_STYLE_SECONDARY,
-                       linewidth=1.2, label=f"中心: {center:.3g}")
+            draw_reference_line(ax, center_plot, f"中心: {center:.3g}", semantic="centerline")
+            # Per-panel sampling disclosure: the top-level 3F payload carries no
+            # per-feature displayed_n, so the shared footer would not show it.
             if stats.get("sampled_for_display"):
-                shown = stats.get("displayed_n", len(values))
-                total = stats.get("n", len(values))
-                step = stats.get("downsample_step", 1)
-                ax.annotate(
-                    f"抽樣 {shown}/{total} step={step}",
-                    xy=(0.01, 0.96),
-                    xycoords="axes fraction",
-                    fontsize=CHART_FONT_MICRO,
-                    color=CHART_ANNOTATION,
-                    va="top",
-                )
+                add_sample_disclosure(ax, fd)
 
             ax.set_ylabel(ylabel, fontsize=CHART_FONT_LABEL)
             ax.tick_params(labelsize=CHART_FONT_TICK)
@@ -101,12 +86,11 @@ class RunChart3F(BaseChart):
             # Hide redundant X-axis labels for non-bottom rows
             ax.label_outer()
 
-        axes[-1].set_xlabel("樣本序 (PCB Run Order)", fontsize=CHART_FONT_LABEL)
-
         title = "三特徵趨勢圖並列"
         if normalized:
             title += "（Z-score 標準化）"
+        # layout handled by BaseChart
+        axes[-1].set_xlabel("樣本序 (PCB Run Order)", fontsize=CHART_FONT_LABEL)
         axes[0].set_title(title, fontsize=CHART_FONT_TITLE)
-
         self._finish_multi_feature_axes(axes)
         return True

@@ -5,12 +5,14 @@
 EWMA 相對偏移（以均值正規化），方便跨特徵比較漂移速度與方向。
 """
 import numpy as np
-from app.charts.base_chart import feature_line_color as _color_for, BaseChart
+from app.charts.base_chart import BaseChart, feature_line_color, draw_reference_line
+from app.charts.multi_feature_panels import (
+    zscore_array,
+    zscore_scale,
+    zscore_value,
+)
 from typing import Dict, Any
 from app.ui.theme.tokens import (
-    CHART_CENTERLINE,
-    CHART_CONTROL_LIMITS,
-    CHART_LINE_STYLE_SECONDARY,
     CHART_OOC,
     CHART_FONT_LABEL,
     CHART_FONT_LEGEND,
@@ -20,19 +22,14 @@ from app.ui.theme.tokens import (
 
 def _zscore_with_limits(values: list[float], cl: float, ucl: float, lcl: float) -> tuple[list[float], float, float, float]:
     """Apply one normalization policy (z-score) to values and control limits."""
-    arr = np.array(values, dtype=float)
-    if arr.size == 0:
+    if len(values) == 0:
         return values, cl, ucl, lcl
-    mean_val = float(np.mean(arr))
-    std_val = float(np.std(arr, ddof=1)) if arr.size > 1 else 0.0
-    if std_val <= 0:
-        std_val = 1.0
-    values_plot = ((arr - mean_val) / std_val).tolist()
+    mean_val, std_val = zscore_scale(values)
     return (
-        values_plot,
-        (float(cl) - mean_val) / std_val,
-        (float(ucl) - mean_val) / std_val,
-        (float(lcl) - mean_val) / std_val,
+        zscore_array(values, mean_val, std_val).tolist(),
+        zscore_value(cl, mean_val, std_val),
+        zscore_value(ucl, mean_val, std_val),
+        zscore_value(lcl, mean_val, std_val),
     )
 
 
@@ -57,16 +54,11 @@ class EWMA3F(BaseChart):
 
         for i, feat in enumerate(features):
             ax = axes[i]
-            color = _color_for(feat, i)
-
             fd = feature_data.get(feat, {})
-            feat_meta = fd.get("metadata", {})
-            if not feat_meta.get("is_valid", False):
-                ax.text(0.5, 0.5, f"{feat} 無資料", ha="center", va="center",
-                        transform=ax.transAxes, fontsize=CHART_FONT_LABEL)
-                ax.set_ylabel(feat, fontsize=CHART_FONT_LABEL)
+            if not fd.get("metadata", {}).get("is_valid", False):
+                self._draw_invalid_feature_panel([ax], feat)
                 continue
-
+            color = feature_line_color(feat, i)
             data = fd.get("data", {})
             stats = fd.get("statistics", {})
             values = data.get("values", [])
@@ -94,12 +86,10 @@ class EWMA3F(BaseChart):
                 if ooc_idx and ooc_vals:
                     ax.scatter(ooc_idx, ooc_vals, color=CHART_OOC, zorder=5, s=25, label="OOC")
 
-            ax.axhline(cl_plot,  color=CHART_CENTERLINE, linestyle="-",  linewidth=1.2,
-                       label=f"CL: {cl:.3g}")
-            ax.axhline(ucl_plot, color=CHART_CONTROL_LIMITS,   linestyle=CHART_LINE_STYLE_SECONDARY, linewidth=1.2,
-                       label=f"UCL: {ucl:.3g}")
-            ax.axhline(lcl_plot, color=CHART_CONTROL_LIMITS,   linestyle=CHART_LINE_STYLE_SECONDARY, linewidth=1.2,
-                       label=f"LCL: {lcl:.3g}")
+            # Labels always carry raw values; only the y position is z-scored.
+            draw_reference_line(ax, cl_plot, f"CL: {cl:.3g}", semantic="centerline")
+            draw_reference_line(ax, ucl_plot, f"UCL: {ucl:.3g}", semantic="control_limit")
+            draw_reference_line(ax, lcl_plot, f"LCL: {lcl:.3g}", semantic="control_limit")
 
             ax.set_ylabel(ylabel, fontsize=CHART_FONT_LABEL)
             ax.tick_params(labelsize=CHART_FONT_TICK)
@@ -107,12 +97,11 @@ class EWMA3F(BaseChart):
             # Hide redundant X-axis labels for non-bottom rows
             ax.label_outer()
 
-        axes[-1].set_xlabel("樣本序 (PCB Run Order)", fontsize=CHART_FONT_LABEL)
-
         title = "三特徵 EWMA 管制圖並列"
         if normalized:
             title += "（Z-score 標準化）"
+        # layout handled by BaseChart
+        axes[-1].set_xlabel("樣本序 (PCB Run Order)", fontsize=CHART_FONT_LABEL)
         axes[0].set_title(title, fontsize=CHART_FONT_TITLE)
-
         self._finish_multi_feature_axes(axes)
         return True

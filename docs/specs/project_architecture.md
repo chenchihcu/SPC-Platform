@@ -166,7 +166,7 @@ docs/
 - **統計引擎**：`app/analytics/*_engine.py`（如 `spc_engine`, `xbar_r_engine`, `ewma_engine`, `cusum_engine` 等）。
 - **異常分析引擎**：`app/analytics/analysis_cards_engine.py` (OOC/Shift/Drift/Outlier)。
 - **知識庫與專家診斷**：`app/analytics/process_diagnosis_engine.py` 串接 `spi_process_kb_loader`。
-- **繪圖實作**：`app/charts/*_chart.py` (基於 Matplotlib)；`app/charts/base_chart.py` 統一收斂 chart presentation semantics（量測線、中心線、管制限、規格限、OOC/OOS marker、latest point、sample disclosure、legend style），確保 UI 與 PPTX chart evidence 走同一視覺語意。3F 並列圖另共用 `BaseChart._prepare_multi_feature_axes()` / `_finish_multi_feature_axes()` 的 payload guard、subplot/style 與 canvas lifecycle；各圖仍自行維護統計線、limit、OOC、標準化與標籤語意。
+- **繪圖實作**：`app/charts/*_chart.py` (基於 Matplotlib)；`app/charts/base_chart.py` 統一收斂 chart presentation semantics（量測線、中心線、管制限、規格限、OOC/OOS marker、latest point、sample disclosure、legend style），確保 UI 與 PPTX chart evidence 走同一視覺語意。3F 並列圖另共用 `BaseChart._prepare_multi_feature_axes()` / `_finish_multi_feature_axes()` 的 payload guard、subplot/style 與 canvas lifecycle；各圖仍自行維護統計線、limit、OOC、標準化與標籤語意；參考線一律走 `draw_reference_line()`（含 `legend=False` 選項），無效特徵列走 `_draw_invalid_feature_panel()`，顯示用 Z-score 縮放集中於 `app/charts/multi_feature_panels.py`（`zscore_scale` / `zscore_value` / `zscore_array`，標籤保留原始值）。抽樣揭露只由 `add_sample_disclosure()` 產生（BaseChart draw wrapper 自動附加；非 BaseChart 的 `NormalityTab` 與 Run Chart 3F 抽樣面板直接呼叫）。空狀態一律經 `_show_placeholder()` → `_placeholder_class_for()`，文案規則「無{對象}資料／{對象}資料不足」、無句號、無英文後綴（`CHART_EMPTY_*` tokens）。
 
 # 7. 報告架構（Engineering / PPTX-only）
 

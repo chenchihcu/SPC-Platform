@@ -33,7 +33,7 @@ class PatternRecognitionChart(BaseChart):
         values = list(data.get("values", []))
         hit_indices = set(data.get("hit_indices", []))
         if not indices or not values:
-            self._show_placeholder("Pattern recognition 資料不足。")
+            self._show_placeholder("型態辨識資料不足")
             return False
 
         if len(values) > _DENSE_SERIES_THRESHOLD:

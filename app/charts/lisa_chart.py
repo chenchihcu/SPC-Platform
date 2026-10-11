@@ -73,7 +73,7 @@ class LisaChart(BaseChart):
                 ]
 
         if not points:
-            self._show_placeholder("無 LISA 空間點位資料。")
+            self._show_placeholder("無 LISA 空間點位資料")
             return False
 
         # Extract per-category point lists

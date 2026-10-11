@@ -5,21 +5,19 @@
 共 3 列 × 2 欄 = 6 個子圖。共用同一 X 軸，以便跨特徵比對失控位置。
 """
 import numpy as np
-from app.charts.base_chart import feature_line_color as _color_for, BaseChart
+from app.charts.base_chart import BaseChart, feature_line_color, draw_reference_line
 from app.ui.theme.tokens import (
     CHART_CENTERLINE,
-    CHART_CONTROL_LIMITS,
-    CHART_LINE_STYLE_SECONDARY,
     CHART_OOC,
     CHART_OOC_MARKER_SIZE,
     CHART_SERIES_MARKER_SIZE,
     CHART_FONT_ANNOTATION,
     CHART_FONT_LABEL,
-    CHART_FONT_MICRO,
     CHART_FONT_TICK)
 from typing import Dict, Any
 
 _MR_D4 = 3.267  # D4 constant for n=2
+_XLABEL = "樣本序 (PCB Run Order)"
 
 
 class IMR3F(BaseChart):
@@ -29,7 +27,7 @@ class IMR3F(BaseChart):
         super().__init__(
             parent,
             title="三特徵 I-MR 管制圖並列 (I-MR 3F)",
-            xlabel="樣本序 (PCB Run Order)",
+            xlabel=_XLABEL,
             ylabel="量測值",
             figsize=(10, 8),
         )
@@ -43,20 +41,12 @@ class IMR3F(BaseChart):
         n = len(features)
 
         for i, feat in enumerate(features):
-            ax_i = axes[i][0]  # Individual chart
-            ax_mr = axes[i][1]  # MR chart
-            color = _color_for(feat, i)
-
             fd = feature_data.get(feat, {})
-            feat_meta = fd.get("metadata", {})
-            if not feat_meta.get("is_valid", False):
-                ax_i.text(0.5, 0.5, f"{feat} 無資料", ha="center", va="center",
-                          transform=ax_i.transAxes, fontsize=CHART_FONT_LABEL)
-                ax_mr.text(0.5, 0.5, "—", ha="center", va="center",
-                           transform=ax_mr.transAxes, fontsize=CHART_FONT_LABEL)
-                ax_i.set_ylabel(feat, fontsize=CHART_FONT_LABEL)
+            if not fd.get("metadata", {}).get("is_valid", False):
+                self._draw_invalid_feature_panel(axes[i], feat)
                 continue
-
+            ax_i, ax_mr = axes[i]  # Individual chart, MR chart
+            color = feature_line_color(feat, i)
             data = fd.get("data", {})
             stats = fd.get("statistics", {})
 
@@ -83,17 +73,9 @@ class IMR3F(BaseChart):
                     _s = CHART_OOC_MARKER_SIZE ** 2 if _n <= 300 else max(3, CHART_OOC_MARKER_SIZE - 4) ** 2
                     ax_i.scatter(ooc_idx, ooc_vals, color=CHART_OOC, s=_s, zorder=5)
 
-            ax_i.axhline(cl,  color=CHART_CENTERLINE,     linestyle="-",  linewidth=1.2)
-            ax_i.axhline(ucl, color=CHART_CONTROL_LIMITS, linestyle=CHART_LINE_STYLE_SECONDARY, linewidth=1.2)
-            ax_i.axhline(lcl, color=CHART_CONTROL_LIMITS, linestyle=CHART_LINE_STYLE_SECONDARY, linewidth=1.2)
-
-            # Annotate limits at right edge
-            x_max = max(indices) if indices else 0
-            for val, name in [(ucl, "UCL"), (lcl, "LCL"), (cl, "CL")]:
-                c = CHART_CENTERLINE if name == "CL" else CHART_CONTROL_LIMITS
-                ax_i.annotate(f"{name} {val:.3g}", xy=(x_max, val),
-                              xytext=(4, 0), textcoords="offset points",
-                              fontsize=CHART_FONT_MICRO, color=c, va="center")
+            draw_reference_line(ax_i, cl, f"CL {cl:.3g}", semantic="centerline")
+            draw_reference_line(ax_i, ucl, f"UCL {ucl:.3g}", semantic="control_limit")
+            draw_reference_line(ax_i, lcl, f"LCL {lcl:.3g}", semantic="control_limit")
 
             ooc_count = len(ooc)
             ax_i.text(0.99, 0.99, f"OOC={ooc_count}", transform=ax_i.transAxes,
@@ -113,19 +95,12 @@ class IMR3F(BaseChart):
                 _mr_msize = CHART_SERIES_MARKER_SIZE if _mr_marker else 0
                 ax_mr.plot(mr_indices, mr_values, marker=_mr_marker, color=color,
                            linestyle="-", markersize=_mr_msize, label="MR")
-                ax_mr.axhline(mr_bar, color=CHART_CENTERLINE,     linestyle="-",  linewidth=1.2)
-                ax_mr.axhline(mr_ucl, color=CHART_CONTROL_LIMITS, linestyle=CHART_LINE_STYLE_SECONDARY, linewidth=1.2)
-                x_max_mr = max(mr_indices) if mr_indices else 0
-                ax_mr.annotate(f"UCL {mr_ucl:.3g}", xy=(x_max_mr, mr_ucl),
-                               xytext=(4, 0), textcoords="offset points",
-                               fontsize=CHART_FONT_MICRO, color=CHART_CONTROL_LIMITS, va="center")
-                ax_mr.annotate(f"CL {mr_bar:.3g}", xy=(x_max_mr, mr_bar),
-                               xytext=(4, 0), textcoords="offset points",
-                               fontsize=CHART_FONT_MICRO, color=CHART_CENTERLINE, va="center")
+                draw_reference_line(ax_mr, mr_bar, f"CL {mr_bar:.3g}", semantic="centerline")
+                draw_reference_line(ax_mr, mr_ucl, f"UCL {mr_ucl:.3g}", semantic="control_limit")
             ax_mr.set_ylabel("MR", fontsize=CHART_FONT_LABEL)
             ax_mr.set_title(f"{feat} — MR 圖", fontsize=CHART_FONT_LABEL)
             ax_mr.tick_params(labelsize=CHART_FONT_TICK)
-            
+
             # Hide redundant X-axis labels for non-bottom rows (Pass 25 audit)
             if i < n - 1:
                 ax_i.tick_params(labelbottom=False)
@@ -133,9 +108,8 @@ class IMR3F(BaseChart):
                 ax_i.set_xlabel("")
                 ax_mr.set_xlabel("")
 
-        # X-axis labels on bottom row only
-        axes[-1][0].set_xlabel("樣本序 (PCB Run Order)", fontsize=CHART_FONT_LABEL)
-        axes[-1][1].set_xlabel("樣本序 (PCB Run Order)", fontsize=CHART_FONT_LABEL)
-
+        # layout handled by BaseChart
+        for bottom_ax in axes[-1]:
+            bottom_ax.set_xlabel(_XLABEL, fontsize=CHART_FONT_LABEL)
         self._finish_multi_feature_axes(axes, columns=2)
         return True

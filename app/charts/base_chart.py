@@ -31,6 +31,8 @@ from app.ui.theme.tokens import (
     CHART_WARNING_MARK,
     CHART_ANNOTATION,
     CHART_LINE_STYLE_SECONDARY,
+    CHART_EMPTY_FEATURE_SUFFIX,
+    CHART_EMPTY_MULTI_FEATURE,
     ERROR_NO_DATA,
     CHART_PALETTE_VOLUME_FILL, CHART_PALETTE_VOLUME_EDGE,
     CHART_PALETTE_AREA_FILL, CHART_PALETTE_AREA_EDGE,
@@ -205,13 +207,19 @@ def draw_reference_line(
     orientation: str = "h",
     semantic: str = "neutral",
     annotate_edge: bool = True,
+    legend: bool = True,
 ) -> Any:
-    """Draw a horizontal or vertical statistical reference line with direct labeling."""
+    """Draw a horizontal or vertical statistical reference line with direct labeling.
+
+    ``legend=False`` keeps the edge label but omits the line from ``ax.legend()``
+    (e.g. the mirrored -hσ line that shares the +hσ legend entry).
+    """
     style = semantic_line_style(semantic)
+    legend_label = label if legend else "_nolegend_"
     if orientation == "v":
-        artist = ax.axvline(value, label=label, **style)
+        artist = ax.axvline(value, label=legend_label, **style)
     else:
-        artist = ax.axhline(value, label=label, **style)
+        artist = ax.axhline(value, label=legend_label, **style)
     if annotate_edge:
         annotate_limit_edge(ax, value, label, orientation=orientation, color=str(style["color"]))
     return artist
@@ -239,11 +247,12 @@ def annotate_limit_edge(
             color=color,
         )
         return
-    x0, x1 = ax.get_xlim()
-    x_edge = x1 if x1 >= x0 else x0
+    # Axes-fraction x keeps the label on the right edge even if a shared X axis
+    # (multi-feature panels) or a later set_xlim() changes the view limits.
     ax.annotate(
         label,
-        xy=(x_edge, value),
+        xy=(1.0, value),
+        xycoords=("axes fraction", "data"),
         xytext=(6, 0),
         textcoords="offset points",
         ha="left",
@@ -350,6 +359,10 @@ def format_sample_disclosure(engine_output: Mapping[str, Any]) -> str:
     tested_total = _first_present(stats, ("total_n", "n"))
     if tested is not None and tested_total is not None:
         parts.append(f"tested={tested}/{tested_total}")
+
+    step = _first_present(stats, ("downsample_step",))
+    if step is not None and str(step) != "1":
+        parts.append(f"step={step}")
 
     aggregation_bins = _first_present(stats, ("aggregation_bins",))
     if aggregation_bins is not None:
@@ -493,11 +506,7 @@ class BaseChart(QWidget):
 
         metadata = engine_output.get("metadata", {})
         if not metadata.get("is_valid", False):
-            error_msg = metadata.get("error", "未知錯誤 / Unknown Error")
-            if metadata.get("incompatible"):
-                error_msg = f"{error_msg} {MSG_NOT_SYSTEM_ERROR}"
-            placeholder_class = self._placeholder_class_for(metadata, error_msg)
-            self._show_placeholder(error_msg, placeholder_class)
+            self._show_invalid_placeholder(metadata)
             return False
 
         self._show_canvas()
@@ -521,13 +530,13 @@ class BaseChart(QWidget):
         self._set_visual_contract_payload(engine_output or {})
         metadata = engine_output.get("metadata", {})
         if not metadata.get("is_valid", False):
-            self._show_placeholder(metadata.get("error", "未知錯誤"))
+            self._show_invalid_placeholder(metadata)
             return None
 
         features = list(engine_output.get("_features", []))
         feature_data = dict(engine_output.get("_feature_data", {}))
         if not features or not feature_data:
-            self._show_placeholder("無多特徵資料")
+            self._show_placeholder(CHART_EMPTY_MULTI_FEATURE)
             return None
 
         if columns < 1:
@@ -547,6 +556,17 @@ class BaseChart(QWidget):
             bool(engine_output.get("_normalized", False)),
             axes,
         )
+
+    @staticmethod
+    def _draw_invalid_feature_panel(row_axes: Sequence[Any], feature: str) -> None:
+        """Mark one multi-feature row whose per-feature payload is not valid."""
+        primary, *extra = row_axes
+        primary.text(0.5, 0.5, f"{feature} {CHART_EMPTY_FEATURE_SUFFIX}", ha="center", va="center",
+                     transform=primary.transAxes, fontsize=CHART_FONT_LABEL)
+        for axis in extra:
+            axis.text(0.5, 0.5, "—", ha="center", va="center",
+                      transform=axis.transAxes, fontsize=CHART_FONT_LABEL)
+        primary.set_ylabel(feature, fontsize=CHART_FONT_LABEL)
 
     def _finish_multi_feature_axes(self, axes: list[Any], *, columns: int = 1) -> None:
         """Finalize the shared multi-feature canvas lifecycle."""
@@ -582,7 +602,23 @@ class BaseChart(QWidget):
             return "chartPlaceholder-error"
         return "chartPlaceholder-empty"
 
-    def _show_placeholder(self, text: str, placeholder_class: str = "chartPlaceholder") -> None:
+    def _show_invalid_placeholder(self, metadata: Mapping[str, Any]) -> None:
+        """Show the placeholder for an ``is_valid=False`` payload (shared by all charts)."""
+        error_msg = str(metadata.get("error") or "未知錯誤")
+        if metadata.get("incompatible"):
+            error_msg = f"{error_msg} {MSG_NOT_SYSTEM_ERROR}"
+        self._show_placeholder(error_msg, metadata=metadata)
+
+    def _show_placeholder(
+        self,
+        text: str,
+        placeholder_class: str | None = None,
+        *,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> None:
+        """Show an empty/error/incompatible state; class defaults to ``_placeholder_class_for``."""
+        if placeholder_class is None:
+            placeholder_class = self._placeholder_class_for(dict(metadata or {}), text)
         self.canvas.hide()
         self.placeholder.setProperty("class", placeholder_class)
         self.placeholder.setText(text)

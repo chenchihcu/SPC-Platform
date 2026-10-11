@@ -4,6 +4,7 @@ import matplotlib.patches as mpatches
 import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
 from app.ui.theme.tokens import (
+    CHART_EMPTY_MULTI_FEATURE,
     CHART_FILL_EDGE,
     CHART_OOC,
     CHART_WARNING_MARK,
@@ -95,10 +96,7 @@ class BoxplotChart(BaseChart):
 
         if not labels or not arrays:
             metadata = engine_output.get("metadata", {})
-            self._show_placeholder(
-                "無有效的群組資料能分析 (Missing Subgroups)",
-                self._placeholder_class_for(metadata, "無資料")
-            )
+            self._show_placeholder("無有效群組資料", metadata=metadata)
             return
 
         n = len(labels)
@@ -177,7 +175,7 @@ class BoxplotChart(BaseChart):
         normalized: bool = engine_output.get("_normalized", False)
 
         if not features or not feature_data:
-            self._show_placeholder("無多特徵資料可顯示")
+            self._show_placeholder(CHART_EMPTY_MULTI_FEATURE)
             return
 
         arrays: list[list] = []
@@ -266,7 +264,7 @@ class BoxplotChart(BaseChart):
         normalized: bool = engine_output.get("_normalized", False)
 
         if not features or not feature_data:
-            self._show_placeholder("無多特徵資料可顯示")
+            self._show_placeholder(CHART_EMPTY_MULTI_FEATURE)
             return
 
         # Reference group labels from first valid feature
@@ -276,7 +274,7 @@ class BoxplotChart(BaseChart):
         n_feats = len(features)
 
         if n_groups == 0:
-            self._show_placeholder("無有效的群組資料 (Missing Subgroups)")
+            self._show_placeholder("無有效群組資料")
             return
 
         total_n = n_groups
