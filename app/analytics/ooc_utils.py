@@ -27,6 +27,18 @@ def count_contiguous_ooc_clusters(indices: Iterable[int]) -> int:
     return clusters
 
 
+def ooc_run_positions(ooc_labels: Iterable[Any], sequence_labels: Iterable[Any]) -> List[int]:
+    """Map OOC index labels to their 0-based positions in the analysed sequence.
+
+    Engines report OOC points by DataFrame index label. Labels are adjacent in
+    run order only when the source file was already sorted, so contiguity must
+    be judged on positions within ``sequence_labels`` (the payload ``indices``,
+    in analysis order). Labels missing from the sequence are dropped.
+    """
+    position = {label: pos for pos, label in enumerate(sequence_labels)}
+    return [position[label] for label in ooc_labels if label in position]
+
+
 def first_group_share(entries: List[Dict[str, Any]], total_oos: int) -> Optional[float]:
     """Return first group's OOS share over total OOS, or None when unavailable."""
     if total_oos <= 0 or not entries:

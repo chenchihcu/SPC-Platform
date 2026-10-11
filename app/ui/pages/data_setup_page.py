@@ -54,6 +54,7 @@ from app.ui.widgets.page_templates import (
     apply_status_accessibility,
     bind_label_to_widget,
     create_status_lamp,
+    set_status,
 )
 from app.ui.widgets.stencil_spec_editor import StencilSpecEditor
 
@@ -107,6 +108,7 @@ class DataSetupPage(QWidget):
     spec_saved = Signal(str)
     manage_specs_requested = Signal()
     manage_stencil_documents_requested = Signal(str)
+    stencil_document_versions_changed = Signal(str)  # product_name
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -324,6 +326,9 @@ class DataSetupPage(QWidget):
         self._stencil_content.manage_documents_requested.connect(
             self.manage_stencil_documents_requested.emit
         )
+        self._stencil_content.document_versions_changed.connect(
+            self.stencil_document_versions_changed.emit
+        )
 
         self._reload_product_options()
         self._reload_supplier_options()
@@ -526,12 +531,7 @@ class DataSetupPage(QWidget):
             self.supplier_input.blockSignals(False)
 
     def _set_lamp_state(self, lamp: QFrame, state: str) -> None:
-        lamp.setProperty("state", state)
-        label = self._status_label_by_lamp.get(lamp)
-        if label is not None:
-            apply_status_accessibility(lamp, label, state=state)
-        lamp.style().unpolish(lamp)
-        lamp.style().polish(lamp)
+        set_status(lamp, self._status_label_by_lamp.get(lamp), state)
 
     def _on_product_changed(self) -> None:
         product = str(self.product_combo.currentData() or "")
@@ -782,6 +782,10 @@ class DataSetupPage(QWidget):
         editor reflects the RefDes available in the newly loaded coordinate file.
         """
         self._stencil_content.refresh_refdes_list()
+
+    def refresh_stencil_document_status(self) -> None:
+        """Refresh the active stencil document summary after a version change elsewhere."""
+        self._stencil_content.refresh_document_status()
 
     def sync_from_store(self, master: dict) -> None:
         """同步工單/產品資訊到 UI 欄位。"""

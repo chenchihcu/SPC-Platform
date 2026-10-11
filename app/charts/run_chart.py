@@ -1,4 +1,5 @@
 from app.charts.base_chart import BaseChart, annotate_latest_point, draw_reference_line, resolve_target_col
+from app.charts.run_order_axis import run_order_x
 from typing import Dict, Any
 from app.ui.theme.tokens import CHART_SERIES, CHART_FONT_LEGEND
 
@@ -28,7 +29,8 @@ class RunChart(BaseChart):
         data = engine_output.get("data", {})
         stats = engine_output.get("statistics", {})
         values = data.get("values", [])
-        indices = data.get("indices", list(range(len(values))))
+        # X = 1-based position in analysis order; payload labels are row ids.
+        indices = run_order_x(len(values))
         center = stats.get("center_line", 0)
         if len(values) > _DENSE_SERIES_THRESHOLD:
             # Dense series: markers-only so oscillation doesn't fill the axis.

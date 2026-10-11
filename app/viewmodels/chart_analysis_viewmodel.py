@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -18,7 +19,7 @@ from app.analytics.anomaly_3f_engine import Anomaly3FEngine
 from app.analytics.consistency_3f_engine import Consistency3FEngine
 from app.analytics.multivariate_spc_engine import MultivariateSPCEngine
 from app.analytics.radar_payload_helper import build_radar_from_dataframe_groups
-from app.analytics.moran_i_engine import MoranIEngine
+from app.analytics.moran_i_engine import DEFAULT_PERMUTATION_SEED, MoranIEngine
 from app.analytics.ewma_engine import EWMAEngine
 from app.analytics.cusum_engine import CUSUMEngine
 from app.analytics.run_chart_engine import RunChartEngine
@@ -49,6 +50,16 @@ SPEC_KEY_BY_COL = {"Volume": "volume", "Area": "area", "Height": "height"}
 SUMMARY_MODE_MANAGER = "manager"
 SUMMARY_MODE_ENGINEER = "engineer"
 SUMMARY_MODES = {SUMMARY_MODE_MANAGER, SUMMARY_MODE_ENGINEER}
+
+
+def _analysis_ordered(df: pd.DataFrame) -> pd.DataFrame:
+    """Return ``df`` in analysis order (time column first, else BoardNo/PanelId).
+
+    Sequence-plotted engines (3F scores, Hotelling T², driver I-MR/EWMA/CUSUM)
+    must see the same ordering as the single-feature path so their X axis is
+    the real run order rather than the file's row order.
+    """
+    return sort_by_order_col(df, detect_order_col(df))
 
 
 def _board_ids_for_cusum(df: pd.DataFrame) -> Optional[pd.Series]:
@@ -208,6 +219,22 @@ def _parse_workorder_spec_entry(spec: Optional[Dict[str, Any]]) -> Optional[Dict
         return None
 
 
+def _annotate_cap_target(cap: Dict[str, Any], target: Optional[float]) -> None:
+    """Record the explicit spec target in capability metadata (histogram target line).
+
+    Only an explicit work-order target is recorded; a (USL+LSL)/2 midpoint is not a
+    spec target and is never written here. Recorded even when Cp/Cpk is not computable
+    (few samples / zero variance): the histogram still renders and the target is a spec
+    reference, not a capability result. Cp/Cpk statistics and validity are untouched.
+    """
+    meta = cap.get("metadata") if isinstance(cap, dict) else None
+    if not isinstance(meta, dict):
+        return
+    if target is None or not math.isfinite(target):
+        return
+    meta["target"] = float(target)
+
+
 def _compute_single_feature_analysis(
     df: pd.DataFrame,
     target_col: str,
@@ -348,6 +375,7 @@ def _build_feature_parameters(
         param_analysis = _compute_single_feature_analysis(filtered_df, col, col_usl, col_lsl)
         param_spc = param_analysis["spc"]
         param_cap = param_analysis["cap"]
+        _annotate_cap_target(param_cap, col_target)
         param_dist = param_analysis["dist"]
         param_spc["analysis_context"] = {"target_col": col, "unit": None}
         param_cap["analysis_context"] = {"target_col": col, "unit": None}
@@ -524,6 +552,7 @@ def _compute_lisa_payload(filtered_df: pd.DataFrame, col: str) -> Dict[str, Any]
             coords_df,
             values_series,
             k=3,
+            seed=DEFAULT_PERMUTATION_SEED,
         )
     except (ValueError, TypeError, AttributeError, KeyError, IndexError, ZeroDivisionError) as e:
         return {"chart_type": "LISA", "data": {}, "statistics": {}, "metadata": {"is_valid": False, "error": f"LISA 計算失敗: {str(e)}"}}
@@ -542,7 +571,7 @@ def _compute_driver_bundle(
     feature plus the four card analyses (OOC/shift/drift/outlier) derived from
     the same bridge payload.
     """
-    series = filtered_df[col].dropna()
+    series = _analysis_ordered(filtered_df)[col].dropna()
     spc = SPCEngine.compute_imr(series, col)
     ewma = EWMAEngine.compute_ewma(series, col)
     cusum = CUSUMEngine.compute_cusum(
@@ -726,6 +755,8 @@ def compute_analysis_payload(
             _cusum_target = (_cusum_spec.get("target") if _cusum_spec else None) or target
             _cusum_usl = (_cusum_spec.get("usl") if _cusum_spec else None) or usl
             _cusum_lsl = (_cusum_spec.get("lsl") if _cusum_spec else None) or lsl
+            # Histogram target line: explicit spec target only (no midpoint/orchestrator fallback).
+            _annotate_cap_target(cap, _cusum_spec.get("target") if _cusum_spec else None)
             if cancel_fn and cancel_fn():
                 raise _AnalysisCancelled()
             cusum = CUSUMEngine.compute_cusum(
@@ -864,6 +895,7 @@ def compute_analysis_payload(
             # Pre-compute triple-feature combination for when user selects all 3 display features.
             triple_parameters: dict[str, Any] = {}
             if len(_feature_cols) == 3:
+                _ordered_df = _analysis_ordered(filtered_df)
                 _spec_by_col = {
                     _c: workorder_spec.get(SPEC_KEY_BY_COL.get(_c, _c.lower()), {}) or {}
                     for _c in _feature_cols
@@ -872,17 +904,17 @@ def compute_analysis_payload(
                     "anomaly_3f": _safe_compute_chart(
                         "Anomaly3F",
                         Anomaly3FEngine.compute_anomaly_3f,
-                        filtered_df, _feature_cols,
+                        _ordered_df, _feature_cols,
                     ),
                     "consistency_3f": _safe_compute_chart(
                         "Consistency3F",
                         Consistency3FEngine.compute_consistency_3f,
-                        filtered_df, cols=_feature_cols,
+                        _ordered_df, cols=_feature_cols,
                     ),
                     "parallel_coord": _safe_compute_chart(
                         "ParallelCoord",
                         ParallelCoordEngine.compute_parallel_coord,
-                        filtered_df, _feature_cols,
+                        _ordered_df, _feature_cols,
                     ),
                     "pass_fail_matrix": _safe_compute_chart(
                         "PassFail",
@@ -892,7 +924,7 @@ def compute_analysis_payload(
                     "hotelling_t2": _safe_compute_chart(
                         "HotellingT2",
                         MultivariateSPCEngine.compute_hotelling_t2,
-                        filtered_df, _feature_cols,
+                        _ordered_df, _feature_cols,
                     ),
                     "radar": _safe_compute_chart(
                         "Radar",
@@ -974,9 +1006,10 @@ def compute_analysis_payload(
                 filtered_df, selected_features, workorder_spec, cancel_fn=cancel_fn
             )
         else:
-            anomaly = Anomaly3FEngine.compute_anomaly_3f(filtered_df, selected_features)
-            consistency = Consistency3FEngine.compute_consistency_3f(filtered_df, cols=selected_features)
-            parallel_coord = ParallelCoordEngine.compute_parallel_coord(filtered_df, selected_features)
+            ordered_df = _analysis_ordered(filtered_df)
+            anomaly = Anomaly3FEngine.compute_anomaly_3f(ordered_df, selected_features)
+            consistency = Consistency3FEngine.compute_consistency_3f(ordered_df, cols=selected_features)
+            parallel_coord = ParallelCoordEngine.compute_parallel_coord(ordered_df, selected_features)
             spec_by_col = {col: workorder_spec.get(SPEC_KEY_BY_COL.get(col, col.lower()), {}) or {} for col in selected_features}
             pass_fail_matrix = PassFailEngine.compute_pass_fail(filtered_df, selected_features, spec_by_col)
             corr_matrix = CorrelationMatrixEngine.compute_matrix(filtered_df, selected_features)
@@ -1024,7 +1057,7 @@ def compute_analysis_payload(
             hotelling_t2 = _safe_compute_chart(
                 "HotellingT2",
                 MultivariateSPCEngine.compute_hotelling_t2,
-                filtered_df, selected_features,
+                ordered_df, selected_features,
             )
             radar = _safe_compute_chart(
                 "Radar",

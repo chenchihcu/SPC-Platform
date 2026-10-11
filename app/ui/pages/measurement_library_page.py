@@ -31,7 +31,6 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QLineEdit,
-    QMessageBox,
     QPushButton,
     QSizePolicy,
     QTableWidget,
@@ -124,9 +123,11 @@ from app.ui.theme.layout_policy import fit_top_level_to_available
 from app.ui.widgets.page_templates import (
     apply_status_accessibility,
     bind_table_delete_shortcut,
+    confirm_action,
     confirm_double_delete,
     create_status_lamp,
     page_margins_and_spacing,
+    set_status,
     setup_compact_title_header,
     style_table,
 )
@@ -783,6 +784,8 @@ class MeasurementLibraryPage(QWidget):
     coordinate_selected = Signal(str)
     #: 使用者選取規格記錄時發出（攜帶產品名稱）。
     spec_selected = Signal(str)
+    #: 開窗文件版本新增 / 啟用 / 停用 / 刪除後發出。
+    stencil_document_versions_changed = Signal()
 
     def _make_search_toolbar(self) -> tuple[QFrame, QHBoxLayout]:
         toolbar = QFrame()
@@ -1092,6 +1095,9 @@ class MeasurementLibraryPage(QWidget):
 
         self._spec_subtabs.addTab(parameter_spec_tab, "參數規格")
         self.stencil_document_manager = StencilDocumentManager()
+        self.stencil_document_manager.versions_changed.connect(
+            self.stencil_document_versions_changed.emit
+        )
         self._spec_subtabs.addTab(self.stencil_document_manager, "開窗文件")
 
         self.tabs.addTab(spec_tab, "規格管理")
@@ -1196,13 +1202,7 @@ class MeasurementLibraryPage(QWidget):
 
     def _set_status_state(self, state: str, message: str) -> None:
         """Update the page-level status lamp and semantic status text together."""
-        self.status_lamp.setProperty("state", state)
-        self.status_text.setText(message)
-        apply_status_accessibility(self.status_lamp, self.status_text, state=state, text=message)
-        self.status_lamp.style().unpolish(self.status_lamp)
-        self.status_lamp.style().polish(self.status_lamp)
-        self.status_text.style().unpolish(self.status_text)
-        self.status_text.style().polish(self.status_text)
+        set_status(self.status_lamp, self.status_text, state, message)
 
     def _apply_uniform_action_button_size(self, *buttons: QPushButton) -> None:
         for btn in buttons:
@@ -1312,6 +1312,10 @@ class MeasurementLibraryPage(QWidget):
             self.stencil_document_manager.set_product_name(product_name)
         else:
             self.stencil_document_manager.refresh()
+
+    def refresh_stencil_documents(self) -> None:
+        """Reload the 開窗文件 list after a version change made on another page."""
+        self.stencil_document_manager.reload()
 
     # ─── Private helpers ──────────────────────────────────────────────────────
 
@@ -1847,14 +1851,7 @@ class MeasurementLibraryPage(QWidget):
         return False
 
     def _on_combined_spec_add_clicked(self) -> None:
-        reply = QMessageBox.question(
-            self,
-            "確認新增規格",
-            "您即將建立新的規格版本，是否確認？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+        if not confirm_action(self, "確認新增規格", "您即將建立新的規格版本，是否確認？"):
             return
         dlg = _EditCombinedSpecDialog(parent=self, is_new=True)
         if dlg.exec() != QDialog.DialogCode.Accepted:
@@ -1897,14 +1894,7 @@ class MeasurementLibraryPage(QWidget):
         row = self._selected_combined_spec_row()
         if not row:
             return
-        reply = QMessageBox.question(
-            self,
-            "確認編輯規格",
-            "您即將修改此產品的規格，這將會建立新的規格版本，是否確認？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+        if not confirm_action(self, "確認編輯規格", "您即將修改此產品的規格，這將會建立新的規格版本，是否確認？"):
             return
         dlg = _EditCombinedSpecDialog(row, parent=self)
         if dlg.exec() != QDialog.DialogCode.Accepted:

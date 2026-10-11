@@ -6,6 +6,7 @@
 """
 import numpy as np
 from app.charts.base_chart import BaseChart, feature_line_color, add_sample_disclosure, draw_reference_line
+from app.charts.run_order_axis import aligned_axis, feature_label_lists, shared_label_positions
 from app.charts.multi_feature_panels import (
     zscore_array,
     zscore_scale,
@@ -43,6 +44,7 @@ class RunChart3F(BaseChart):
         if prepared is None:
             return False
         features, feature_data, normalized, axes = prepared
+        shared = shared_label_positions(feature_label_lists(features, feature_data))
 
         for i, feat in enumerate(features):
             ax = axes[i]
@@ -54,7 +56,8 @@ class RunChart3F(BaseChart):
             data = fd.get("data", {})
             stats = fd.get("statistics", {})
             values = data.get("values", [])
-            indices = data.get("indices", list(range(len(values))))
+            # X = position on the label union shared by all features (sharex axes).
+            indices, _ = aligned_axis(data.get("indices"), len(values), shared)
             center = stats["center_line"] if "center_line" in stats else (float(np.mean(values)) if values else 0)
 
             if normalized and values:

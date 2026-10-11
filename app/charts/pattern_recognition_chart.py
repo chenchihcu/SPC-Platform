@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from app.charts.base_chart import BaseChart, annotate_latest_point, draw_reference_line
+from app.charts.run_order_axis import marker_points, series_axis
 from app.ui.theme.tokens import CHART_OOC, CHART_SERIES, CHART_FONT_ANNOTATION
 
 # Above this many points a full-weight line over oscillating data fills the axis
@@ -29,12 +30,14 @@ class PatternRecognitionChart(BaseChart):
 
         data = engine_output.get("data") or {}
         stats = engine_output.get("statistics") or {}
-        indices = list(data.get("indices", []))
+        labels = list(data.get("indices", []))
         values = list(data.get("values", []))
-        hit_indices = set(data.get("hit_indices", []))
-        if not indices or not values:
+        hit_indices = list(data.get("hit_indices", []))
+        if not labels or not values:
             self._show_placeholder("型態辨識資料不足")
             return False
+        # X = 1-based position in analysis order; labels only locate rule hits.
+        indices, label_pos = series_axis(labels, len(values))
 
         if len(values) > _DENSE_SERIES_THRESHOLD:
             # Dense series: connecting wildly oscillating points fills the axis into a
@@ -44,9 +47,7 @@ class PatternRecognitionChart(BaseChart):
                          marker="o", markersize=1.5, alpha=0.25, label="Series")
         else:
             self.ax.plot(indices, values, color=CHART_SERIES, linewidth=1.2, label="Series")
-        hit_x = [idx for idx in indices if idx in hit_indices]
-        idx_to_pos = {idx: i for i, idx in enumerate(indices)}
-        hit_y = [values[idx_to_pos[idx]] for idx in hit_x]
+        hit_x, hit_y = marker_points(hit_indices, label_pos, values)
         if hit_x:
             self.ax.scatter(hit_x, hit_y, color=CHART_OOC, s=24, zorder=5, label="Rule Hit")
         annotate_latest_point(self.ax, indices, values, label="Latest", color=CHART_SERIES)

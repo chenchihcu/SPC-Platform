@@ -17,6 +17,23 @@ from typing import Dict, Any
 # stays readable, showing an explicit caveat instead.
 _SPEC_VISIBILITY_MIN_FRACTION = 0.05
 _SCALE_MISMATCH_CAVEAT = "【尺度異常】USL/LSL 與資料尺度差距過大，規格線已隱藏以保留分布可讀性"
+_TARGET_OFFSCALE_CAVEAT = "【尺度異常】Target 與資料尺度差距過大，目標線已隱藏（USL/LSL 不受影響）"
+
+
+def _draw_target_line(ax, bin_edges, usl, lsl, target, label: str) -> None:
+    """Draw the spec target line unless the target alone is off-scale.
+
+    Evaluated separately from USL/LSL so an anomalous target never hides valid
+    specification limits; an off-scale target is disclosed instead of dropped silently.
+    """
+    if target is None:
+        return
+    if _spec_would_crush_data(bin_edges, usl, lsl, target):
+        ax.text(0.5, 0.98, _TARGET_OFFSCALE_CAVEAT, transform=ax.transAxes,
+                ha="center", va="top", fontsize=CHART_FONT_MICRO, color=CHART_WARNING_MARK)
+        return
+    # Legend carries the label; an edge label would collide with Mean's.
+    draw_reference_line(ax, target, label, orientation="v", semantic="target", annotate_edge=False)
 
 
 def _spec_would_crush_data(bin_edges, *spec_values) -> bool:
@@ -120,12 +137,15 @@ class HistogramChart(BaseChart):
 
         usl = engine_output.get("usl")
         lsl = engine_output.get("lsl")
+        target = engine_output.get("target")
         if _spec_would_crush_data(bin_edges, usl, lsl):
             # Data and spec on incompatible scales: keep the distribution visible.
             ax.set_xlim(bin_edges[0], bin_edges[-1])
             ax.text(0.5, 0.98, _SCALE_MISMATCH_CAVEAT, transform=ax.transAxes,
                     ha="center", va="top", fontsize=CHART_FONT_MICRO, color=CHART_WARNING_MARK)
         else:
+            if target is not None:
+                _draw_target_line(ax, bin_edges, usl, lsl, target, f"Target: {target:.2f}")
             if usl is not None:
                 draw_reference_line(ax, usl, f"USL: {usl:.2f}", orientation="v", semantic="spec_limit")
             if lsl is not None:
@@ -260,14 +280,18 @@ class HistogramChart(BaseChart):
         draw_reference_line(ax, mean_plot, f"Mean: {mean_val:.3g}", orientation="v", semantic="mean")
         draw_reference_line(ax, median_plot, f"Median: {median_val:.3g}", orientation="v", semantic="median")
 
-        if not normalized and _spec_would_crush_data(bin_edges_plot, usl_plot, lsl_plot, target_plot):
+        if not normalized and _spec_would_crush_data(bin_edges_plot, usl_plot, lsl_plot):
             # Data and spec on incompatible scales (raw mode): keep distribution visible.
             ax.set_xlim(bin_edges_plot[0], bin_edges_plot[-1])
             ax.text(0.5, 0.98, _SCALE_MISMATCH_CAVEAT, transform=ax.transAxes,
                     ha="center", va="top", fontsize=CHART_FONT_MICRO, color=CHART_WARNING_MARK)
         else:
             if target_plot is not None:
-                draw_reference_line(ax, target_plot, f"Target: {target:.3g}", orientation="v", semantic="target")
+                # Z-score mode keeps every line on a shared scale, so only raw mode checks the target.
+                _draw_target_line(
+                    ax, [] if normalized else bin_edges_plot, usl_plot, lsl_plot,
+                    target_plot, f"Target: {target:.3g}",
+                )
             if usl_plot is not None:
                 draw_reference_line(ax, usl_plot, f"USL: {usl:.3g}", orientation="v", semantic="spec_limit")
             if lsl_plot is not None:

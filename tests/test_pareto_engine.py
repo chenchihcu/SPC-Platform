@@ -88,3 +88,30 @@ def test_component_pareto_without_limits_returns_invalid():
         _volume_df(), target_col="Volume"
     )
     assert result["metadata"]["is_valid"] is False
+
+
+def _overlap_df(values: list[float]) -> pd.DataFrame:
+    return pd.DataFrame({"PartType": ["C1"] * len(values), "Volume": values})
+
+
+def test_component_pareto_counts_point_beyond_spec_and_control_once():
+    # 150 is beyond USL and UCL; 125 is beyond UCL only; 100 is normal.
+    result = ParetoEngine.compute_component_pareto(
+        _overlap_df([150.0, 125.0, 100.0]), target_col="Volume",
+        ucl=120.0, lcl=80.0, usl=130.0, lsl=70.0,
+    )
+    comp = result["components"][0]
+    assert comp["abnormal_count"] == 2
+    assert result["data"]["counts"] == [2]
+    assert result["statistics"]["total_abnormal"] == 2
+    assert comp["abnormal_rate"] == 2 / 3
+
+
+def test_component_pareto_counts_point_below_spec_and_control_once():
+    result = ParetoEngine.compute_component_pareto(
+        _overlap_df([50.0, 50.0]), target_col="Volume",
+        ucl=120.0, lcl=80.0, usl=130.0, lsl=70.0,
+    )
+    comp = result["components"][0]
+    assert comp["abnormal_count"] == 2
+    assert 0.0 <= comp["abnormal_rate"] <= 1.0

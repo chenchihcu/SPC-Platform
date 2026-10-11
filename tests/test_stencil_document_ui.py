@@ -13,7 +13,11 @@ from shapely.geometry import box
 
 from app.data import master_data_db
 from app.data.coordinate_registry import register
-from app.data.stencil_document_library import create_stencil_document_version
+from app.data.stencil_document_library import (
+    create_stencil_document_version,
+    deactivate_stencil_document_version,
+    list_stencil_document_versions,
+)
 from app.services.stencil_document_service import PARSER_VERSION
 from app.services.stencil_aperture_loader import ApertureLoadResult
 from app.services.stencil_document_service import ImportAnalysis
@@ -266,3 +270,65 @@ def test_document_manager_supports_multi_selection_and_safe_delete_shortcut(
         assert "兩次確認" in manager.delete_button.toolTip()
     finally:
         manager.close()
+
+
+def _add_bottom_version() -> None:
+    source = list_stencil_document_versions()[0]
+    create_stencil_document_version(
+        product_name="P1",
+        stencil_no="ST-002",
+        revision="B",
+        side="BOTTOM",
+        gerber_source=source["gerber_path"],
+        pad_csv_source=source["pad_csv_path"],
+        coordinate_transform={"rotation_deg": 0, "mirrored": False, "scale": 1.0},
+        validation_summary=dict(source["validation_summary"]),
+        parser_version=PARSER_VERSION,
+        nominals=[
+            {
+                "refdes": "U1",
+                "pad": "01",
+                "side": "BOTTOM",
+                "opening_count": 1,
+                "nominal_area_mm2": 0.18,
+                "resolved_thickness_mm": 0.06,
+                "nominal_volume_mm3": 0.0108,
+                "match_status": "MATCHED",
+                "preview_geometry": {},
+            }
+        ],
+        activate=True,
+    )
+
+
+def test_main_window_syncs_both_stencil_document_views_on_version_change(
+    isolated_master_db: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A version change on either page refreshes the other page's stencil document view."""
+    _app()
+    _active_version(tmp_path)
+    import app.ui.main_window as main_window_module
+
+    monkeypatch.setattr(main_window_module, "ensure_window_visible", lambda *a, **k: True)
+    monkeypatch.setattr(main_window_module, "fit_top_level_to_available", lambda *a, **k: True)
+    window = main_window_module.MainWindow()
+    try:
+        editor = window.pages["資料"]._stencil_editor
+        manager = window.pages["量測庫"].stencil_document_manager
+        editor.set_selected_product("P1")
+        editor.load_selected_product_spec()
+        assert manager.table.rowCount() == 1
+
+        # 資料頁載入新版本 → 量測庫 > 開窗文件 清單同步
+        _add_bottom_version()
+        editor._on_document_version_created("P1")
+        assert manager.table.rowCount() == 2
+
+        # 量測庫停用版本 → 資料頁開窗文件摘要同步
+        top = next(row for row in list_stencil_document_versions() if row["side"] == "TOP")
+        assert "Top Rev A" in editor.document_status_lbl.text()
+        assert deactivate_stencil_document_version(top["id"])
+        manager._after_change()
+        assert "Top 未啟用" in editor.document_status_lbl.text()
+    finally:
+        window.close()

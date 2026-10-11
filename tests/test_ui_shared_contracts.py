@@ -5,10 +5,10 @@ from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QAbstractItemView, QFrame, QPushButton, QTableWidget, QTableWidgetItem
+from PySide6.QtWidgets import QApplication, QAbstractItemView, QFrame, QLabel, QMessageBox, QPushButton, QTableWidget, QTableWidgetItem
 
 from app.ui.pages.coordinate_manager_page import CoordinateManagerPage
 from app.ui.pages.reference_page import ReferencePage
@@ -21,8 +21,12 @@ from app.ui.theme.dark_stylesheet import get_app_stylesheet
 from app.ui.theme.tokens import SECONDARY_TAB_COMPACT_MIN_WIDTH
 from app.ui.widgets.page_templates import (
     bind_table_delete_shortcut,
+    confirm_action,
+    confirm_double_delete,
+    create_status_lamp,
     empty_state_label,
     set_drop_zone_active,
+    set_status,
     style_table,
 )
 from app.ui.workflow_labels import VISIBLE_WORKFLOW_TABS, WORKFLOW_LABEL_CHARTS, WORKFLOW_LABEL_STATISTICS_DATA
@@ -47,6 +51,78 @@ def test_shared_drop_zone_active_state_contract() -> None:
     set_drop_zone_active(frame, False)
     assert frame.property("state") == ""
     frame.close()
+
+
+def test_set_status_normalizes_alias_and_syncs_label() -> None:
+    _ensure_app()
+    lamp = create_status_lamp()
+    label = QLabel("舊文字")
+
+    assert set_status(lamp, label, "ok", "已匯出") == "success"
+    assert lamp.property("state") == "success"
+    assert label.property("state") == "success"
+    assert label.text() == "已匯出"
+    assert "狀態：已就緒" in label.accessibleDescription()
+
+    # text=None keeps the current label text; label=None updates only the lamp.
+    set_status(lamp, label, "warning")
+    assert label.text() == "已匯出"
+    assert label.property("state") == "warning"
+    set_status(lamp, None, "loading")
+    assert lamp.property("state") == "loading"
+
+
+_PENDING_DIALOG_ANSWERS: list[object] = []
+
+
+def _answer_next_confirm(button_text: str) -> None:
+    """Click button_text on the next visible QMessageBox (polls until shown)."""
+
+    def _click() -> None:
+        for widget in QApplication.topLevelWidgets():
+            if isinstance(widget, QMessageBox) and widget.isVisible():
+                for btn in widget.buttons():
+                    if btn.text() == button_text:
+                        btn.click()
+                        return
+        QTimer.singleShot(10, _click)
+
+    # Keep the closure alive until the dialog is answered.
+    _PENDING_DIALOG_ANSWERS.append(_click)
+    QTimer.singleShot(0, _click)
+
+
+def test_confirm_action_uses_localized_buttons_and_cancel_default() -> None:
+    _ensure_app()
+    seen: dict[str, object] = {}
+
+    def _inspect_then_cancel() -> None:
+        for widget in QApplication.topLevelWidgets():
+            if isinstance(widget, QMessageBox) and widget.isVisible():
+                seen["buttons"] = sorted(b.text() for b in widget.buttons())
+                default = widget.defaultButton()
+                seen["default"] = default.text() if default is not None else None
+                widget.reject()
+                return
+        QTimer.singleShot(10, _inspect_then_cancel)
+
+    QTimer.singleShot(0, _inspect_then_cancel)
+    assert confirm_action(None, "確認", "測試") is False
+    assert seen["buttons"] == sorted(["確認", "取消"])
+    assert seen["default"] == "取消"
+
+    _answer_next_confirm("確認")
+    assert confirm_action(None, "確認", "測試") is True
+
+
+def test_confirm_double_delete_requires_both_confirmations() -> None:
+    _ensure_app()
+    _answer_next_confirm("取消")
+    assert confirm_double_delete(None, "刪除？") is False  # type: ignore[arg-type]
+
+    _answer_next_confirm("確認")
+    QTimer.singleShot(50, lambda: _answer_next_confirm("取消"))
+    assert confirm_double_delete(None, "刪除？") is False  # type: ignore[arg-type]
 
 
 def test_coordinate_and_measurement_drop_zones_use_active_state() -> None:

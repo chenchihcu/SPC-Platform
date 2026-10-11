@@ -6,7 +6,18 @@
 - Scope: `app/charts/*`、`app/ui/tabs/normality_tab.py`、`app/ui/theme/tokens.py`、`tests/test_chart_reference_and_empty_states.py`、`docs/specs/project_architecture.md`、本條。純視覺；不改公式、管制界限、payload 語意（`docs/governance/SPC_RULES.md`）。
 - Verification: 3F 四圖 × raw/Z-score（含 board_summary、engine `normalize_mean/std`）共 8 案例，重構前後所有 line/collection 數值逐位元相同；chart pytest、validation matrix --quick 129/129、qt_audit、check_launch 通過；1F vs 3F IMR 原生截圖（100/125/150% scale）。
 - Risk: 3F 零線樣式改為 `neutral` 語意（色／線寬微調）；Run Chart 3F 中心線由虛線改實線以對齊 1F；抽樣揭露位置由左上移至左下。
+- Merge note: 與 #8（run-order 軸）合併時，X 位置一律沿用 `app/charts/run_order_axis.py`（`aligned_axis` / `marker_points` / `mr_positions` / `shared_label_positions`），本條只替換參考線、Z-score、抽樣揭露與空狀態的呈現。
 - Rollback: 回退本條所列檔案即可。
+
+## 2026-10-11 Component Pareto 異常點聯集計數
+
+- Decision: `ParetoEngine.compute_component_pareto` 的異常判定由加總（`oos + >UCL + <LCL`）改為聯集（`oos | >UCL | <LCL`），每點最多計一次；規則先寫入 `docs/governance/SPC_RULES.md` §16.1（spec-first，使用者核准）。
+- Scope: `app/analytics/pareto_engine.py`、`CHART_DESCRIPTIONS["pareto"]`（`app/analytics/chart_registry.py`）、`SPC_RULES.md` §16.1、`tests/test_pareto_engine.py`。
+- Reason: 2026-10-10 稽核發現同時超出 USL 與 UCL 的點被計兩次，高估 bar 高度與累積 %、可能改變 vital-few 排序，且 `abnormal_rate` 可大於 1（PPTX「TOP 異常元件」可能顯示 >100%）。
+- Impact: payload 形狀不變；重疊點所在群組的 `abnormal_count` / `total_abnormal` / `abnormal_rate` / `cumulative_pct` 下降，`abnormal_rate ∈ [0,1]`。預設 PartType 與 Pad/ImageID 變體同步生效。consumer（UI 圖表、PPTX、evidence matrix、report_*）經 parity review 無依賴舊語意。
+- Verification: 見 PR 描述（重疊點測試先紅後綠、real DB session 5 獨立重算、matrix quick、ruff/mypy/pytest/check_launch）。
+- Risk: 單邊規格（只有 USL 或 LSL）且無管制界線時結果 valid 但計數全 0、viewmodel `(usl and lsl)` 真值判斷，均為既有行為，列入 `docs/open-questions.md` #13。
+- Rollback: 回退上述四個檔案；不涉及 schema、migration 或持久資料。
 
 ## 2026-10-10 Density PNG Baseline: Refresh and Pin to matplotlib Version
 

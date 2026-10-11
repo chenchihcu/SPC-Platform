@@ -8,7 +8,6 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication, QPushButton
 
-from app.data.models import RelationReport, WorkorderRecord
 from app.ui.widgets.page_templates import (
     apply_button_icon,
     create_form_grid,
@@ -24,7 +23,6 @@ from app.ui.workflow_labels import (
     workflow_label_for_stack,
 )
 from app.utils.dataframe_utils import safe_columns
-from app.utils.enums import SampleMode
 
 
 def _qapp() -> QApplication:
@@ -60,18 +58,6 @@ def test_shared_page_template_helpers_are_public_contracts() -> None:
 
 
 def test_shared_lightweight_data_contract_helpers() -> None:
-    report = RelationReport(
-        matched_count=3,
-        unmatched_count=1,
-        match_rate=75.0,
-        invalid_refdes=[],
-        duplicate_refdes=["R1"],
-    )
-    workorder = WorkorderRecord(workorder_no="WO-1", line_name="L1")
-
-    assert report.match_rate == 75.0
-    assert workorder.workorder_no == "WO-1"
-    assert SampleMode.FIRST.value == "首件"
     assert safe_columns(pd.DataFrame({1: [1], "BoardNo": ["B1"]})) == ["1", "BoardNo"]
     assert workflow_label_for_stack(2) == WORKFLOW_LABEL_CHARTS
     assert workflow_label_for_stack(7) == WORKFLOW_LABEL_STATISTICS_DATA

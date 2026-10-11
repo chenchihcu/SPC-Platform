@@ -18,7 +18,7 @@ from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QShowEvent
 from app.data.session_store import SessionStore
 from app.utils.constants import FEATURE_DISPLAY_NAMES
-from app.ui.widgets.page_templates import page_margins_and_spacing, create_status_lamp
+from app.ui.widgets.page_templates import page_margins_and_spacing, create_status_lamp, set_status
 from app.ui.theme.tokens import (
     SPACING_XXS,
     SPACING_4,
@@ -250,13 +250,7 @@ class ReportExportPage(QWidget):
         self._refresh_group_counts()
 
     def _set_report_lamp(self, state: str, text: str) -> None:
-        self._report_lamp.setProperty("state", state)
-        self._report_lamp.style().unpolish(self._report_lamp)
-        self._report_lamp.style().polish(self._report_lamp)
-        self._report_status_lbl.setText(text)
-        self._report_status_lbl.setProperty("state", state)
-        self._report_status_lbl.style().unpolish(self._report_status_lbl)
-        self._report_status_lbl.style().polish(self._report_status_lbl)
+        set_status(self._report_lamp, self._report_status_lbl, state, text)
 
     def _update_chart_checkboxes_availability(self):
         store = SessionStore()

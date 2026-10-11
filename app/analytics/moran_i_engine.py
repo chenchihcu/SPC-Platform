@@ -26,6 +26,9 @@ from scipy.spatial import KDTree  # type: ignore[import-untyped]
 
 _DEFAULT_K = 3          # default K-nearest neighbours
 _N_PERMUTATIONS = 999   # Monte Carlo permutations for p-value
+# Fixed RNG seed so permutation p-values (and LISA classes) are reproducible
+# across runs on identical input. Pass ``seed=None`` for fresh entropy.
+DEFAULT_PERMUTATION_SEED = 20261010
 
 
 def _sanitise(data: pd.Series) -> np.ndarray:
@@ -88,6 +91,7 @@ class MoranIEngine:
         *,
         k: int = _DEFAULT_K,
         permutations: int = _N_PERMUTATIONS,
+        seed: int | None = DEFAULT_PERMUTATION_SEED,
     ) -> Dict[str, Any]:
         """Compute Global Moran's I with Monte Carlo p-value.
 
@@ -97,6 +101,8 @@ class MoranIEngine:
         values : Series of measurement values.
         k : number of nearest neighbours for spatial weights (default 3).
         permutations : Monte Carlo permutations for pseudo p-value (default 999).
+        seed : RNG seed for the permutation test (default fixed constant, so
+            identical input yields identical p-values; None = non-deterministic).
 
         Returns
         -------
@@ -146,7 +152,7 @@ class MoranIEngine:
 
         # ---- Monte Carlo p-value ----
         I_rand = np.empty(permutations, dtype=float)
-        rng = default_rng()
+        rng = default_rng(seed)
         for p in range(permutations):
             z_shuffled = rng.permutation(z)
             numer_p = 0.0
@@ -190,6 +196,7 @@ class MoranIEngine:
         *,
         k: int = _DEFAULT_K,
         permutations: int = _N_PERMUTATIONS,
+        seed: int | None = DEFAULT_PERMUTATION_SEED,
     ) -> Dict[str, Any]:
         """Compute Local Moran's I (LISA) with significance flags.
 
@@ -198,7 +205,7 @@ class MoranIEngine:
 
         Parameters
         ----------
-        coords, values, k, permutations : same as compute_global_moran_i.
+        coords, values, k, permutations, seed : same as compute_global_moran_i.
 
         Returns
         -------
@@ -303,7 +310,7 @@ class MoranIEngine:
         lag_sum = np.sum(z[neighbour_idx], axis=1)
         abs_lag_sum = np.abs(lag_sum)
         n_extreme = np.zeros(n, dtype=int)
-        rng = default_rng()
+        rng = default_rng(seed)
 
         for _ in range(permutations):
             z_shuffled = rng.permutation(z)

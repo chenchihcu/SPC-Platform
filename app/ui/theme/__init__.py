@@ -96,6 +96,11 @@ def show_dark_information(parent, title: str, text: str) -> None:
     _show_dark_message(parent, title, text, QMessageBox.Icon.Information)
 
 
+def show_dark_critical(parent, title: str, text: str) -> None:
+    """Show a dark-themed critical (error) message box."""
+    _show_dark_message(parent, title, text, QMessageBox.Icon.Critical)
+
+
 # Re-export for convenience
 __all__ = [
     "apply_dark_theme",

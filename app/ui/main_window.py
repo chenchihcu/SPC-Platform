@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, cast
 _log = logging.getLogger(__name__)
 _log.setLevel(logging.WARNING)
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QSplitter, QTabWidget, QMessageBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QSplitter, QTabWidget
 from PySide6.QtGui import QKeySequence, QShortcut, QFont
 from PySide6.QtCore import QSettings, QByteArray, QTimer, QThread, Signal
 from shiboken6 import Shiboken
@@ -236,6 +236,13 @@ class MainWindow(QMainWindow):
             measurement_library_page.measurement_selected.connect(self._on_meas_loaded_from_library)
         measurement_library_page.coordinate_selected.connect(self._on_coord_loaded_from_library)
         measurement_library_page.spec_selected.connect(self._on_product_name_selected)
+        # 開窗文件版本變更：兩個入口（資料頁鋼板規格 / 量測庫 > 開窗文件）互相刷新
+        self.pages["資料"].stencil_document_versions_changed.connect(
+            lambda _product: measurement_library_page.refresh_stencil_documents()
+        )
+        measurement_library_page.stencil_document_versions_changed.connect(
+            self.pages["資料"].refresh_stencil_document_status
+        )
 
         self._splitter.addWidget(self.collapsible_sidebar)
         self._splitter.addWidget(self.workspace)
@@ -260,7 +267,6 @@ class MainWindow(QMainWindow):
         self.chart_vm.data_ready.connect(self.pages["診斷"].update_hints)
         self.chart_vm.error_occurred.connect(self._on_analysis_error)
         self.chart_vm.summary_mode_changed.connect(self.pages["圖表"].set_summary_mode)
-        self.pages["圖表"].summary_mode_changed.connect(self.chart_vm.set_summary_mode)
         self.chart_vm.set_summary_mode(self.chart_vm.summary_mode)
 
 
@@ -745,36 +751,16 @@ class MainWindow(QMainWindow):
         store = SessionStore()
         next_name = PAGE_NAMES[next_idx]
 
-        from app.ui.theme import apply_dark_palette_to_message_box
+        from app.ui.widgets.page_templates import confirm_action
         if next_name == "圖表":
             coord_ok = store.coord_meta.get("is_valid", False)
             if not coord_ok:
-                mb = QMessageBox(
-                    QMessageBox.Icon.Question,
-                    "提醒",
-                    "尚未載入座標，空間分析將無法使用。是否仍要繼續？",
-                    QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
-                    self,
-                )
-                mb.setDefaultButton(QMessageBox.StandardButton.Cancel)
-                apply_dark_palette_to_message_box(mb)
-                reply = mb.exec()
-                if reply != QMessageBox.StandardButton.Ok:
+                if not confirm_action(self, "提醒", "尚未載入座標，空間分析將無法使用。是否仍要繼續？"):
                     return
         elif next_name == "報告":
             rate = store.relation_meta.get("match_rate", 0.0)
             if rate >= 0 and rate < 90:
-                mb = QMessageBox(
-                    QMessageBox.Icon.Question,
-                    "提醒",
-                    "關聯成功率偏低，報告中的空間資訊可能不完整。是否仍要繼續？",
-                    QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
-                    self,
-                )
-                mb.setDefaultButton(QMessageBox.StandardButton.Cancel)
-                apply_dark_palette_to_message_box(mb)
-                reply = mb.exec()
-                if reply != QMessageBox.StandardButton.Ok:
+                if not confirm_action(self, "提醒", "關聯成功率偏低，報告中的空間資訊可能不完整。是否仍要繼續？"):
                     return
 
         self._apply_next_step(next_idx)

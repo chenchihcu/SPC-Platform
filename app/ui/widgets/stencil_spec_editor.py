@@ -13,12 +13,12 @@ from PySide6 import QtWidgets
 from PySide6.QtWidgets import (
     QWidget, QLineEdit,
     QComboBox, QPushButton, QLabel, QCheckBox, QFrame, QSizePolicy,
-    QScrollArea, QBoxLayout, QMessageBox,
+    QScrollArea, QBoxLayout,
 )
 from PySide6.QtCore import Signal, Qt
 
 from app.ui.theme import stabilize_minimum_height
-from app.ui.widgets.page_templates import form_field_row
+from app.ui.widgets.page_templates import confirm_action, form_field_row
 from app.ui.theme.tokens import (
     SPACING_16,
     SPACING_12,
@@ -693,14 +693,11 @@ class StencilSpecEditor(QWidget):
         # Spec Alteration Safety (AGENTS.md): saving writes a NEW version row
         # into the stencil/paste spec libraries, so confirm before committing —
         # same barrier as the combined-spec flows in measurement_library_page.
-        reply = QMessageBox.question(
+        if not confirm_action(
             self,
             "確認儲存規格",
             f"您即將為「{product_name}」建立新的規格版本並設為現用，是否確認？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+        ):
             return
         # Control-limit fields only exist in embedded mode; fall back to
         # sensible defaults when running as a standalone (non-embedded) widget.

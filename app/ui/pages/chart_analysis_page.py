@@ -207,7 +207,6 @@ class _DetailsHintWorker(QThread):
 
 class ChartAnalysisPage(QWidget):
     pareto_component_selected = Signal(str)
-    summary_mode_changed = Signal(str)  # emitted when user toggles manager/engineer mode
 
     _LOGICAL_TO_COL = {"height": "Height", "area": "Area", "volume": "Volume"}
     _FEATURE_COMBINATION_NAMES = {
@@ -479,10 +478,6 @@ class ChartAnalysisPage(QWidget):
         label = QLabel(text)
         label.setProperty("class", "statusIndicator")
         return label
-
-    def _on_mode_clicked(self, mode: str) -> None:
-        self.set_summary_mode(mode)
-        self.summary_mode_changed.emit(mode)
 
     def set_summary_mode(self, mode: str) -> None:
         """Switch the chart summary display mode (e.g. table / chart / split)."""
