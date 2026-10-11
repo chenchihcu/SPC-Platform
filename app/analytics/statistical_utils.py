@@ -89,6 +89,41 @@ class StatisticalUtils:
         """
         return data.diff().abs()
 
+    @staticmethod
+    def within_subgroup_mr_bar(
+        valid_data: pd.Series, subgroup_ids: Optional[pd.Series]
+    ) -> Tuple[float, str, int]:
+        """Pooled within-subgroup MR̄ shared by I-MR and Cp/Cpk (SPC_RULES §4).
+
+        Returns ``(mr_bar, sigma_basis, mr_boundary_excluded)``. When
+        ``subgroup_ids`` (board/panel, aligned by index) is usable, moving
+        ranges are taken WITHIN each subgroup and pooled; consecutive pairs whose
+        subgroup id changes (or is missing) are boundary MRs, excluded from MR̄
+        and counted. Otherwise falls back to the whole-series MR̄
+        (``sigma_basis="whole_series"``, 0 excluded).
+        """
+        # reindex() raises on duplicate labels; without a unique index the
+        # subgroup alignment is ambiguous, so use the whole-series fallback.
+        if (
+            subgroup_ids is not None
+            and subgroup_ids.index.is_unique
+            and valid_data.index.is_unique
+        ):
+            aligned = subgroup_ids.reindex(valid_data.index)
+            if aligned.notna().any():
+                within_mr = [
+                    StatisticalUtils.calculate_moving_range(grp).dropna()
+                    for _, grp in valid_data.groupby(aligned, sort=False)
+                ]
+                pooled = pd.concat(within_mr) if within_mr else pd.Series(dtype=float)
+                if not pooled.empty:
+                    ids = aligned.to_numpy(dtype=object)
+                    same = pd.notna(ids[1:]) & pd.notna(ids[:-1]) & (ids[1:] == ids[:-1])
+                    return float(pooled.mean()), "within_subgroup", int((~same).sum())
+        # Fallback: whole-series moving range (no rational subgroups available).
+        mr_bar = float(StatisticalUtils.calculate_moving_range(valid_data).mean())
+        return mr_bar, "whole_series", 0
+
 
 def get_dot_nested_value(data, path, default=None):
     """
