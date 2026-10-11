@@ -300,7 +300,7 @@ CHART_DESCRIPTIONS: Dict[str, Dict[str, str]] = {
         "smt_interpretation_text": "可協助鎖定反覆超規的元件位號，利於鋼板開孔或貼片位置改善。",
     },
     "histogram_spec": {
-        "definition_text": "量測值分布直方圖與規格界線（USL/LSL），用於觀察分布形態與規格符合度。",
+        "definition_text": "量測值分布直方圖與規格界線（USL/LSL），用於觀察分布形態與規格符合度；工單規格設有目標值時另畫 Target 線（未設定則不畫，不以規格中點代替）。",
         "formula_text": "直方圖為 30 區間次數分布，常態曲線用樣本標準差。Cp = (USL−LSL)/(6σ_within)，Cpk = min((USL−μ)/(3σ_within), (μ−LSL)/(3σ_within))；σ_within = 板內 MR̄ 合併 / 1.128。Pp/Ppk 改用整體標準差（ddof=1）。圖上單特徵顯示 Cpk，多特徵顯示 Cpk 與 Ppk。",
         "data_source_text": "一至三個量測特徵（選定頁可複選）；各特徵需同時具備 USL 與 LSL 才計算能力指標；鋼板模式下 Volume/Area/Height 為相對開窗標稱值之百分比。",
         "smt_interpretation_text": "可判讀錫膏量／高度／面積的分布是否居中、是否偏規格、是否有雙峰或偏態。",
@@ -811,6 +811,7 @@ def get_payload_slice(payload: Dict[str, Any], chart_id: str) -> Any:
             meta = cap.get("metadata", {})
             result["usl"] = meta.get("usl")
             result["lsl"] = meta.get("lsl")
+            result["target"] = meta.get("target")
             result.setdefault("analysis_context", {})
             if cap.get("analysis_context"):
                 result["analysis_context"] = cap["analysis_context"]

@@ -57,6 +57,7 @@ class DistributionCapabilityTab(QWidget):
             meta = cap_json.get("metadata", {})
             combined["usl"] = meta.get("usl")
             combined["lsl"] = meta.get("lsl")
+            combined["target"] = meta.get("target")
         ctx = combined.get("analysis_context", {})
         desc_ctx = {"target_col": ctx.get("target_col")}
         self.lbl_desc.setText(format_chart_description_compact("histogram_spec", desc_ctx))
